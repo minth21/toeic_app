@@ -7,50 +7,57 @@ class AppConstants {
 }
 
 class AppColors {
-  // Primary Colors - Xanh nhạt hiện đại (Modern Light Blue)
-  static const Color primary = Color(
-    0xFF42A5F5,
-  ); // Light Blue (Material Blue 400)
-  static const Color primaryDark = Color(0xFF1976D2); // Medium Blue
-  static const Color primaryLight = Color(0xFF90CAF9); // Very Light Blue
+  // Primary Colors - Đồng bộ với Web Admin (Dark Blue)
+  static const Color primary = Color(0xFF1E40AF); // Blue 800 - Premium Blue
+  static const Color primaryDark = Color(0xFF1E3A8A); // Blue 900
+  static const Color primaryLight = Color(0xFF3B82F6); // Blue 500
 
-  // Secondary/Accent Colors - Cam nhấn
-  static const Color accent = Color(0xFFFF6F00); // Deep Orange
-  static const Color accentDark = Color(0xFFC43E00);
-  static const Color accentLight = Color(0xFFFF9E40);
+  // Secondary/Accent Colors
+  static const Color accent = Color(0xFFF59E0B); // Amber 500
+  static const Color accentDark = Color(0xFFD97706);
+  static const Color accentLight = Color(0xFFFBBF24);
 
   // Background Colors
-  static const Color background = Color(0xFFF8F9FA); // Light gray
+  static const Color background = Color(
+    0xFFF8FAFC,
+  ); // Slate 50 (Sync with Admin)
   static const Color surface = Color(0xFFFFFFFF);
   static const Color cardBackground = Color(0xFFFFFFFF);
 
   // Text Colors
-  static const Color textPrimary = Color(0xFF1A1A1A);
-  static const Color textSecondary = Color(0xFF666666);
-  static const Color textHint = Color(0xFF999999);
+  static const Color textPrimary = Color(0xFF0F172A); // Slate 900
+  static const Color textSecondary = Color(0xFF475569); // Slate 600
+  static const Color textHint = Color(0xFF94A3B8); // Slate 400
   static const Color textOnPrimary = Color(0xFFFFFFFF);
 
   // Status Colors
-  static const Color success = Color(0xFF2E7D32); // Dark Green
-  static const Color error = Color(0xFFC62828); // Dark Red
-  static const Color warning = Color(0xFFF57C00); // Orange
-  static const Color info = Color(0xFF1976D2); // Blue
+  static const Color success = Color(0xFF10B981); // Emerald 500
+  static const Color error = Color(0xFFEF4444); // Red 500
+  static const Color warning = Color(0xFFF59E0B); // Amber 500
+  static const Color info = Color(0xFF3B82F6); // Blue 500
 
   // Other
-  static const Color divider = Color(0xFFE0E0E0);
-  static const Color disabled = Color(0xFFBDBDBD);
+  static const Color divider = Color(0xFFE2E8F0); // Slate 200
+  static const Color disabled = Color(0xFFCBD5E1); // Slate 300
 
   // Gradient Colors
   static const LinearGradient primaryGradient = LinearGradient(
-    colors: [Color(0xFF42A5F5), Color(0xFF1976D2)], // Light to Medium Blue
+    colors: [Color(0xFF1E40AF), Color(0xFF1E3A8A)], // Blue 800 to 900
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
+
+  // Dark Mode Colors
+  static const Color darkBackground = Color(0xFF121212);
+  static const Color darkSurface = Color(0xFF1E1E1E);
+  static const Color darkTextPrimary = Color(0xFFE2E8F0);
+  static const Color darkTextSecondary = Color(0xFF94A3B8);
+  static const Color darkCardBackground = Color(0xFF1E1E1E);
 }
 
 class AppStrings {
   // App
-  static const String appName = 'TOEIC Practice';
+  static const String appName = 'TOEIC - TEST';
 
   // Auth
   static const String login = 'Đăng nhập';

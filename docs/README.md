@@ -1,6 +1,6 @@
-# 📚 TOEIC Practice App - Documentation
+# 📚 TOEIC-TEST App - Documentation
 
-Tài liệu hướng dẫn cho dự án TOEIC Practice App (Flutter + Express Backend)
+Tài liệu hướng dẫn cho dự án TOEIC-TEST App (Flutter + Express Backend)
 
 ---
 

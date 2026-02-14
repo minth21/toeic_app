@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "112210310564",
+    "project_id": "fir-auth-cf9e8",
+    "storage_bucket": "fir-auth-cf9e8.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:112210310564:android:3e60cf37464cbb3a38bd31",
+        "android_client_info": {
+          "package_name": "com.toeic_test_app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "112210310564-flqgngs8js9dgahft8tvp4pdmhpkgmsc.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.toeic_test_app",
+            "certificate_hash": "c0e2869ff01731ddf412a2b8a0791d8f23e21d6a"
+          }
+        },
+        {
+          "client_id": "112210310564-j3r1bsrtohpb30d53vfao2kp7knchfrl.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBEV7bG7YZpGu0gMbByMdXQxwt70Q4T0cI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "112210310564-j3r1bsrtohpb30d53vfao2kp7knchfrl.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -3,13 +3,13 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../constants/app_constants.dart';
 
 class LevelSelectionDialog extends StatefulWidget {
-  final int? currentLevel;
-  final Function(int) onLevelSelected;
+  final String? currentDifficulty;
+  final Function(String) onDifficultySelected;
 
   const LevelSelectionDialog({
     super.key,
-    this.currentLevel,
-    required this.onLevelSelected,
+    this.currentDifficulty,
+    required this.onDifficultySelected,
   });
 
   @override
@@ -17,54 +17,38 @@ class LevelSelectionDialog extends StatefulWidget {
 }
 
 class _LevelSelectionDialogState extends State<LevelSelectionDialog> {
-  int? _selectedLevel;
+  String? _selectedDifficulty;
 
   @override
   void initState() {
     super.initState();
-    _selectedLevel = widget.currentLevel;
+    _selectedDifficulty = widget.currentDifficulty;
   }
 
   final List<ToeicLevel> _levels = const [
     ToeicLevel(
-      level: 1,
-      scoreRange: '0-250',
-      name: 'Mất gốc',
-      color: Color(0xFFFF9800),
-      description: 'Xây dựng nền tảng ngữ pháp & từ vựng',
-      icon: Icons.emoji_events_outlined,
-    ),
-    ToeicLevel(
-      level: 2,
-      scoreRange: '255-400',
-      name: 'Elementary',
-      color: Color(0xFF795548),
-      description: 'Làm quen với format đề, nghe cơ bản',
-      icon: Icons.school_outlined,
-    ),
-    ToeicLevel(
-      level: 3,
-      scoreRange: '405-600',
-      name: 'Intermediate',
+      id: 'EASY',
+      scoreRange: '0-450',
+      name: 'Easy',
       color: Color(0xFF4CAF50),
-      description: 'Đủ điều kiện tốt nghiệp ĐH',
+      description: 'Dành cho người mới bắt đầu, mất gốc',
+      icon: Icons.sentiment_satisfied_alt,
+    ),
+    ToeicLevel(
+      id: 'MEDIUM',
+      scoreRange: '450-750',
+      name: 'Medium',
+      color: Color(0xFFFF9800),
+      description: 'Dành cho người có nền tảng, muốn cải thiện',
       icon: Icons.trending_up,
     ),
     ToeicLevel(
-      level: 4,
-      scoreRange: '605-850',
-      name: 'Working Proficiency',
-      color: Color(0xFF2196F3),
-      description: 'Đủ chuẩn tập đoàn lớn',
-      icon: Icons.work_outline,
-    ),
-    ToeicLevel(
-      level: 5,
-      scoreRange: '855-990',
-      name: 'Advanced',
-      color: Color(0xFFFFC107),
-      description: 'Thành thạo, giảng dạy',
-      icon: Icons.star,
+      id: 'HARD',
+      scoreRange: '750-990',
+      name: 'Hard',
+      color: Color(0xFFF44336),
+      description: 'Dành cho người muốn chinh phục điểm cao',
+      icon: Icons.whatshot,
     ),
   ];
 
@@ -114,7 +98,7 @@ class _LevelSelectionDialogState extends State<LevelSelectionDialog> {
                 itemCount: _levels.length,
                 itemBuilder: (context, index) {
                   final level = _levels[index];
-                  final isSelected = _selectedLevel == level.level;
+                  final isSelected = _selectedDifficulty == level.id;
 
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 12.0),
@@ -130,9 +114,9 @@ class _LevelSelectionDialogState extends State<LevelSelectionDialog> {
               child: SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: _selectedLevel != null
+                  onPressed: _selectedDifficulty != null
                       ? () {
-                          widget.onLevelSelected(_selectedLevel!);
+                          widget.onDifficultySelected(_selectedDifficulty!);
                           Navigator.of(context).pop();
                         }
                       : null,
@@ -164,7 +148,7 @@ class _LevelSelectionDialogState extends State<LevelSelectionDialog> {
     return InkWell(
       onTap: () {
         setState(() {
-          _selectedLevel = level.level;
+          _selectedDifficulty = level.id;
         });
       },
       borderRadius: BorderRadius.circular(12),
@@ -184,7 +168,7 @@ class _LevelSelectionDialogState extends State<LevelSelectionDialog> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: level.color.withOpacity(0.15),
+                color: level.color.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(level.icon, color: level.color, size: 24),
@@ -250,7 +234,7 @@ class _LevelSelectionDialogState extends State<LevelSelectionDialog> {
 }
 
 class ToeicLevel {
-  final int level;
+  final String id;
   final String scoreRange;
   final String name;
   final Color color;
@@ -258,7 +242,7 @@ class ToeicLevel {
   final IconData icon;
 
   const ToeicLevel({
-    required this.level,
+    required this.id,
     required this.scoreRange,
     required this.name,
     required this.color,

@@ -1,12 +1,19 @@
 import 'package:flutter/material.dart';
-
-import '../models/user_model.dart';
+import '../../auth/models/user_model.dart';
 import '../../../core/services/api_service.dart';
 import '../../../core/config/api_config.dart';
+import 'package:intl/intl.dart';
+
+import 'package:google_sign_in/google_sign_in.dart';
 
 /// Auth API Service - Xử lý tất cả API calls liên quan đến authentication
 class AuthApiService {
   final ApiService _apiService = ApiService();
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
+    scopes: ['email', 'profile'],
+    serverClientId:
+        '112210310564-j3r1bsrtohpb30d53vfao2kp7knchfrl.apps.googleusercontent.com',
+  );
 
   /// Login với email và password
   /// Returns: {success, message, user, token}
@@ -26,6 +33,45 @@ class AuthApiService {
     }
   }
 
+  /// Google Login Flow
+  /// 1. Sign In with Google SDK -> Get ID Token
+  /// 2. Send ID Token to Backend -> Get User & JWT
+  Future<Map<String, dynamic>> googleLogin() async {
+    try {
+      // 1. Sign In with Google
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      if (googleUser == null) {
+        // User canceled
+        return {'success': false, 'message': 'Đăng nhập Google bị hủy'};
+      }
+
+      // 2. Get ID Token
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
+      final String? idToken = googleAuth.idToken;
+
+      if (idToken == null) {
+        return {'success': false, 'message': 'Không lấy được Google ID Token'};
+      }
+
+      // 3. Send to Backend
+      final response = await _apiService.post(
+        ApiConfig.authGoogle,
+        body: {'idToken': idToken},
+      );
+
+      return response;
+    } catch (e) {
+      debugPrint('Google Login API Error: $e');
+      return {'success': false, 'message': 'Lỗi đăng nhập Google: $e'};
+    }
+  }
+
+  /// Sign out Google
+  Future<void> googleSignOut() async {
+    await _googleSignIn.signOut();
+  }
+
   /// Register new user với name, email và password
   /// Returns: {success, message, user, token}
   Future<Map<String, dynamic>> register({
@@ -35,7 +81,6 @@ class AuthApiService {
     String? phoneNumber,
     DateTime? dateOfBirth,
     String? gender,
-    int? toeicLevel,
   }) async {
     try {
       final body = <String, dynamic>{
@@ -49,18 +94,17 @@ class AuthApiService {
         body['phoneNumber'] = phoneNumber;
       }
       if (dateOfBirth != null) {
-        body['dateOfBirth'] = dateOfBirth.toIso8601String();
+        body['dateOfBirth'] = DateFormat('yyyy-MM-dd').format(dateOfBirth);
       }
       if (gender != null) {
         body['gender'] = gender;
-      }
-      if (toeicLevel != null) {
-        body['toeicLevel'] = toeicLevel;
       }
 
       final response = await _apiService.post(
         ApiConfig.authRegister,
         body: body,
+        headers: ApiConfig
+            .headers, // Remove specific header call if not needed or stick to default
       );
 
       return response;
@@ -76,6 +120,36 @@ class AuthApiService {
       final response = await _apiService.get(
         ApiConfig.authMe,
         headers: ApiConfig.headersWithAuth(token),
+      );
+
+      return response;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Update user profile
+  /// Returns: {success, message, user}
+  Future<Map<String, dynamic>> updateProfile({
+    String? name,
+    String? phoneNumber,
+    DateTime? dateOfBirth,
+    String? gender,
+    String? token,
+  }) async {
+    try {
+      final body = <String, dynamic>{};
+      if (name != null) body['name'] = name;
+      if (phoneNumber != null) body['phoneNumber'] = phoneNumber;
+      if (dateOfBirth != null) {
+        body['dateOfBirth'] = DateFormat('yyyy-MM-dd').format(dateOfBirth);
+      }
+      if (gender != null) body['gender'] = gender;
+
+      final response = await _apiService.patch(
+        ApiConfig.usersMe,
+        body: body,
+        headers: ApiConfig.headersWithAuth(token ?? ''),
       );
 
       return response;
@@ -142,6 +216,31 @@ class AuthApiService {
       final response = await _apiService.post(
         ApiConfig.authResetPassword,
         body: {'code': code, 'newPassword': newPassword},
+      );
+
+      return response;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Change password (cần token)
+  /// Returns: {success, message}
+  Future<Map<String, dynamic>> changePassword({
+    String? oldPassword,
+    required String newPassword,
+    required String token,
+  }) async {
+    try {
+      final body = <String, dynamic>{'newPassword': newPassword};
+      if (oldPassword != null) {
+        body['oldPassword'] = oldPassword;
+      }
+
+      final response = await _apiService.patch(
+        ApiConfig.authChangePassword,
+        body: body,
+        headers: ApiConfig.headersWithAuth(token),
       );
 
       return response;

@@ -7,13 +7,16 @@ class ApiConfig {
 
   // Auth Endpoints (đang dùng)
   static const String authLogin = '/auth/login';
+  static const String authGoogle = '/auth/google';
   static const String authRegister = '/auth/register';
   static const String authMe = '/auth/me';
+  static const String usersMe = '/users/me';
 
   // Password Reset Endpoints
   static const String authForgotPassword = '/auth/forgot-password';
   static const String authVerifyResetCode = '/auth/verify-reset-code';
   static const String authResetPassword = '/auth/reset-password';
+  static const String authChangePassword = '/auth/change-password';
 
   // Headers
   static Map<String, String> get headers => {

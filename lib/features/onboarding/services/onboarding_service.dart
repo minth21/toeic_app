@@ -3,7 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// Onboarding Service - Helper for local storage operations
 class OnboardingService {
   static const String _keyFirstLaunch = 'first_launch';
-  static const String _keySelectedLevel = 'selected_toeic_level';
+  static const String _keySelectedDifficulty = 'selected_difficulty';
 
   /// Check if this is first time app launch
   static Future<bool> isFirstLaunch() async {
@@ -17,28 +17,28 @@ class OnboardingService {
     await prefs.setBool(_keyFirstLaunch, false);
   }
 
-  /// Save selected TOEIC level (1-5)
-  static Future<void> saveSelectedLevel(int level) async {
+  /// Save selected Difficulty (EASY, MEDIUM, HARD)
+  static Future<void> saveSelectedDifficulty(String difficulty) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_keySelectedLevel, level);
+    await prefs.setString(_keySelectedDifficulty, difficulty);
   }
 
-  /// Get saved TOEIC level
-  static Future<int?> getSelectedLevel() async {
+  /// Get saved Difficulty
+  static Future<String?> getSelectedDifficulty() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getInt(_keySelectedLevel);
+    return prefs.getString(_keySelectedDifficulty);
   }
 
-  /// Clear saved level (after sync to backend)
-  static Future<void> clearSelectedLevel() async {
+  /// Clear saved difficulty
+  static Future<void> clearSelectedDifficulty() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_keySelectedLevel);
+    await prefs.remove(_keySelectedDifficulty);
   }
 
   /// Reset all onboarding data (for testing)
   static Future<void> resetOnboardingData() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_keyFirstLaunch);
-    await prefs.remove(_keySelectedLevel);
+    await prefs.remove(_keySelectedDifficulty);
   }
 }

@@ -9,7 +9,7 @@ class ProgressScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: Text(
           'Tiến độ',
@@ -26,7 +26,7 @@ class ProgressScreen extends StatelessWidget {
             Icon(
               Icons.bar_chart_outlined,
               size: 80,
-              color: const Color(0xFFFF9800).withOpacity(0.5),
+              color: const Color(0xFFFF9800).withValues(alpha: 0.5),
             ),
             const SizedBox(height: 24),
             Text(
@@ -34,7 +34,7 @@ class ProgressScreen extends StatelessWidget {
               style: GoogleFonts.poppins(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
+                color: Theme.of(context).textTheme.bodyLarge?.color,
               ),
             ),
             const SizedBox(height: 8),
@@ -42,7 +42,7 @@ class ProgressScreen extends StatelessWidget {
               'Coming soon...',
               style: GoogleFonts.poppins(
                 fontSize: 16,
-                color: AppColors.textSecondary,
+                color: Theme.of(context).textTheme.bodyMedium?.color,
               ),
             ),
           ],

@@ -13,57 +13,41 @@ class LevelAssessmentScreen extends StatefulWidget {
 }
 
 class _LevelAssessmentScreenState extends State<LevelAssessmentScreen> {
-  int? _selectedLevel;
+  String? _selectedDifficulty;
 
-  // 5 TOEIC Bands từ ảnh
+  // 3 Difficulty Levels
   final List<ToeicLevel> _levels = const [
     ToeicLevel(
-      level: 1,
-      scoreRange: '0-250',
-      name: 'Mất gốc',
-      color: Color(0xFFFF9800), // Orange
-      description: 'Xây dựng nền tảng ngữ pháp & từ vựng',
-      icon: Icons.emoji_events_outlined,
-    ),
-    ToeicLevel(
-      level: 2,
-      scoreRange: '255-400',
-      name: 'Elementary',
-      color: Color(0xFF795548), // Brown
-      description: 'Làm quen với format đề, nghe cơ bản',
-      icon: Icons.school_outlined,
-    ),
-    ToeicLevel(
-      level: 3,
-      scoreRange: '405-600',
-      name: 'Intermediate',
+      id: 'EASY',
+      scoreRange: '0-450',
+      name: 'Easy',
       color: Color(0xFF4CAF50), // Green
-      description: 'Đủ điều kiện tốt nghiệp ĐH, giao tiếp cơ bản',
+      description: 'Dành cho người mới bắt đầu, mất gốc',
+      icon: Icons.sentiment_satisfied_alt,
+    ),
+    ToeicLevel(
+      id: 'MEDIUM',
+      scoreRange: '450-750',
+      name: 'Medium',
+      color: Color(0xFFFF9800), // Orange
+      description: 'Dành cho người có nền tảng, muốn cải thiện',
       icon: Icons.trending_up,
     ),
     ToeicLevel(
-      level: 4,
-      scoreRange: '605-850',
-      name: 'Working Proficiency',
-      color: Color(0xFF2196F3), // Blue
-      description: 'Đủ chuẩn tập đoàn lớn, ngân hàng, hàng không',
-      icon: Icons.work_outline,
-    ),
-    ToeicLevel(
-      level: 5,
-      scoreRange: '855-990',
-      name: 'Advanced',
-      color: Color(0xFFFFC107), // Yellow/Gold
-      description: 'Thành thạo, giảng dạy, biên phiên dịch',
-      icon: Icons.star,
+      id: 'HARD',
+      scoreRange: '750-990',
+      name: 'Hard',
+      color: Color(0xFFF44336), // Red
+      description: 'Dành cho người muốn chinh phục điểm cao',
+      icon: Icons.whatshot,
     ),
   ];
 
   Future<void> _handleContinue() async {
-    if (_selectedLevel == null) return;
+    if (_selectedDifficulty == null) return;
 
-    // Save level to local storage
-    await OnboardingService.saveSelectedLevel(_selectedLevel!);
+    // Save difficulty to local storage
+    await OnboardingService.saveSelectedDifficulty(_selectedDifficulty!);
     await OnboardingService.markFirstLaunchComplete();
 
     if (!mounted) return;
@@ -95,7 +79,7 @@ class _LevelAssessmentScreenState extends State<LevelAssessmentScreen> {
               child: Column(
                 children: [
                   Text(
-                    'Bạn cần luyện tập ở mức độ nào?',
+                    'Bạn muốn luyện tập ở mức độ nào?',
                     style: GoogleFonts.poppins(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
@@ -105,7 +89,7 @@ class _LevelAssessmentScreenState extends State<LevelAssessmentScreen> {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    'Chọn band điểm để nhận đề xuất phù hợp',
+                    'Chọn mức độ để nhận đề xuất phù hợp',
                     style: GoogleFonts.poppins(
                       fontSize: 14,
                       color: AppColors.textSecondary,
@@ -125,7 +109,7 @@ class _LevelAssessmentScreenState extends State<LevelAssessmentScreen> {
                 itemCount: _levels.length,
                 itemBuilder: (context, index) {
                   final level = _levels[index];
-                  final isSelected = _selectedLevel == level.level;
+                  final isSelected = _selectedDifficulty == level.id;
 
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 16.0),
@@ -141,7 +125,9 @@ class _LevelAssessmentScreenState extends State<LevelAssessmentScreen> {
               child: SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: _selectedLevel != null ? _handleContinue : null,
+                  onPressed: _selectedDifficulty != null
+                      ? _handleContinue
+                      : null,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
@@ -173,7 +159,7 @@ class _LevelAssessmentScreenState extends State<LevelAssessmentScreen> {
     return InkWell(
       onTap: () {
         setState(() {
-          _selectedLevel = level.level;
+          _selectedDifficulty = level.id;
         });
       },
       borderRadius: BorderRadius.circular(16),
@@ -189,14 +175,14 @@ class _LevelAssessmentScreenState extends State<LevelAssessmentScreen> {
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: level.color.withOpacity(0.3),
+                    color: level.color.withValues(alpha: 0.3),
                     blurRadius: 12,
                     offset: const Offset(0, 4),
                   ),
                 ]
               : [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
+                    color: Colors.black.withValues(alpha: 0.05),
                     blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),
@@ -208,7 +194,7 @@ class _LevelAssessmentScreenState extends State<LevelAssessmentScreen> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: level.color.withOpacity(0.15),
+                color: level.color.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(level.icon, color: level.color, size: 32),
@@ -287,7 +273,7 @@ class _LevelAssessmentScreenState extends State<LevelAssessmentScreen> {
 
 /// TOEIC Level Model
 class ToeicLevel {
-  final int level;
+  final String id;
   final String scoreRange;
   final String name;
   final Color color;
@@ -295,7 +281,7 @@ class ToeicLevel {
   final IconData icon;
 
   const ToeicLevel({
-    required this.level,
+    required this.id,
     required this.scoreRange,
     required this.name,
     required this.color,

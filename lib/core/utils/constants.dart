@@ -1,6 +1,6 @@
 class AppConstants {
   // App Info
-  static const String appName = 'TOEIC Practice';
+  static const String appName = 'TOEIC-TEST App';
   static const String appVersion = '1.0.0';
 
   // Validation
@@ -18,7 +18,7 @@ class AppConstants {
 
 class AppStrings {
   // App
-  static const String appName = 'TOEIC Practice';
+  static const String appName = 'TOEIC-TEST App';
 
   // Auth
   static const String login = 'Đăng nhập';

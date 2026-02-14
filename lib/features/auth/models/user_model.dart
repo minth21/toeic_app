@@ -7,8 +7,10 @@ class UserModel {
   final DateTime? dateOfBirth;
   final String? gender; // MALE, FEMALE, OTHER
   final String? avatarUrl;
-  final int? toeicLevel; // 1-5
+  final String? difficulty; // EASY, MEDIUM, HARD
+  final int progress; // 0-100%
   final int? targetScore; // Target TOEIC score
+  final bool hasPassword;
   final DateTime createdAt;
   final int totalTestsTaken;
   final int averageScore;
@@ -22,8 +24,10 @@ class UserModel {
     this.dateOfBirth,
     this.gender,
     this.avatarUrl,
-    this.toeicLevel,
+    this.difficulty,
+    this.progress = 0,
     this.targetScore,
+    required this.hasPassword,
     required this.createdAt,
     this.totalTestsTaken = 0,
     this.averageScore = 0,
@@ -41,8 +45,10 @@ class UserModel {
           : null,
       gender: json['gender'] as String?,
       avatarUrl: json['avatarUrl'] as String?,
-      toeicLevel: json['toeicLevel'] as int?,
+      difficulty: json['difficulty'] as String?,
+      progress: json['progress'] as int? ?? 0,
       targetScore: json['targetScore'] as int?,
+      hasPassword: (json['hasPassword'] as bool?) ?? false,
       createdAt: DateTime.parse(json['createdAt'] as String),
       totalTestsTaken: json['totalTestsTaken'] as int? ?? 0,
       averageScore: json['averageScore'] as int? ?? 0,
@@ -59,8 +65,10 @@ class UserModel {
       if (dateOfBirth != null) 'dateOfBirth': dateOfBirth!.toIso8601String(),
       if (gender != null) 'gender': gender,
       if (avatarUrl != null) 'avatarUrl': avatarUrl,
-      if (toeicLevel != null) 'toeicLevel': toeicLevel,
+      if (difficulty != null) 'difficulty': difficulty,
+      'progress': progress,
       if (targetScore != null) 'targetScore': targetScore,
+      'hasPassword': hasPassword,
       'createdAt': createdAt.toIso8601String(),
       'totalTestsTaken': totalTestsTaken,
       'averageScore': averageScore,
@@ -76,8 +84,10 @@ class UserModel {
     DateTime? dateOfBirth,
     String? gender,
     String? avatarUrl,
-    int? toeicLevel,
+    String? difficulty,
+    int? progress,
     int? targetScore,
+    bool? hasPassword,
     DateTime? createdAt,
     int? totalTestsTaken,
     int? averageScore,
@@ -91,8 +101,10 @@ class UserModel {
       dateOfBirth: dateOfBirth ?? this.dateOfBirth,
       gender: gender ?? this.gender,
       avatarUrl: avatarUrl ?? this.avatarUrl,
-      toeicLevel: toeicLevel ?? this.toeicLevel,
+      difficulty: difficulty ?? this.difficulty,
+      progress: progress ?? this.progress,
       targetScore: targetScore ?? this.targetScore,
+      hasPassword: hasPassword ?? this.hasPassword,
       createdAt: createdAt ?? this.createdAt,
       totalTestsTaken: totalTestsTaken ?? this.totalTestsTaken,
       averageScore: averageScore ?? this.averageScore,

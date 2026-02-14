@@ -8,20 +8,13 @@ class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
   // Mock data for demo
-  static const bool _hasTestHistory = true; // Toggle để test empty state
-  static const int _totalTests = 12;
-  static const int _averageScore = 750;
-  static const int _listeningScore = 385;
-  static const int _readingScore = 365;
-  static const int _studyStreak = 7;
-
   @override
   Widget build(BuildContext context) {
     final authViewModel = context.watch<AuthViewModel>();
     final user = authViewModel.currentUser;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: Text(
           'Trang chủ',
@@ -30,6 +23,7 @@ class HomeScreen extends StatelessWidget {
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
         elevation: 0,
+        automaticallyImplyLeading: false,
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -41,12 +35,12 @@ class HomeScreen extends StatelessWidget {
               _buildWelcomeBanner(user?.name ?? 'User'),
               const SizedBox(height: 20),
 
-              // Study Streak
-              if (_hasTestHistory) _buildStudyStreak(),
-              if (_hasTestHistory) const SizedBox(height: 20),
+              // Overall Progress
+              _buildOverallProgress(user?.progress ?? 0),
+              const SizedBox(height: 20),
 
               // Quick Stats Grid
-              _buildStatsGrid(),
+              _buildStatsGrid(context, user),
               const SizedBox(height: 20),
 
               // Quick Actions
@@ -54,8 +48,8 @@ class HomeScreen extends StatelessWidget {
               const SizedBox(height: 24),
 
               // Recent Activity or Empty State
-              if (_hasTestHistory)
-                _buildRecentActivity()
+              if ((user?.totalTestsTaken ?? 0) > 0)
+                _buildRecentActivity(context)
               else
                 _buildEmptyState(context),
             ],
@@ -77,7 +71,7 @@ class HomeScreen extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primary.withOpacity(0.3),
+            color: AppColors.primary.withValues(alpha: 0.3),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -96,12 +90,10 @@ class HomeScreen extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            _hasTestHistory
-                ? 'Tiếp tục cố gắng nhé!'
-                : 'Bắt đầu hành trình chinh phục TOEIC!',
+            'Bắt đầu hành trình chinh phục TOEIC!',
             style: GoogleFonts.poppins(
               fontSize: 14,
-              color: Colors.white.withOpacity(0.9),
+              color: Colors.white.withValues(alpha: 0.9),
             ),
           ),
         ],
@@ -109,59 +101,95 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildStudyStreak() {
+  Widget _buildOverallProgress(int progress) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.orange.shade50,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.orange.shade200),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.orange,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Icon(
-              Icons.local_fire_department,
-              color: Colors.white,
-              size: 24,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Study Streak',
-                  style: GoogleFonts.poppins(
-                    fontSize: 12,
-                    color: Colors.orange.shade900,
-                    fontWeight: FontWeight.w500,
-                  ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Tiến độ học tập',
+                style: GoogleFonts.poppins(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
                 ),
-                Text(
-                  '$_studyStreak ngày liên tục',
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: progress == 100
+                      ? AppColors.success.withValues(alpha: 0.1)
+                      : AppColors.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  '$progress%',
                   style: GoogleFonts.poppins(
-                    fontSize: 16,
+                    fontSize: 14,
                     fontWeight: FontWeight.bold,
-                    color: Colors.orange.shade900,
+                    color: progress == 100
+                        ? AppColors.success
+                        : AppColors.primary,
                   ),
                 ),
-              ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: LinearProgressIndicator(
+              value: progress / 100,
+              backgroundColor: Colors.grey.shade100,
+              valueColor: AlwaysStoppedAnimation<Color>(
+                progress == 100 ? AppColors.success : AppColors.primary,
+              ),
+              minHeight: 12,
             ),
           ),
-          Text('🔥', style: const TextStyle(fontSize: 32)),
+          const SizedBox(height: 8),
+          Text(
+            progress == 100
+                ? 'Chúc mừng! Bạn đã hoàn thành lộ trình.'
+                : 'Hãy tiếp tục cố gắng để đạt mục tiêu nhé!',
+            style: GoogleFonts.poppins(
+              fontSize: 12,
+              color: AppColors.textSecondary,
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildStatsGrid() {
+  Widget _buildStatsGrid(BuildContext context, dynamic user) {
+    // Note: user is UserModel? but passed as dynamic to avoid import if not already there,
+    // but better to rely on context or pass specific values.
+    // Casting for safety if user is null
+    final int totalTests = user?.totalTestsTaken ?? 0;
+    final int avgScore = user?.averageScore ?? 0;
+    // Mock for now as backend doesn't provide these yet
+    final int listeningScore = 0;
+    final int readingScore = 0;
+
     return GridView.count(
       crossAxisCount: 2,
       shrinkWrap: true,
@@ -171,39 +199,42 @@ class HomeScreen extends StatelessWidget {
       childAspectRatio: 1.3,
       children: [
         _buildStatCard(
+          context: context,
           icon: Icons.quiz_outlined,
-          title: 'Bài thi',
-          value: _hasTestHistory ? '$_totalTests' : '0',
+          title: 'Bài thi đã làm',
+          value: '$totalTests',
           color: AppColors.primary,
         ),
         _buildStatCard(
+          context: context,
           icon: Icons.stars_outlined,
-          title: 'Điểm TB',
-          value: _hasTestHistory ? '$_averageScore' : '-',
-          subtitle: _hasTestHistory ? '/990' : 'Chưa có',
+          title: 'Điểm trung bình',
+          value: '$avgScore',
+          subtitle: '/990',
           color: Colors.orange,
         ),
         _buildStatCard(
+          context: context,
           icon: Icons.headphones_outlined,
-          title: 'Listening',
-          value: _hasTestHistory ? '$_listeningScore' : '-',
-          subtitle: _hasTestHistory ? '/495' : null,
+          title: 'Listening (TB)',
+          value: listeningScore > 0 ? '$listeningScore' : '-',
+          subtitle: '/495',
           color: const Color(0xFF2196F3),
-          progress: _hasTestHistory ? _listeningScore / 495 : null,
         ),
         _buildStatCard(
+          context: context,
           icon: Icons.menu_book_outlined,
-          title: 'Reading',
-          value: _hasTestHistory ? '$_readingScore' : '-',
-          subtitle: _hasTestHistory ? '/495' : null,
+          title: 'Reading (TB)',
+          value: readingScore > 0 ? '$readingScore' : '-',
+          subtitle: '/495',
           color: const Color(0xFFFF9800),
-          progress: _hasTestHistory ? _readingScore / 495 : null,
         ),
       ],
     );
   }
 
   Widget _buildStatCard({
+    required BuildContext context,
     required IconData icon,
     required String title,
     required String value,
@@ -214,11 +245,11 @@ class HomeScreen extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -238,7 +269,7 @@ class HomeScreen extends StatelessWidget {
                 style: GoogleFonts.poppins(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
+                  color: Theme.of(context).textTheme.bodyLarge?.color,
                 ),
               ),
               if (subtitle != null) ...[
@@ -249,7 +280,7 @@ class HomeScreen extends StatelessWidget {
                     subtitle,
                     style: GoogleFonts.poppins(
                       fontSize: 12,
-                      color: AppColors.textSecondary,
+                      color: Theme.of(context).textTheme.bodyMedium?.color,
                     ),
                   ),
                 ),
@@ -261,7 +292,7 @@ class HomeScreen extends StatelessWidget {
             title,
             style: GoogleFonts.poppins(
               fontSize: 11,
-              color: AppColors.textSecondary,
+              color: Theme.of(context).textTheme.bodyMedium?.color,
             ),
           ),
           if (progress != null) ...[
@@ -270,7 +301,7 @@ class HomeScreen extends StatelessWidget {
               borderRadius: BorderRadius.circular(4),
               child: LinearProgressIndicator(
                 value: progress,
-                backgroundColor: color.withOpacity(0.2),
+                backgroundColor: color.withValues(alpha: 0.2),
                 valueColor: AlwaysStoppedAnimation<Color>(color),
                 minHeight: 4,
               ),
@@ -290,27 +321,16 @@ class HomeScreen extends StatelessWidget {
           style: GoogleFonts.poppins(
             fontSize: 18,
             fontWeight: FontWeight.bold,
-            color: AppColors.textPrimary,
+            color: Theme.of(context).textTheme.bodyLarge?.color,
           ),
         ),
         const SizedBox(height: 12),
-        _buildActionButton(
-          icon: Icons.play_circle_outline,
-          title: 'Bắt đầu Full Test',
-          subtitle: '200 câu • 120 phút',
-          color: AppColors.primary,
-          onTap: () {
-            // TODO: Navigate to full test
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Full Test - Coming soon!')),
-            );
-          },
-        ),
-        const SizedBox(height: 12),
+
         Row(
           children: [
             Expanded(
               child: _buildActionButton(
+                context: context,
                 icon: Icons.headphones,
                 title: 'Luyện Listening',
                 subtitle: 'Part 1-4',
@@ -328,6 +348,7 @@ class HomeScreen extends StatelessWidget {
             const SizedBox(width: 12),
             Expanded(
               child: _buildActionButton(
+                context: context,
                 icon: Icons.menu_book,
                 title: 'Luyện Reading',
                 subtitle: 'Part 5-7',
@@ -349,6 +370,7 @@ class HomeScreen extends StatelessWidget {
   }
 
   Widget _buildActionButton({
+    required BuildContext context,
     required IconData icon,
     required String title,
     required String subtitle,
@@ -362,9 +384,9 @@ class HomeScreen extends StatelessWidget {
       child: Container(
         padding: EdgeInsets.all(isCompact ? 12 : 16),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
+          color: color.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withOpacity(0.3)),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
         ),
         child: Row(
           children: [
@@ -393,7 +415,7 @@ class HomeScreen extends StatelessWidget {
                     subtitle,
                     style: GoogleFonts.poppins(
                       fontSize: isCompact ? 11 : 12,
-                      color: AppColors.textSecondary,
+                      color: Theme.of(context).textTheme.bodyMedium?.color,
                     ),
                   ),
                 ],
@@ -406,7 +428,7 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildRecentActivity() {
+  Widget _buildRecentActivity(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -415,12 +437,13 @@ class HomeScreen extends StatelessWidget {
           style: GoogleFonts.poppins(
             fontSize: 18,
             fontWeight: FontWeight.bold,
-            color: AppColors.textPrimary,
+            color: Theme.of(context).textTheme.bodyLarge?.color,
           ),
         ),
         const SizedBox(height: 12),
         _buildActivityItem(
-          title: 'Full Mock Test #12',
+          context: context,
+          title: 'Luyện tập tổng hợp #12',
           score: 800,
           listeningScore: 420,
           readingScore: 380,
@@ -429,6 +452,7 @@ class HomeScreen extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         _buildActivityItem(
+          context: context,
           title: 'Part 5 Practice',
           progress: '15/30 câu',
           timeAgo: '1 ngày trước',
@@ -436,6 +460,7 @@ class HomeScreen extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         _buildActivityItem(
+          context: context,
           title: 'Listening Part 3',
           score: 720,
           listeningScore: 385,
@@ -448,6 +473,7 @@ class HomeScreen extends StatelessWidget {
   }
 
   Widget _buildActivityItem({
+    required BuildContext context,
     required String title,
     int? score,
     int? listeningScore,
@@ -459,11 +485,11 @@ class HomeScreen extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 5,
             offset: const Offset(0, 2),
           ),
@@ -486,7 +512,7 @@ class HomeScreen extends StatelessWidget {
                   style: GoogleFonts.poppins(
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
+                    color: Theme.of(context).textTheme.bodyLarge?.color,
                   ),
                 ),
               ),
@@ -494,7 +520,7 @@ class HomeScreen extends StatelessWidget {
                 timeAgo,
                 style: GoogleFonts.poppins(
                   fontSize: 12,
-                  color: AppColors.textSecondary,
+                  color: Theme.of(context).textTheme.bodyMedium?.color,
                 ),
               ),
             ],
@@ -520,7 +546,7 @@ class HomeScreen extends StatelessWidget {
                     'Tiến độ: $progress',
                     style: GoogleFonts.poppins(
                       fontSize: 13,
-                      color: AppColors.textSecondary,
+                      color: Theme.of(context).textTheme.bodyMedium?.color,
                     ),
                   ),
                 ),
@@ -553,7 +579,7 @@ class HomeScreen extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(6),
       ),
       child: Text(
@@ -580,7 +606,7 @@ class HomeScreen extends StatelessWidget {
           Icon(
             Icons.school_outlined,
             size: 64,
-            color: AppColors.primary.withOpacity(0.5),
+            color: AppColors.primary.withValues(alpha: 0.5),
           ),
           const SizedBox(height: 16),
           Text(

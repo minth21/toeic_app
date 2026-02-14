@@ -1,6 +1,10 @@
-# 🎨 UI/UX Updates - TOEIC Practice App
+# 🎨 UI/UX Updates - TOEIC-TEST App
 
 ## ✅ Đã cập nhật
+
+### Màn hình Home
+- [x] **Xóa nút "Bắt đầu Full Test"**: Để phù hợp với yêu cầu bỏ tính năng thi thử.
+- [x] **Đổi tên mục lịch sử**: "Full Mock Test" -> "Luyện tập tổng hợp".
 
 ### 1. 🎨 **Màu sắc mới - Xanh đậm chủ đạo**
 

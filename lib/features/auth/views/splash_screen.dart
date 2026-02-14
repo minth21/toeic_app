@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../constants/app_constants.dart';
+import 'package:provider/provider.dart';
 import '../../onboarding/views/welcome_screen.dart';
+import '../viewmodels/auth_viewmodel.dart';
+import '../../navigation/main_navigation.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -50,22 +53,42 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   Future<void> _initializeApp() async {
+    // Wait for animations
     await Future.delayed(const Duration(seconds: 3));
 
     if (!mounted) return;
 
-    // Always go to Welcome Screen for now
-    // TODO: Add proper auth check later
-    Navigator.of(context).pushReplacement(
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) =>
-            const WelcomeScreen(),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          return FadeTransition(opacity: animation, child: child);
-        },
-        transitionDuration: const Duration(milliseconds: 500),
-      ),
-    );
+    // Check storage for token
+    final authViewModel = context.read<AuthViewModel>();
+    await authViewModel.loadUserFromStorage();
+
+    if (!mounted) return;
+
+    if (authViewModel.isLoggedIn) {
+      // User is logged in, go to MainNavigation
+      Navigator.of(context).pushReplacement(
+        PageRouteBuilder(
+          pageBuilder: (context, animation, secondaryAnimation) =>
+              const MainNavigation(),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            return FadeTransition(opacity: animation, child: child);
+          },
+          transitionDuration: const Duration(milliseconds: 500),
+        ),
+      );
+    } else {
+      // Not logged in, go to Welcome Screen
+      Navigator.of(context).pushReplacement(
+        PageRouteBuilder(
+          pageBuilder: (context, animation, secondaryAnimation) =>
+              const WelcomeScreen(),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            return FadeTransition(opacity: animation, child: child);
+          },
+          transitionDuration: const Duration(milliseconds: 500),
+        ),
+      );
+    }
   }
 
   @override
@@ -97,8 +120,8 @@ class _SplashScreenState extends State<SplashScreen>
                           shape: BoxShape.circle,
                           gradient: LinearGradient(
                             colors: [
-                              Colors.white.withOpacity(0.8),
-                              Colors.white.withOpacity(0.4),
+                              Colors.white.withValues(alpha: 0.8),
+                              Colors.white.withValues(alpha: 0.4),
                             ],
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
@@ -112,7 +135,7 @@ class _SplashScreenState extends State<SplashScreen>
                           ),
                           child: Icon(
                             Icons.school_rounded,
-                            size: 90,
+                            size: 100,
                             color: AppColors.primary,
                           ),
                         ),
@@ -121,9 +144,9 @@ class _SplashScreenState extends State<SplashScreen>
 
                       // App Name
                       Text(
-                        'TOEIC',
+                        'TOEIC - TEST',
                         style: GoogleFonts.poppins(
-                          fontSize: 48,
+                          fontSize: 42, // Reduced slightly to fit
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
                           letterSpacing: 2,
@@ -133,11 +156,11 @@ class _SplashScreenState extends State<SplashScreen>
 
                       // Subtitle
                       Text(
-                        'Practice & Master',
+                        'Ôn luyện chuẩn format',
                         style: GoogleFonts.poppins(
-                          fontSize: 18,
+                          fontSize: 16,
                           fontWeight: FontWeight.w300,
-                          color: Colors.white.withOpacity(0.9),
+                          color: Colors.white.withValues(alpha: 0.9),
                           letterSpacing: 1.5,
                         ),
                       ),
@@ -150,7 +173,7 @@ class _SplashScreenState extends State<SplashScreen>
                         child: CircularProgressIndicator(
                           strokeWidth: 3,
                           valueColor: AlwaysStoppedAnimation<Color>(
-                            Colors.white.withOpacity(0.8),
+                            Colors.white.withValues(alpha: 0.8),
                           ),
                         ),
                       ),

@@ -27,7 +27,7 @@ class WelcomeScreen extends StatelessWidget {
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.2),
+                      color: Colors.black.withValues(alpha: 0.2),
                       blurRadius: 20,
                       offset: const Offset(0, 10),
                     ),
@@ -44,9 +44,9 @@ class WelcomeScreen extends StatelessWidget {
 
               // App Name
               Text(
-                'TOEIC Practice',
+                'TOEIC - TEST',
                 style: GoogleFonts.poppins(
-                  fontSize: 36,
+                  fontSize: 32,
                   fontWeight: FontWeight.bold,
                   color: Colors.white,
                 ),
@@ -56,11 +56,11 @@ class WelcomeScreen extends StatelessWidget {
 
               // Tagline
               Text(
-                'Nền tảng luyện thi TOEIC\nhiệu quả nhất',
+                'Kho đề luyện thi đa dạng',
                 textAlign: TextAlign.center,
                 style: GoogleFonts.poppins(
-                  fontSize: 18,
-                  color: Colors.white.withOpacity(0.9),
+                  fontSize: 16,
+                  color: Colors.white.withValues(alpha: 0.9),
                   height: 1.5,
                 ),
               ),
@@ -73,11 +73,20 @@ class WelcomeScreen extends StatelessWidget {
                 'Luyện Listening với 100+ bài tập',
               ),
               const SizedBox(height: 16),
-              _buildFeature(Icons.menu_book, 'Luyện Reading với format chuẩn'),
+              _buildFeature(
+                Icons.menu_book,
+                'Luyện Reading với các chủ đề đa dạng',
+              ),
               const SizedBox(height: 16),
-              _buildFeature(Icons.analytics, 'Theo dõi tiến độ chi tiết'),
+              _buildFeature(
+                Icons.analytics,
+                'Theo dõi tiến độ học tập hàng ngày',
+              ),
               const SizedBox(height: 16),
-              _buildFeature(Icons.star, 'Đề thi thực chiến & phân tích'),
+              _buildFeature(
+                Icons.translate,
+                'Giải thích và dịch nghĩa chi tiết',
+              ),
 
               const Spacer(),
 
@@ -86,8 +95,11 @@ class WelcomeScreen extends StatelessWidget {
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: () {
-                    Navigator.of(context).pushReplacement(
-                      MaterialPageRoute(builder: (_) => const LoginScreen()),
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const LoginScreen(),
+                      ),
                     );
                   },
                   style: ElevatedButton.styleFrom(
@@ -123,7 +135,7 @@ class WelcomeScreen extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.2),
+            color: Colors.white.withValues(alpha: 0.2),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(icon, color: Colors.white, size: 24),

@@ -49,7 +49,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
             : null,
         dateOfBirth: _selectedDate,
         gender: _selectedGender,
-        toeicLevel: null, // Level will be chosen in practice section
       );
 
       if (success && mounted) {
