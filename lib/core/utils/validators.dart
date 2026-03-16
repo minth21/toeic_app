@@ -5,6 +5,7 @@ class Validators {
       return 'Vui lòng nhập email';
     }
 
+    // ignore: deprecated_member_use
     final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
     if (!emailRegex.hasMatch(value)) {
       return 'Email không hợp lệ';
@@ -40,6 +41,7 @@ class Validators {
       return 'Vui lòng nhập số điện thoại';
     }
 
+    // ignore: deprecated_member_use
     final phoneRegex = RegExp(r'^(0|\+84)[0-9]{9}$');
     if (!phoneRegex.hasMatch(value)) {
       return 'Số điện thoại không hợp lệ';

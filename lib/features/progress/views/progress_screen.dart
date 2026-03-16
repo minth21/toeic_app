@@ -13,7 +13,7 @@ class ProgressScreen extends StatelessWidget {
       appBar: AppBar(
         title: Text(
           'Tiến độ',
-          style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+          style: GoogleFonts.inter(fontWeight: FontWeight.bold),
         ),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
@@ -31,7 +31,7 @@ class ProgressScreen extends StatelessWidget {
             const SizedBox(height: 24),
             Text(
               'Progress Screen',
-              style: GoogleFonts.poppins(
+              style: GoogleFonts.inter(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
                 color: Theme.of(context).textTheme.bodyLarge?.color,
@@ -40,7 +40,7 @@ class ProgressScreen extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               'Coming soon...',
-              style: GoogleFonts.poppins(
+              style: GoogleFonts.inter(
                 fontSize: 16,
                 color: Theme.of(context).textTheme.bodyMedium?.color,
               ),

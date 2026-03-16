@@ -3,13 +3,14 @@ import 'package:http/http.dart' as http;
 import '../../../constants/app_constants.dart';
 import '../models/exam_model.dart';
 import '../models/question_model.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import '../../../core/services/storage_service.dart';
 
 class PracticeApiService {
+  final StorageService _storageService = StorageService();
+
   Future<List<ExamModel>> getTests({String? difficulty}) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('auth_token');
+      final token = await _storageService.getToken();
 
       if (token == null) {
         throw Exception('Unauthorized');
@@ -54,10 +55,41 @@ class PracticeApiService {
     }
   }
 
+  Future<ExamModel> getTestById(String testId) async {
+    try {
+      final token = await _storageService.getToken();
+      if (token == null) throw Exception('Unauthorized');
+
+      final uri = Uri.parse(
+        '${AppConstants.baseUrl}/tests/$testId?status=UNLOCKED',
+      );
+
+      final response = await http.get(
+        uri,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['success'] == true) {
+          return ExamModel.fromJson(data['test']);
+        } else {
+          throw Exception(data['message']);
+        }
+      } else {
+        throw Exception('Failed to load test: ${response.statusCode}');
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   Future<List<QuestionModel>> getQuestionsByPartId(String partId) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('auth_token');
+      final token = await _storageService.getToken();
 
       if (token == null) throw Exception('Unauthorized');
 
@@ -92,26 +124,21 @@ class PracticeApiService {
   Future<Map<String, dynamic>> submitPart(
     String partId,
     List<Map<String, dynamic>> answers,
+    int? timeTaken,
   ) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('auth_token');
-      // Retrieve user_id from prefs (assuming it was saved during login)
-      // If not saved, we might need to update Auth logic or decode token
-      // For now, let's assume it's stored or we use a placeholder if the backend extracts it from token
-      // Backend expects 'userId' in body.
-      // Let's assume AuthViewModel or LoginScreen saved it.
-      // Checking AuthViewModel might be good, but let's try to get it.
-      final userId = prefs.getString('user_id');
+      final token = await _storageService.getToken();
+      final userId = await _storageService.getUserId();
 
       if (token == null) throw Exception('Unauthorized');
 
-      // If userId is missing, we might need to handle it.
-      // But let's proceed. Backend actually gets userId from token usually, but here we pass it.
-      // My backend controller logic: const { userId, partId, answers }: SubmitPartRequest = req.body;
-      // So it expects it in body.
-
       final uri = Uri.parse('${AppConstants.baseUrl}/practice/submit');
+
+      final body = {'userId': userId, 'partId': partId, 'answers': answers};
+
+      if (timeTaken != null) {
+        body['timeTaken'] = timeTaken;
+      }
 
       final response = await http.post(
         uri,
@@ -119,11 +146,7 @@ class PracticeApiService {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },
-        body: jsonEncode({
-          'userId': userId,
-          'partId': partId,
-          'answers': answers,
-        }),
+        body: jsonEncode(body),
       );
 
       final data = jsonDecode(response.body);
@@ -139,9 +162,8 @@ class PracticeApiService {
 
   Future<List<Map<String, dynamic>>> getPartHistory(String partId) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('auth_token');
-      final userId = prefs.getString('user_id');
+      final token = await _storageService.getToken();
+      final userId = await _storageService.getUserId();
 
       if (token == null || userId == null) {
         return []; // Return empty if no user info
@@ -164,6 +186,61 @@ class PracticeApiService {
       }
     } catch (e) {
       return [];
+    }
+  }
+
+  Future<Map<String, dynamic>?> getAttemptDetail(String attemptId) async {
+    try {
+      final token = await _storageService.getToken();
+      if (token == null) return null;
+
+      final uri = Uri.parse(
+        '${AppConstants.baseUrl}/practice/attempt/$attemptId',
+      );
+
+      final response = await http.get(
+        uri,
+        headers: {'Authorization': 'Bearer $token'},
+      );
+
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 200 && data['success'] == true) {
+        return data['data'];
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  Future<Map<String, dynamic>?> translateWord(
+    String word,
+    String sentence,
+  ) async {
+    try {
+      final token = await _storageService.getToken();
+      if (token == null) return null;
+
+      final uri = Uri.parse('${AppConstants.baseUrl}/ai/translate-word');
+
+      final response = await http.post(
+        uri,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({'word': word, 'sentence': sentence}),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['success'] == true) {
+          return data['data'];
+        }
+      }
+      return null;
+    } catch (e) {
+      return null;
     }
   }
 }

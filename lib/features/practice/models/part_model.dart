@@ -6,7 +6,9 @@ class PartModel {
   final int completedQuestions;
   final String? instructions;
   final String? instructionImgUrl;
+  final String? audioUrl;
   final int? timeLimit; // in seconds
+  final int? userProgress; // AI Score or Percentage
 
   PartModel({
     required this.id,
@@ -16,7 +18,9 @@ class PartModel {
     this.completedQuestions = 0,
     this.instructions,
     this.instructionImgUrl,
+    this.audioUrl,
     this.timeLimit,
+    this.userProgress,
   });
 
   factory PartModel.fromJson(Map<String, dynamic> json) {
@@ -26,9 +30,10 @@ class PartModel {
       partName: json['partName'] ?? _getDefaultPartName(json['partNumber']),
       totalQuestions: json['totalQuestions'] ?? 0,
       completedQuestions: json['_count']?['questions'] ?? 0,
-      instructions: json['instructions'],
       instructionImgUrl: json['instructionImgUrl'],
+      audioUrl: json['audioUrl'],
       timeLimit: json['timeLimit'],
+      userProgress: json['userProgress'],
     );
   }
 

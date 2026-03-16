@@ -91,11 +91,11 @@ class _MainNavigationState extends State<MainNavigation> {
           unselectedItemColor: Theme.of(
             context,
           ).textTheme.bodyMedium?.color?.withValues(alpha: 0.6),
-          selectedLabelStyle: GoogleFonts.poppins(
+          selectedLabelStyle: GoogleFonts.inter(
             fontSize: 12,
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.bold,
           ),
-          unselectedLabelStyle: GoogleFonts.poppins(
+          unselectedLabelStyle: GoogleFonts.inter(
             fontSize: 12,
             fontWeight: FontWeight.w500,
           ),

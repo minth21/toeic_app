@@ -98,7 +98,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     if (success) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Cập nhật thành công!', style: GoogleFonts.poppins()),
+          content: Text('Cập nhật thành công!', style: GoogleFonts.inter()),
           backgroundColor: AppColors.success,
         ),
       );
@@ -108,7 +108,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         SnackBar(
           content: Text(
             context.read<AuthViewModel>().errorMessage ?? 'Cập nhật thất bại',
-            style: GoogleFonts.poppins(),
+            style: GoogleFonts.inter(),
           ),
           backgroundColor: AppColors.error,
         ),
@@ -123,7 +123,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       appBar: AppBar(
         title: Text(
           'Chỉnh sửa thông tin',
-          style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+          style: GoogleFonts.inter(fontWeight: FontWeight.bold),
         ),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
@@ -141,7 +141,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 TextFormField(
                   controller: _nameController,
                   decoration: _buildInputDecoration('Nhập họ tên của bạn'),
-                  style: GoogleFonts.poppins(),
+                  style: GoogleFonts.inter(),
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
                       return 'Vui lòng nhập họ tên';
@@ -155,7 +155,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   controller: _phoneController,
                   keyboardType: TextInputType.phone,
                   decoration: _buildInputDecoration('Nhập số điện thoại'),
-                  style: GoogleFonts.poppins(),
+                  style: GoogleFonts.inter(),
                 ),
                 const SizedBox(height: 20),
                 _buildLabel('Ngày sinh'),
@@ -169,7 +169,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       color: AppColors.textSecondary,
                     ),
                   ),
-                  style: GoogleFonts.poppins(),
+                  style: GoogleFonts.inter(),
                 ),
                 const SizedBox(height: 20),
                 _buildLabel('Giới tính'),
@@ -179,15 +179,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   items: [
                     DropdownMenuItem(
                       value: 'MALE',
-                      child: Text('Nam', style: GoogleFonts.poppins()),
+                      child: Text('Nam', style: GoogleFonts.inter()),
                     ),
                     DropdownMenuItem(
                       value: 'FEMALE',
-                      child: Text('Nữ', style: GoogleFonts.poppins()),
+                      child: Text('Nữ', style: GoogleFonts.inter()),
                     ),
                     DropdownMenuItem(
                       value: 'OTHER',
-                      child: Text('Khác', style: GoogleFonts.poppins()),
+                      child: Text('Khác', style: GoogleFonts.inter()),
                     ),
                   ],
                   onChanged: (value) {
@@ -213,7 +213,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         ? const CircularProgressIndicator(color: Colors.white)
                         : Text(
                             'Lưu thay đổi',
-                            style: GoogleFonts.poppins(
+                            style: GoogleFonts.inter(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
                               color: Colors.white,
@@ -234,7 +234,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       padding: const EdgeInsets.only(bottom: 8.0),
       child: Text(
         text,
-        style: GoogleFonts.poppins(
+        style: GoogleFonts.inter(
           fontSize: 14,
           fontWeight: FontWeight.w500,
           color: AppColors.textPrimary,
@@ -246,7 +246,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   InputDecoration _buildInputDecoration(String hint) {
     return InputDecoration(
       hintText: hint,
-      hintStyle: GoogleFonts.poppins(color: AppColors.textSecondary),
+      hintStyle: GoogleFonts.inter(color: AppColors.textSecondary),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),

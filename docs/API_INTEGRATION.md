@@ -151,7 +151,3 @@ static const String baseUrl = 'http://192.168.1.100:3000/api';
 2. **Lưu token** - Implement SharedPreferences để lưu token
 3. **Auto login** - Check token khi mở app
 4. **Thêm API services khác** - Tests, Progress, etc.
-
----
-
-**Made with ❤️ for TOEIC learners**

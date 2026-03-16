@@ -45,7 +45,7 @@ class WelcomeScreen extends StatelessWidget {
               // App Name
               Text(
                 'TOEIC - TEST',
-                style: GoogleFonts.poppins(
+                style: GoogleFonts.inter(
                   fontSize: 32,
                   fontWeight: FontWeight.bold,
                   color: Colors.white,
@@ -58,7 +58,7 @@ class WelcomeScreen extends StatelessWidget {
               Text(
                 'Kho đề luyện thi đa dạng',
                 textAlign: TextAlign.center,
-                style: GoogleFonts.poppins(
+                style: GoogleFonts.inter(
                   fontSize: 16,
                   color: Colors.white.withValues(alpha: 0.9),
                   height: 1.5,
@@ -113,7 +113,7 @@ class WelcomeScreen extends StatelessWidget {
                   ),
                   child: Text(
                     'Bắt đầu',
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.inter(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
                     ),
@@ -144,7 +144,7 @@ class WelcomeScreen extends StatelessWidget {
         Expanded(
           child: Text(
             text,
-            style: GoogleFonts.poppins(fontSize: 15, color: Colors.white),
+            style: GoogleFonts.inter(fontSize: 15, color: Colors.white),
           ),
         ),
       ],

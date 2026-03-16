@@ -69,9 +69,9 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       appBar: AppBar(
         title: Text(
           hasPassword ? 'Đổi mật khẩu' : 'Thiết lập mật khẩu',
-          style: GoogleFonts.poppins(
+          style: GoogleFonts.inter(
             color: AppColors.textPrimary,
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.bold,
           ),
         ),
         backgroundColor: Colors.white,
@@ -96,7 +96,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 hasPassword
                     ? 'Hãy nhập mật khẩu hiện tại và mật khẩu mới của bạn.'
                     : 'Chào mừng! Vì bạn đã đăng nhập bằng Google, hãy thiết lập mật khẩu để có thêm lựa chọn đăng nhập sau này.',
-                style: GoogleFonts.poppins(
+                style: GoogleFonts.inter(
                   color: AppColors.textSecondary,
                   fontSize: 14,
                 ),
@@ -177,9 +177,9 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                         )
                       : Text(
                           hasPassword ? 'Cập nhật mật khẩu' : 'Lưu mật khẩu',
-                          style: GoogleFonts.poppins(
+                          style: GoogleFonts.inter(
                             fontSize: 16,
-                            fontWeight: FontWeight.w600,
+                            fontWeight: FontWeight.bold,
                             color: Colors.white,
                           ),
                         ),
@@ -204,7 +204,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       children: [
         Text(
           label,
-          style: GoogleFonts.poppins(
+          style: GoogleFonts.inter(
             fontSize: 14,
             fontWeight: FontWeight.w500,
             color: AppColors.textPrimary,
@@ -215,10 +215,10 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
           controller: controller,
           obscureText: obscureText,
           validator: validator,
-          style: GoogleFonts.poppins(fontSize: 15),
+          style: GoogleFonts.inter(fontSize: 15),
           decoration: InputDecoration(
             hintText: 'Nhập $label',
-            hintStyle: GoogleFonts.poppins(
+            hintStyle: GoogleFonts.inter(
               color: Colors.grey[400],
               fontSize: 14,
             ),

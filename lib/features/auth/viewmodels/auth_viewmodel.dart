@@ -33,6 +33,8 @@ class AuthViewModel extends ChangeNotifier {
           if (userData != null) {
             _currentUser = _authApiService.parseUser(userData);
             _token = token;
+            // Ensure userId is saved for API calls
+            await _storageService.saveUserId(_currentUser!.id);
             _isLoading = false;
             notifyListeners();
             return;
@@ -69,6 +71,7 @@ class AuthViewModel extends ChangeNotifier {
           _token = response['token'];
 
           await _storageService.saveToken(_token!); // Save token
+          await _storageService.saveUserId(_currentUser!.id); // Save userId
 
           _isLoading = false;
           notifyListeners();
@@ -126,6 +129,7 @@ class AuthViewModel extends ChangeNotifier {
           _token = response['token'];
 
           await _storageService.saveToken(_token!); // Save token
+          await _storageService.saveUserId(_currentUser!.id); // Save userId
 
           _isLoading = false;
           notifyListeners();
@@ -241,6 +245,7 @@ class AuthViewModel extends ChangeNotifier {
           _token = response['token'];
 
           await _storageService.saveToken(_token!); // Save token
+          await _storageService.saveUserId(_currentUser!.id); // Save userId
 
           _isLoading = false;
           notifyListeners();
@@ -276,6 +281,7 @@ class AuthViewModel extends ChangeNotifier {
     _token = null;
     _errorMessage = null;
     await _storageService.removeToken(); // Remove token
+    await _storageService.removeUserId(); // Remove userId
     notifyListeners();
   }
 
@@ -318,6 +324,34 @@ class AuthViewModel extends ChangeNotifier {
       _isLoading = false;
       notifyListeners();
       return false;
+    }
+  }
+
+  /// Upload Avatar
+  Future<void> uploadAvatar(String filePath) async {
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      final response = await _authApiService.uploadAvatar(filePath);
+      if (response['success'] == true) {
+        final updatedUser = response['user'];
+        if (updatedUser != null) {
+          _currentUser = _authApiService.parseUser(updatedUser);
+          await _storageService.saveUserId(
+            _currentUser!.id,
+          ); // Ensure ID persistence just in case
+        }
+      } else {
+        throw Exception(response['message'] ?? 'Upload failed');
+      }
+    } catch (e) {
+      _errorMessage = e.toString();
+      debugPrint('Upload avatar error: $e');
+      rethrow; // Rethrow to let UI handle it (show snackbar)
+    } finally {
+      _isLoading = false;
+      notifyListeners();
     }
   }
 }

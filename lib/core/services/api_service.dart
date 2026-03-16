@@ -1,5 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
+import 'package:mime/mime.dart';
 import '../config/api_config.dart';
 
 /// Base API Service - Xử lý tất cả HTTP requests
@@ -125,6 +127,50 @@ class ApiService {
       throw Exception('Server error: ${data['error'] ?? data['message']}');
     } else {
       throw Exception(data['error'] ?? data['message'] ?? 'Request failed');
+    }
+  }
+
+  /// Upload File (Multipart Request)
+  Future<Map<String, dynamic>> uploadFile(
+    String endpoint,
+    String filePath, {
+    required String field,
+    Map<String, String>? headers,
+    Map<String, String>? fields,
+  }) async {
+    try {
+      final url = Uri.parse('${ApiConfig.baseUrl}$endpoint');
+      final request = http.MultipartRequest('POST', url);
+
+      // Add Headers
+      if (headers != null) {
+        request.headers.addAll(headers);
+      }
+
+      // Auto detect mime type
+      final mimeType = lookupMimeType(filePath) ?? 'image/jpeg';
+      final mimeTypeData = mimeType.split('/');
+
+      // Add File
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          field,
+          filePath,
+          contentType: MediaType(mimeTypeData[0], mimeTypeData[1]),
+        ),
+      );
+
+      // Add extra fields
+      if (fields != null) {
+        request.fields.addAll(fields);
+      }
+
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+
+      return _handleResponse(response);
+    } catch (e) {
+      throw Exception('Network error: $e');
     }
   }
 }

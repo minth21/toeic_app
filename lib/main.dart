@@ -5,7 +5,8 @@ import 'features/auth/viewmodels/auth_viewmodel.dart';
 import 'features/auth/views/splash_screen.dart';
 import 'constants/app_constants.dart';
 import 'features/settings/viewmodels/theme_viewmodel.dart';
-import 'features/practice/viewmodels/practice_viewmodel.dart'; // Added
+import 'features/practice/viewmodels/practice_viewmodel.dart';
+import 'features/home/viewmodels/dashboard_viewmodel.dart';
 
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'features/settings/viewmodels/language_viewmodel.dart';
@@ -26,6 +27,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => ThemeViewModel()),
         ChangeNotifierProvider(create: (_) => LanguageViewModel()),
         ChangeNotifierProvider(create: (_) => PracticeViewModel()),
+        ChangeNotifierProvider(create: (_) => DashboardViewModel()),
       ],
       child: Consumer2<ThemeViewModel, LanguageViewModel>(
         builder: (context, themeViewModel, languageViewModel, child) {
@@ -48,8 +50,12 @@ class MyApp extends StatelessWidget {
               colorScheme: ColorScheme.fromSeed(
                 seedColor: AppColors.primary,
                 primary: AppColors.primary,
+                onPrimary: AppColors.textOnPrimary,
                 secondary: AppColors.accent,
                 surface: AppColors.surface,
+                onSurface: AppColors.textPrimary,
+                primaryContainer: AppColors.pastelBlue,
+                onPrimaryContainer: AppColors.primary,
                 surfaceTint: Colors.white,
                 error: AppColors.error,
                 brightness: Brightness.light,
@@ -62,33 +68,65 @@ class MyApp extends StatelessWidget {
                   TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
                 },
               ),
-              textTheme: GoogleFonts.poppinsTextTheme(),
+              textTheme: GoogleFonts.interTextTheme().copyWith(
+                displayLarge: GoogleFonts.inter(fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                displayMedium: GoogleFonts.inter(fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                displaySmall: GoogleFonts.inter(fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                headlineLarge: GoogleFonts.inter(fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                headlineMedium: GoogleFonts.inter(fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                headlineSmall: GoogleFonts.inter(fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                titleLarge: GoogleFonts.inter(fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                titleMedium: GoogleFonts.inter(fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                bodyLarge: GoogleFonts.inter(color: AppColors.textPrimary),
+                bodyMedium: GoogleFonts.inter(color: AppColors.textSecondary),
+              ),
               appBarTheme: AppBarTheme(
                 centerTitle: true,
-                elevation: 0,
+                elevation: 8,
+                shadowColor: AppColors.primary.withValues(alpha: 0.3),
                 backgroundColor: AppColors.primary,
                 foregroundColor: Colors.white,
-                titleTextStyle: GoogleFonts.poppins(
+                titleTextStyle: GoogleFonts.inter(
                   fontSize: 20,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.bold,
                   color: Colors.white,
+                ),
+                iconTheme: const IconThemeData(color: Colors.white),
+              ),
+              cardTheme: CardThemeData(
+                color: AppColors.surface,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
                 ),
               ),
               elevatedButtonTheme: ElevatedButtonThemeData(
                 style: ElevatedButton.styleFrom(
-                  elevation: 2,
+                  elevation: 4,
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 24,
                     vertical: 12,
                   ),
+                  textStyle: GoogleFonts.inter(fontWeight: FontWeight.bold),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(16),
                   ),
                 ),
               ),
               inputDecorationTheme: InputDecorationTheme(
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: const BorderSide(color: AppColors.divider),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: const BorderSide(color: AppColors.divider),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: const BorderSide(color: AppColors.primary, width: 2),
                 ),
                 filled: true,
                 fillColor: AppColors.surface,
@@ -114,17 +152,49 @@ class MyApp extends StatelessWidget {
                   TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
                 },
               ),
-              textTheme: GoogleFonts.poppinsTextTheme(
-                ThemeData.dark().textTheme,
-              ),
+              textTheme: GoogleFonts.interTextTheme(ThemeData.dark().textTheme)
+                  .copyWith(
+                    displayLarge: GoogleFonts.inter(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                    displayMedium: GoogleFonts.inter(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                    displaySmall: GoogleFonts.inter(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                    headlineLarge: GoogleFonts.inter(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                    headlineMedium: GoogleFonts.inter(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                    headlineSmall: GoogleFonts.inter(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                    titleLarge: GoogleFonts.inter(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                    titleMedium: GoogleFonts.inter(
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white70,
+                    ),
+                  ),
               appBarTheme: AppBarTheme(
                 centerTitle: true,
                 elevation: 0,
-                backgroundColor: AppColors.darkSurface, // Darker app bar
+                backgroundColor: AppColors.darkSurface,
                 foregroundColor: Colors.white,
-                titleTextStyle: GoogleFonts.poppins(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w600,
+                titleTextStyle: GoogleFonts.inter(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
                   color: Colors.white,
                 ),
               ),
@@ -135,6 +205,7 @@ class MyApp extends StatelessWidget {
                     horizontal: 24,
                     vertical: 12,
                   ),
+                  textStyle: GoogleFonts.inter(fontWeight: FontWeight.bold),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -147,9 +218,18 @@ class MyApp extends StatelessWidget {
                 filled: true,
                 fillColor: AppColors.darkSurface,
               ),
+
               cardColor:
                   AppColors.darkCardBackground, // For backward compatibility
             ),
+            builder: (context, child) {
+              return MediaQuery(
+                data: MediaQuery.of(
+                  context,
+                ).copyWith(textScaler: const TextScaler.linear(1.15)),
+                child: child!,
+              );
+            },
             home: const SplashScreen(),
           );
         },

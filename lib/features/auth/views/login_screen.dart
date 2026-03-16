@@ -98,7 +98,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         AppColors.primaryGradient.createShader(bounds),
                     child: Text(
                       'TOEIC - TEST',
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.inter(
                         fontSize: 32,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
@@ -110,7 +110,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   Text(
                     'Ôn luyện mọi lúc mọi nơi',
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.inter(
                       fontSize: 16,
                       color: AppColors.textSecondary,
                     ),
@@ -196,7 +196,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       child: Text(
                         'Quên mật khẩu?',
-                        style: GoogleFonts.poppins(
+                        style: GoogleFonts.inter(
                           color: AppColors.primary,
                           fontSize: 14,
                           fontWeight: FontWeight.w500,
@@ -235,9 +235,9 @@ class _LoginScreenState extends State<LoginScreen> {
                               )
                             : Text(
                                 AppStrings.login,
-                                style: GoogleFonts.poppins(
+                                style: GoogleFonts.inter(
                                   fontSize: 16,
-                                  fontWeight: FontWeight.w600,
+                                  fontWeight: FontWeight.bold,
                                 ),
                               ),
                       );
@@ -253,7 +253,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         child: Text(
                           'HOẶC',
-                          style: GoogleFonts.poppins(
+                          style: GoogleFonts.inter(
                             color: AppColors.textSecondary,
                             fontSize: 12,
                             fontWeight: FontWeight.w500,
@@ -342,9 +342,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                     const SizedBox(width: 12),
                                     Text(
                                       'Đăng nhập bằng Google',
-                                      style: GoogleFonts.poppins(
+                                      style: GoogleFonts.inter(
                                         fontSize: 16,
-                                        fontWeight: FontWeight.w600,
+                                        fontWeight: FontWeight.bold,
                                         color: AppColors.textPrimary,
                                       ),
                                     ),
@@ -364,7 +364,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     children: [
                       Text(
                         AppStrings.dontHaveAccount,
-                        style: GoogleFonts.poppins(
+                        style: GoogleFonts.inter(
                           color: AppColors.textSecondary,
                           fontSize: 14,
                         ),
@@ -383,10 +383,10 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         child: Text(
                           AppStrings.register,
-                          style: GoogleFonts.poppins(
+                          style: GoogleFonts.inter(
                             color: AppColors.primary,
                             fontSize: 14,
-                            fontWeight: FontWeight.w600,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
                       ),

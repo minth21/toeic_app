@@ -10,11 +10,13 @@ class PracticeViewModel extends ChangeNotifier {
   bool _isLoading = false;
   String? _selectedDifficulty;
   String? _error;
+  ExamModel? _currentTest;
 
   List<ExamModel> get tests => _tests;
   bool get isLoading => _isLoading;
   String? get selectedDifficulty => _selectedDifficulty;
   String? get error => _error;
+  ExamModel? get currentTest => _currentTest;
 
   PracticeViewModel() {
     loadTests();
@@ -47,6 +49,13 @@ class PracticeViewModel extends ChangeNotifier {
 
     try {
       _currentQuestions = await _apiService.getQuestionsByPartId(partId);
+      // Find current test from loaded tests if available
+      for (var test in _tests) {
+        if (test.parts.any((p) => p.id == partId)) {
+          _currentTest = test;
+          break;
+        }
+      }
     } catch (e) {
       _error = e.toString();
     } finally {
@@ -57,23 +66,26 @@ class PracticeViewModel extends ChangeNotifier {
 
   Future<Map<String, dynamic>?> submitPart(
     String partId,
-    Map<int, String> userAnswers,
-  ) async {
+    Map<String, String> userAnswers, {
+    int? timeTaken,
+  }) async {
     _isLoading = true;
     notifyListeners();
 
     try {
       final List<Map<String, dynamic>> formattedAnswers = [];
-      userAnswers.forEach((index, answer) {
-        if (index < _currentQuestions.length) {
-          formattedAnswers.add({
-            'questionId': _currentQuestions[index].id,
-            'selectedOption': answer,
-          });
-        }
+      userAnswers.forEach((qId, answer) {
+        formattedAnswers.add({
+          'questionId': qId,
+          'selectedOption': answer,
+        });
       });
 
-      final result = await _apiService.submitPart(partId, formattedAnswers);
+      final result = await _apiService.submitPart(
+        partId,
+        formattedAnswers,
+        timeTaken,
+      );
       return result;
     } catch (e) {
       _error = e.toString();
@@ -96,5 +108,37 @@ class PracticeViewModel extends ChangeNotifier {
     if (_selectedDifficulty == difficulty) return;
     _selectedDifficulty = difficulty;
     loadTests();
+  }
+
+  Future<ExamModel?> getTestById(String testId) async {
+    try {
+      // Create a temporary/helper service call or use existing one if method exists
+      // Check PracticeApiService for getTestById
+      // If not exists, we might need to add it or just reload all tests and find it?
+      // Reloading all is inefficient. Let's start with reloading all tests for simplicity
+      // or assume we need to add a specific method.
+      // Actually, the backend supports GET /api/tests/:id.
+      // Let's check PracticeApiService again.
+      return await _apiService.getTestById(testId);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  Future<String?> pollAIAssessment(String attemptId) async {
+    int retries = 15; // 30 seconds max
+    while (retries > 0) {
+      await Future.delayed(const Duration(seconds: 2));
+      try {
+        final attempt = await _apiService.getAttemptDetail(attemptId);
+        if (attempt != null && attempt['aiAssessment'] != null) {
+          return attempt['aiAssessment'];
+        }
+      } catch (e) {
+        // Ignore errors during polling
+      }
+      retries--;
+    }
+    return null;
   }
 }

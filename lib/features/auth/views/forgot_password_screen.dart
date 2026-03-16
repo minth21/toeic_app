@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/auth_api_service.dart';
 import 'reset_password_screen.dart';
+import '../../../core/utils/validators.dart';
 
 /// Màn hình quên mật khẩu - Nhập email để nhận OTP
 class ForgotPasswordScreen extends StatefulWidget {
@@ -155,17 +156,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                             ),
                           ),
                         ),
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Vui lòng nhập email';
-                          }
-                          if (!RegExp(
-                            r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
-                          ).hasMatch(value)) {
-                            return 'Email không hợp lệ';
-                          }
-                          return null;
-                        },
+                        validator: Validators.email,
                       ),
 
                       const SizedBox(height: 24),

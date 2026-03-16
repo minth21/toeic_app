@@ -80,7 +80,7 @@ class _LevelAssessmentScreenState extends State<LevelAssessmentScreen> {
                 children: [
                   Text(
                     'Bạn muốn luyện tập ở mức độ nào?',
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.inter(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
                       color: AppColors.textPrimary,
@@ -90,7 +90,7 @@ class _LevelAssessmentScreenState extends State<LevelAssessmentScreen> {
                   const SizedBox(height: 12),
                   Text(
                     'Chọn mức độ để nhận đề xuất phù hợp',
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.inter(
                       fontSize: 14,
                       color: AppColors.textSecondary,
                     ),
@@ -141,7 +141,7 @@ class _LevelAssessmentScreenState extends State<LevelAssessmentScreen> {
                   ),
                   child: Text(
                     'Tiếp tục',
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.inter(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
                     ),
@@ -219,7 +219,7 @@ class _LevelAssessmentScreenState extends State<LevelAssessmentScreen> {
                     ),
                     child: Text(
                       level.scoreRange,
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.inter(
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
@@ -232,7 +232,7 @@ class _LevelAssessmentScreenState extends State<LevelAssessmentScreen> {
                   // Level Name
                   Text(
                     level.name,
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.inter(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
                       color: AppColors.textPrimary,
@@ -244,7 +244,7 @@ class _LevelAssessmentScreenState extends State<LevelAssessmentScreen> {
                   // Description
                   Text(
                     level.description,
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.inter(
                       fontSize: 13,
                       color: AppColors.textSecondary,
                       height: 1.3,

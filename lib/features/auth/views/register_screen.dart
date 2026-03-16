@@ -148,7 +148,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         AppColors.primaryGradient.createShader(bounds),
                     child: Text(
                       AppStrings.createAccount,
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.inter(
                         fontSize: 28,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
@@ -160,7 +160,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                   Text(
                     'Tạo tài khoản để bắt đầu luyện thi TOEIC',
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.inter(
                       fontSize: 14,
                       color: AppColors.textSecondary,
                     ),
@@ -230,12 +230,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                   const SizedBox(height: 16),
 
-                  // Phone Number Field (Optional)
+                  // Phone Number Field
                   TextFormField(
                     controller: _phoneController,
                     keyboardType: TextInputType.phone,
                     decoration: InputDecoration(
-                      labelText: 'Số điện thoại (không bắt buộc)',
+                      labelText: 'Số điện thoại',
                       prefixIcon: const Icon(Icons.phone_outlined),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -250,40 +250,68 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       filled: true,
                       fillColor: AppColors.surface,
                     ),
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Vui lòng nhập số điện thoại';
+                      }
+                      if (value.length < 10) {
+                        return 'Số điện thoại không hợp lệ';
+                      }
+                      return null;
+                    },
                   ),
                   const SizedBox(height: 16),
 
-                  // Date of Birth Picker (Optional)
-                  InkWell(
-                    onTap: _selectDate,
-                    child: InputDecorator(
-                      decoration: InputDecoration(
-                        labelText: 'Ngày sinh (không bắt buộc)',
-                        prefixIcon: const Icon(Icons.calendar_today),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(
-                            color: AppColors.primary,
-                            width: 2,
+                  // Date of Birth Picker
+                  FormField<DateTime>(
+                    validator: (value) {
+                      if (_selectedDate == null) {
+                        return 'Vui lòng chọn ngày sinh';
+                      }
+                      return null;
+                    },
+                    builder: (FormFieldState<DateTime> state) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          InkWell(
+                            onTap: () async {
+                              await _selectDate();
+                              state.didChange(_selectedDate);
+                            },
+                            child: InputDecorator(
+                              decoration: InputDecoration(
+                                labelText: 'Ngày sinh',
+                                prefixIcon: const Icon(Icons.calendar_today),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide(
+                                    color: AppColors.primary,
+                                    width: 2,
+                                  ),
+                                ),
+                                errorText: state.errorText,
+                                filled: true,
+                                fillColor: AppColors.surface,
+                              ),
+                              child: Text(
+                                _selectedDate != null
+                                    ? '${_selectedDate!.day.toString().padLeft(2, '0')}/${_selectedDate!.month.toString().padLeft(2, '0')}/${_selectedDate!.year}'
+                                    : 'Chọn ngày sinh',
+                                style: TextStyle(
+                                  color: _selectedDate != null
+                                      ? Colors.black87
+                                      : Colors.grey,
+                                ),
+                              ),
+                            ),
                           ),
-                        ),
-                        filled: true,
-                        fillColor: AppColors.surface,
-                      ),
-                      child: Text(
-                        _selectedDate != null
-                            ? '${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}'
-                            : 'Chọn ngày sinh',
-                        style: TextStyle(
-                          color: _selectedDate != null
-                              ? Colors.black87
-                              : Colors.grey,
-                        ),
-                      ),
-                    ),
+                        ],
+                      );
+                    },
                   ),
                   const SizedBox(height: 16),
 
@@ -436,9 +464,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               )
                             : Text(
                                 AppStrings.register,
-                                style: GoogleFonts.poppins(
+                                style: GoogleFonts.inter(
                                   fontSize: 16,
-                                  fontWeight: FontWeight.w600,
+                                  fontWeight: FontWeight.bold,
                                 ),
                               ),
                       );
@@ -452,7 +480,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     children: [
                       Text(
                         AppStrings.alreadyHaveAccount,
-                        style: GoogleFonts.poppins(
+                        style: GoogleFonts.inter(
                           color: AppColors.textSecondary,
                           fontSize: 14,
                         ),
@@ -471,10 +499,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ),
                         child: Text(
                           AppStrings.login,
-                          style: GoogleFonts.poppins(
+                          style: GoogleFonts.inter(
                             color: AppColors.primary,
                             fontSize: 14,
-                            fontWeight: FontWeight.w600,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
                       ),

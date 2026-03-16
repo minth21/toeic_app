@@ -1,16 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'edit_profile_screen.dart';
-import 'change_password_screen.dart';
-import '../../auth/viewmodels/auth_viewmodel.dart';
+import 'package:toeic_practice_app/l10n/app_localizations.dart';
 import '../../../constants/app_constants.dart';
-import '../../auth/views/login_screen.dart';
 import '../../settings/viewmodels/theme_viewmodel.dart';
 import '../../settings/viewmodels/language_viewmodel.dart';
-import '../../../l10n/app_localizations.dart';
+import '../../auth/viewmodels/auth_viewmodel.dart';
+import 'edit_profile_screen.dart';
+import 'change_password_screen.dart';
+import '../../auth/views/login_screen.dart';
+// Note: ProfileViewModel might not exist, checking imports.
+// It seems AuthViewModel holds the user. Let's use AuthViewModel for now or check if we need a new VM.
+// The user update happens in AuthViewModel usually.
 
-/// Profile Screen - Modern & Beautiful Design
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
@@ -19,6 +22,97 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
+  final ImagePicker _picker = ImagePicker();
+  bool _isUploading = false;
+
+  Future<void> _pickAndUploadImage() async {
+    try {
+      final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
+      if (image == null) return;
+      if (!mounted) return;
+
+      setState(() => _isUploading = true);
+
+      final authViewModel = context.read<AuthViewModel>();
+      // We need a method in AuthViewModel to upload avatar
+      // Let's assume we will add it or it exists.
+      // Actually we just added uploadAvatar to AuthApiService.
+      // We need to call it via ViewModel.
+
+      await authViewModel.uploadAvatar(image.path);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Cập nhật ảnh đại diện thành công!')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Lỗi: ${e.toString()}')));
+      }
+    } finally {
+      if (mounted) setState(() => _isUploading = false);
+    }
+  }
+
+  void _showImageSourceActionSheet() {
+    showModalBottomSheet(
+      context: context,
+      builder: (BuildContext modalContext) {
+        return SafeArea(
+          child: Wrap(
+            children: <Widget>[
+              ListTile(
+                leading: const Icon(Icons.photo_library),
+                title: const Text('Thư viện ảnh'),
+                onTap: () {
+                  Navigator.of(modalContext).pop();
+                  _pickAndUploadImage();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_camera),
+                title: const Text('Chụp ảnh'),
+                onTap: () async {
+                  Navigator.of(modalContext).pop();
+                  final XFile? image = await _picker.pickImage(
+                    source: ImageSource.camera,
+                  );
+                  if (image != null) {
+                    if (!mounted) return;
+                    // Same logic
+                    setState(() => _isUploading = true);
+                    try {
+                      final authViewModel = context.read<AuthViewModel>();
+                      await authViewModel.uploadAvatar(image.path);
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Cập nhật ảnh đại diện thành công!'),
+                          ),
+                        );
+                      }
+                    } catch (e) {
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Lỗi: ${e.toString()}')),
+                        );
+                      }
+                    } finally {
+                      if (mounted) setState(() => _isUploading = false);
+                    }
+                  }
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final authViewModel = context.watch<AuthViewModel>();
@@ -48,60 +142,102 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     children: [
                       const SizedBox(height: 40),
                       // Avatar
-                      Hero(
-                        tag: 'profile_avatar',
-                        child: Container(
-                          width: 120,
-                          height: 120,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white, width: 4),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.2),
-                                blurRadius: 20,
-                                offset: const Offset(0, 8),
-                              ),
-                            ],
-                            gradient: user?.avatarUrl == null
-                                ? const LinearGradient(
-                                    colors: [
-                                      Color(0xFF9C27B0),
-                                      Color(0xFF7B1FA2),
-                                    ],
-                                  )
-                                : null,
-                          ),
-                          child: user?.avatarUrl != null
-                              ? ClipOval(
-                                  child: Image.network(
-                                    user!.avatarUrl!,
-                                    fit: BoxFit.cover,
-                                    width: 120,
-                                    height: 120,
-                                    errorBuilder: (context, error, stackTrace) {
-                                      return const Icon(
-                                        Icons.person,
-                                        size: 60,
-                                        color: Colors.white,
-                                      );
-                                    },
-                                  ),
-                                )
-                              : const Center(
-                                  child: Icon(
-                                    Icons.person,
-                                    size: 60,
-                                    color: Colors.white,
-                                  ),
+                      Stack(
+                        children: [
+                          Hero(
+                            tag: 'profile_avatar',
+                            child: Container(
+                              width: 120,
+                              height: 120,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: Colors.white,
+                                  width: 4,
                                 ),
-                        ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.2),
+                                    blurRadius: 20,
+                                    offset: const Offset(0, 8),
+                                  ),
+                                ],
+                                gradient: user?.avatarUrl == null
+                                    ? const LinearGradient(
+                                        colors: [
+                                          Color(0xFF9C27B0),
+                                          Color(0xFF7B1FA2),
+                                        ],
+                                      )
+                                    : null,
+                              ),
+                              child: _isUploading
+                                  ? const Center(
+                                      child: CircularProgressIndicator(
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                  : (user?.avatarUrl != null
+                                        ? ClipOval(
+                                            child: Image.network(
+                                              user!.avatarUrl!,
+                                              fit: BoxFit.cover,
+                                              width: 120,
+                                              height: 120,
+                                              errorBuilder:
+                                                  (context, error, stackTrace) {
+                                                    return const Icon(
+                                                      Icons.person,
+                                                      size: 60,
+                                                      color: Colors.white,
+                                                    );
+                                                  },
+                                            ),
+                                          )
+                                        : const Center(
+                                            child: Icon(
+                                              Icons.person,
+                                              size: 60,
+                                              color: Colors.white,
+                                            ),
+                                          )),
+                            ),
+                          ),
+                          Positioned(
+                            bottom: 0,
+                            right: 0,
+                            child: GestureDetector(
+                              onTap: () => _showImageSourceActionSheet(),
+                              child: Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(
+                                        alpha: 0.1,
+                                      ),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
+                                ),
+                                child: Icon(
+                                  Icons.camera_alt,
+                                  size: 20,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 16),
                       // Name
                       Text(
                         user?.name ?? 'User',
-                        style: GoogleFonts.poppins(
+                        style: GoogleFonts.inter(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
@@ -111,7 +247,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       // Email
                       Text(
                         user?.email ?? '',
-                        style: GoogleFonts.poppins(
+                        style: GoogleFonts.inter(
                           fontSize: 14,
                           color: Colors.white.withValues(alpha: 0.9),
                         ),
@@ -133,7 +269,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   Text(
                     AppLocalizations.of(context)?.translate('settings') ??
                         'Cài đặt',
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.inter(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
                       color: Theme.of(context).textTheme.bodyLarge?.color,
@@ -208,7 +344,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       title: Text(
                         AppLocalizations.of(context)?.translate('language') ??
                             'Ngôn ngữ',
-                        style: GoogleFonts.poppins(
+                        style: GoogleFonts.inter(
                           fontSize: 15,
                           fontWeight: FontWeight.w500,
                           color: Theme.of(context).textTheme.bodyLarge?.color,
@@ -221,7 +357,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             context.watch<LanguageViewModel>().isVietnamese
                                 ? 'VI'
                                 : 'EN',
-                            style: GoogleFonts.poppins(
+                            style: GoogleFonts.inter(
                               fontSize: 15,
                               fontWeight: FontWeight.bold,
                               color: AppColors.primary,
@@ -285,9 +421,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       context,
                                     )?.translate('logout') ??
                                     'Đăng xuất',
-                                style: GoogleFonts.poppins(
+                                style: GoogleFonts.inter(
                                   fontSize: 16,
-                                  fontWeight: FontWeight.w600,
+                                  fontWeight: FontWeight.bold,
                                   color: Colors.white,
                                 ),
                               ),
@@ -330,7 +466,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         title: Text(
           title,
-          style: GoogleFonts.poppins(
+          style: GoogleFonts.inter(
             fontSize: 15,
             fontWeight: FontWeight.w500,
             color: Theme.of(context).textTheme.bodyLarge?.color,
@@ -369,7 +505,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         title: Text(
           title,
-          style: GoogleFonts.poppins(
+          style: GoogleFonts.inter(
             fontSize: 15,
             fontWeight: FontWeight.w500,
             color: Theme.of(context).textTheme.bodyLarge?.color,
@@ -410,7 +546,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               Text(
                 AppLocalizations.of(context)?.translate('logout') ??
                     'Đăng xuất',
-                style: GoogleFonts.poppins(
+                style: GoogleFonts.inter(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
                 ),
@@ -420,7 +556,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 AppLocalizations.of(context)?.translate('logout_message') ??
                     'Bạn có chắc chắn muốn đăng xuất?',
                 textAlign: TextAlign.center,
-                style: GoogleFonts.poppins(color: AppColors.textSecondary),
+                style: GoogleFonts.inter(color: AppColors.textSecondary),
               ),
               const SizedBox(height: 24),
               Row(
@@ -438,9 +574,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       child: Text(
                         AppLocalizations.of(context)?.translate('cancel') ??
                             'Hủy',
-                        style: GoogleFonts.poppins(
+                        style: GoogleFonts.inter(
                           color: AppColors.textSecondary,
-                          fontWeight: FontWeight.w600,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
                     ),
@@ -468,7 +604,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       child: Text(
                         AppLocalizations.of(context)?.translate('logout') ??
                             'Đăng xuất',
-                        style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                        style: GoogleFonts.inter(fontWeight: FontWeight.bold),
                       ),
                     ),
                   ),

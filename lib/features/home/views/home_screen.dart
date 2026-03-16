@@ -2,650 +2,624 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../constants/app_constants.dart';
-import '../../auth/viewmodels/auth_viewmodel.dart';
+import '../viewmodels/dashboard_viewmodel.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
-  // Mock data for demo
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<DashboardViewModel>().loadDashboard();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    final authViewModel = context.watch<AuthViewModel>();
-    final user = authViewModel.currentUser;
+    final dashboardViewModel = context.watch<DashboardViewModel>();
+
+    if (dashboardViewModel.isLoading && dashboardViewModel.dashboardData == null) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
 
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: AppBar(
-        title: Text(
-          'Trang chủ',
-          style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+      backgroundColor: AppColors.background,
+      body: RefreshIndicator(
+        onRefresh: () => dashboardViewModel.loadDashboard(),
+        child: CustomScrollView(
+          slivers: [
+            // A. SliverAppBar (Welcome Banner & Streak)
+            _buildSliverAppBar(dashboardViewModel.userName, dashboardViewModel.streak),
+
+            // B. Hero Card (Mục tiêu & Điểm số)
+            SliverToBoxAdapter(
+              child: _buildHeroCard(
+                dashboardViewModel.predictedScore,
+                dashboardViewModel.listeningScore,
+                dashboardViewModel.readingScore,
+              ),
+            ),
+
+            // C. Resume Learning Card
+            if (dashboardViewModel.resumeLearning != null)
+              SliverToBoxAdapter(
+                child: _buildResumeLearningCard(dashboardViewModel.resumeLearning!),
+              ),
+
+            // D. Quick Categories (Menu Kỹ năng)
+            SliverToBoxAdapter(
+              child: _buildQuickCategories(context),
+            ),
+
+            // E. AI Smart Recommendations / Recent Activity
+            _buildAIRecommendations(dashboardViewModel),
+            
+            // Bottom Padding
+            const SliverPadding(padding: EdgeInsets.only(bottom: 32)),
+          ],
         ),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        automaticallyImplyLeading: false,
       ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Welcome Banner
-              _buildWelcomeBanner(user?.name ?? 'User'),
-              const SizedBox(height: 20),
+    );
+  }
 
-              // Overall Progress
-              _buildOverallProgress(user?.progress ?? 0),
-              const SizedBox(height: 20),
-
-              // Quick Stats Grid
-              _buildStatsGrid(context, user),
-              const SizedBox(height: 20),
-
-              // Quick Actions
-              _buildQuickActions(context),
-              const SizedBox(height: 24),
-
-              // Recent Activity or Empty State
-              if ((user?.totalTestsTaken ?? 0) > 0)
-                _buildRecentActivity(context)
-              else
-                _buildEmptyState(context),
-            ],
+  Widget _buildSliverAppBar(String userName, int streak) {
+    return SliverAppBar(
+      expandedHeight: 120,
+      floating: true,
+      pinned: true,
+      elevation: 0,
+      scrolledUnderElevation: 0,
+      automaticallyImplyLeading: false,
+      backgroundColor: AppColors.background,
+      flexibleSpace: FlexibleSpaceBar(
+        background: Container(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+          alignment: Alignment.bottomCenter,
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                // Row 1: Welcome + Notifications
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Chào $userName! 👋',
+                      style: GoogleFonts.inter(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        boxShadow: AppShadows.softShadow,
+                      ),
+                      child: IconButton(
+                        icon: const Icon(Icons.notifications_none_rounded,
+                            color: AppColors.textPrimary),
+                        onPressed: () {},
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                // Row 2: Tagline + Streak
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Hôm nay bạn muốn học gì?',
+                        style: GoogleFonts.inter(
+                          fontSize: 14,
+                          color: AppColors.textSecondary,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    // Streak indicator
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: AppColors.pastelBlue,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: AppColors.primary.withValues(alpha: 0.1)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.local_fire_department,
+                              color: Colors.orange, size: 18),
+                          const SizedBox(width: 4),
+                          Text(
+                            '$streak ngày',
+                            style: GoogleFonts.inter(
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildWelcomeBanner(String userName) {
+  Widget _buildHeroCard(int totalScore, int listeningScore, int readingScore) {
     return Container(
-      padding: const EdgeInsets.all(24),
+      margin: const EdgeInsets.all(20),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [AppColors.primary, AppColors.primaryDark],
+        gradient: const LinearGradient(
+          colors: [AppColors.primary, AppColors.primaryLight],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.3),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Chào $userName! 👋',
-            style: GoogleFonts.poppins(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Bắt đầu hành trình chinh phục TOEIC!',
-            style: GoogleFonts.poppins(
-              fontSize: 14,
-              color: Colors.white.withValues(alpha: 0.9),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildOverallProgress(int progress) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Tiến độ học tập',
-                style: GoogleFonts.poppins(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: progress == 100
-                      ? AppColors.success.withValues(alpha: 0.1)
-                      : AppColors.primary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  '$progress%',
-                  style: GoogleFonts.poppins(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: progress == 100
-                        ? AppColors.success
-                        : AppColors.primary,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: LinearProgressIndicator(
-              value: progress / 100,
-              backgroundColor: Colors.grey.shade100,
-              valueColor: AlwaysStoppedAnimation<Color>(
-                progress == 100 ? AppColors.success : AppColors.primary,
-              ),
-              minHeight: 12,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            progress == 100
-                ? 'Chúc mừng! Bạn đã hoàn thành lộ trình.'
-                : 'Hãy tiếp tục cố gắng để đạt mục tiêu nhé!',
-            style: GoogleFonts.poppins(
-              fontSize: 12,
-              color: AppColors.textSecondary,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatsGrid(BuildContext context, dynamic user) {
-    // Note: user is UserModel? but passed as dynamic to avoid import if not already there,
-    // but better to rely on context or pass specific values.
-    // Casting for safety if user is null
-    final int totalTests = user?.totalTestsTaken ?? 0;
-    final int avgScore = user?.averageScore ?? 0;
-    // Mock for now as backend doesn't provide these yet
-    final int listeningScore = 0;
-    final int readingScore = 0;
-
-    return GridView.count(
-      crossAxisCount: 2,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      mainAxisSpacing: 12,
-      crossAxisSpacing: 12,
-      childAspectRatio: 1.3,
-      children: [
-        _buildStatCard(
-          context: context,
-          icon: Icons.quiz_outlined,
-          title: 'Bài thi đã làm',
-          value: '$totalTests',
-          color: AppColors.primary,
-        ),
-        _buildStatCard(
-          context: context,
-          icon: Icons.stars_outlined,
-          title: 'Điểm trung bình',
-          value: '$avgScore',
-          subtitle: '/990',
-          color: Colors.orange,
-        ),
-        _buildStatCard(
-          context: context,
-          icon: Icons.headphones_outlined,
-          title: 'Listening (TB)',
-          value: listeningScore > 0 ? '$listeningScore' : '-',
-          subtitle: '/495',
-          color: const Color(0xFF2196F3),
-        ),
-        _buildStatCard(
-          context: context,
-          icon: Icons.menu_book_outlined,
-          title: 'Reading (TB)',
-          value: readingScore > 0 ? '$readingScore' : '-',
-          subtitle: '/495',
-          color: const Color(0xFFFF9800),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildStatCard({
-    required BuildContext context,
-    required IconData icon,
-    required String title,
-    required String value,
-    String? subtitle,
-    required Color color,
-    double? progress,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: AppShadows.premiumShadow,
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, size: 28, color: color),
-          const SizedBox(height: 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                value,
-                style: GoogleFonts.poppins(
-                  fontSize: 24,
+                '$totalScore',
+                style: GoogleFonts.inter(
+                  color: Colors.white,
+                  fontSize: 48,
                   fontWeight: FontWeight.bold,
-                  color: Theme.of(context).textTheme.bodyLarge?.color,
                 ),
               ),
-              if (subtitle != null) ...[
-                const SizedBox(width: 2),
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 2),
-                  child: Text(
-                    subtitle,
-                    style: GoogleFonts.poppins(
-                      fontSize: 12,
-                      color: Theme.of(context).textTheme.bodyMedium?.color,
-                    ),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8, left: 6),
+                child: Text(
+                  '/ 990',
+                  style: GoogleFonts.inter(
+                    color: Colors.white.withValues(alpha: 0.7),
+                    fontSize: 20,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
-              ],
+              ),
             ],
           ),
-          const SizedBox(height: 4),
-          Text(
-            title,
-            style: GoogleFonts.poppins(
-              fontSize: 11,
-              color: Theme.of(context).textTheme.bodyMedium?.color,
+          const SizedBox(height: 24),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: LinearProgressIndicator(
+              value: totalScore / 990,
+              backgroundColor: Colors.white.withValues(alpha: 0.2),
+              valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+              minHeight: 10,
             ),
           ),
-          if (progress != null) ...[
-            const SizedBox(height: 8),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: LinearProgressIndicator(
-                value: progress,
-                backgroundColor: color.withValues(alpha: 0.2),
-                valueColor: AlwaysStoppedAnimation<Color>(color),
-                minHeight: 4,
+          const SizedBox(height: 24),
+          // Score Detail Section
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _buildSkillScore(Icons.headphones, 'Listening', listeningScore),
+              Container(
+                width: 1.5,
+                height: 24,
+                color: Colors.white.withValues(alpha: 0.2),
               ),
-            ),
-          ],
+              _buildSkillScore(Icons.menu_book, 'Reading', readingScore),
+            ],
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildQuickActions(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildSkillScore(IconData icon, String label, int score) {
+    return Row(
       children: [
+        Icon(icon, color: Colors.white.withValues(alpha: 0.9), size: 18),
+        const SizedBox(width: 6),
         Text(
-          'Bắt đầu luyện tập',
-          style: GoogleFonts.poppins(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Theme.of(context).textTheme.bodyLarge?.color,
+          '$label: ',
+          style: GoogleFonts.inter(
+            color: Colors.white.withValues(alpha: 0.8),
+            fontSize: 13,
           ),
         ),
-        const SizedBox(height: 12),
-
-        Row(
-          children: [
-            Expanded(
-              child: _buildActionButton(
-                context: context,
-                icon: Icons.headphones,
-                title: 'Luyện Listening',
-                subtitle: 'Part 1-4',
-                color: const Color(0xFF2196F3),
-                isCompact: true,
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Listening Practice - Coming soon!'),
-                    ),
-                  );
-                },
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildActionButton(
-                context: context,
-                icon: Icons.menu_book,
-                title: 'Luyện Reading',
-                subtitle: 'Part 5-7',
-                color: const Color(0xFFFF9800),
-                isCompact: true,
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Reading Practice - Coming soon!'),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ],
+        Text(
+          '$score',
+          style: GoogleFonts.inter(
+            color: Colors.white,
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+          ),
         ),
       ],
     );
   }
 
-  Widget _buildActionButton({
-    required BuildContext context,
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required Color color,
-    required VoidCallback onTap,
-    bool isCompact = false,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: EdgeInsets.all(isCompact ? 12 : 16),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withValues(alpha: 0.3)),
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: color,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(icon, color: Colors.white, size: isCompact ? 20 : 24),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: GoogleFonts.poppins(
-                      fontSize: isCompact ? 13 : 15,
-                      fontWeight: FontWeight.w600,
-                      color: color,
-                    ),
-                  ),
-                  Text(
-                    subtitle,
-                    style: GoogleFonts.poppins(
-                      fontSize: isCompact ? 11 : 12,
-                      color: Theme.of(context).textTheme.bodyMedium?.color,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Icon(Icons.arrow_forward_ios, size: 16, color: color),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildRecentActivity(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Hoạt động gần đây',
-          style: GoogleFonts.poppins(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Theme.of(context).textTheme.bodyLarge?.color,
-          ),
-        ),
-        const SizedBox(height: 12),
-        _buildActivityItem(
-          context: context,
-          title: 'Luyện tập tổng hợp #12',
-          score: 800,
-          listeningScore: 420,
-          readingScore: 380,
-          timeAgo: '2 giờ trước',
-          isCompleted: true,
-        ),
-        const SizedBox(height: 8),
-        _buildActivityItem(
-          context: context,
-          title: 'Part 5 Practice',
-          progress: '15/30 câu',
-          timeAgo: '1 ngày trước',
-          isCompleted: false,
-        ),
-        const SizedBox(height: 8),
-        _buildActivityItem(
-          context: context,
-          title: 'Listening Part 3',
-          score: 720,
-          listeningScore: 385,
-          readingScore: 335,
-          timeAgo: '3 ngày trước',
-          isCompleted: true,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildActivityItem({
-    required BuildContext context,
-    required String title,
-    int? score,
-    int? listeningScore,
-    int? readingScore,
-    String? progress,
-    required String timeAgo,
-    required bool isCompleted,
-  }) {
+  Widget _buildResumeLearningCard(Map<String, dynamic> data) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.symmetric(horizontal: 20),
       decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 5,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: AppShadows.softShadow,
       ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: InkWell(
+          onTap: () {},
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: const BoxDecoration(
+                    color: AppColors.pastelBlue,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.play_arrow_rounded, color: AppColors.primary, size: 28),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Tiếp tục bài học',
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      Text(
+                        '${data['title']} - ${data['subtitle']}',
+                        style: GoogleFonts.inter(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textPrimary,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.chevron_right_rounded, color: AppColors.divider),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuickCategories(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Icon(
-                isCompleted ? Icons.check_circle : Icons.pending_outlined,
-                color: isCompleted ? Colors.green : Colors.orange,
-                size: 20,
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  title,
-                  style: GoogleFonts.poppins(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: Theme.of(context).textTheme.bodyLarge?.color,
-                  ),
-                ),
-              ),
-              Text(
-                timeAgo,
-                style: GoogleFonts.poppins(
-                  fontSize: 12,
-                  color: Theme.of(context).textTheme.bodyMedium?.color,
-                ),
-              ),
-            ],
-          ),
-          if (isCompleted && score != null) ...[
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                _buildScoreBadge('Tổng', score, 990, Colors.purple),
-                const SizedBox(width: 8),
-                _buildScoreBadge('L', listeningScore!, 495, Colors.blue),
-                const SizedBox(width: 8),
-                _buildScoreBadge('R', readingScore!, 495, Colors.orange),
-              ],
-            ),
-          ],
-          if (!isCompleted && progress != null) ...[
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Tiến độ: $progress',
-                    style: GoogleFonts.poppins(
-                      fontSize: 13,
-                      color: Theme.of(context).textTheme.bodyMedium?.color,
-                    ),
-                  ),
-                ),
-                TextButton(
-                  onPressed: () {},
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 4,
-                    ),
-                  ),
-                  child: Text(
-                    'Tiếp tục →',
-                    style: GoogleFonts.poppins(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildScoreBadge(String label, int score, int max, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Text(
-        '$label: $score',
-        style: GoogleFonts.poppins(
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          color: color,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildEmptyState(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(32),
-      decoration: BoxDecoration(
-        color: Colors.blue.shade50,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.blue.shade200),
-      ),
-      child: Column(
-        children: [
-          Icon(
-            Icons.school_outlined,
-            size: 64,
-            color: AppColors.primary.withValues(alpha: 0.5),
-          ),
-          const SizedBox(height: 16),
           Text(
-            'Chưa có lịch sử test',
-            style: GoogleFonts.poppins(
+            'Luyện tập theo kỹ năng',
+            style: GoogleFonts.inter(
               fontSize: 18,
               fontWeight: FontWeight.bold,
               color: AppColors.textPrimary,
             ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            'Hãy bắt đầu làm bài test đầu tiên để theo dõi tiến độ của bạn!',
-            textAlign: TextAlign.center,
-            style: GoogleFonts.poppins(
-              fontSize: 14,
-              color: AppColors.textSecondary,
+          const SizedBox(height: 16),
+          Column(
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildCategoryCard(
+                      'Nghe',
+                      Icons.headphones_rounded,
+                      AppColors.pastelBlueLight,
+                      AppColors.primary,
+                      onTap: () {
+                        DefaultTabController.of(context).animateTo(1); // Go to Practice Tab
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: _buildCategoryCard(
+                      'Đọc',
+                      Icons.menu_book_rounded,
+                      const Color(0xFFF0FDF4),
+                      AppColors.success,
+                      onTap: () {
+                        DefaultTabController.of(context).animateTo(1); // Go to Practice Tab
+                      },
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              _buildCategoryCard(
+                'Từ Vựng',
+                Icons.style_outlined,
+                const Color(0xFFFEF9C3),
+                AppColors.warning,
+                isFullWidth: true,
+                onTap: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Tính năng Từ vựng đang được phát triển'),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCategoryCard(
+    String title,
+    IconData icon,
+    Color bgColor,
+    Color iconColor, {
+    bool isFullWidth = false,
+    VoidCallback? onTap,
+  }) {
+    return Container(
+      width: isFullWidth ? double.infinity : null,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: iconColor.withValues(alpha: 0.1),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Material(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(20),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(20),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment:
+                  isFullWidth ? CrossAxisAlignment.center : CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(14),
+                    boxShadow: [
+                      BoxShadow(
+                        color: iconColor.withValues(alpha: 0.1),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Icon(icon, color: iconColor, size: 28),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  title,
+                  style: GoogleFonts.inter(
+                    fontSize: 17,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 16),
-          ElevatedButton.icon(
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Start Test - Coming soon!')),
-              );
-            },
-            icon: const Icon(Icons.play_arrow),
-            label: Text(
-              'Bắt đầu ngay',
-              style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAIRecommendations(DashboardViewModel vm) {
+    return SliverPadding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      sliver: SliverList(
+        delegate: SliverChildListDelegate([
+          if (vm.recommendations.isNotEmpty) ...[
+            Row(
+              children: [
+                Text(
+                  '💡 Gia sư AI Gợi ý',
+                  style: GoogleFonts.inter(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const Spacer(),
+                TextButton(
+                  onPressed: () {},
+                  child: Text(
+                    'Xem tất cả',
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
             ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            const SizedBox(height: 12),
+            ...vm.recommendations.map((rec) => Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: _buildAIItem(
+                rec['title'],
+                rec['subtitle'],
+                rec['icon'] == 'warning' ? Icons.warning_amber_rounded : Icons.psychology_outlined,
+                rec['icon'] == 'warning' ? AppColors.warning : AppColors.primary,
+              ),
+            )),
+          ],
+          if (vm.recentActivities.isNotEmpty) ...[
+            const SizedBox(height: 24),
+            Text(
+              'Hoạt động gần đây',
+              style: GoogleFonts.inter(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 12),
+            ...vm.recentActivities.map((act) => Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: _buildRecentActivityItem(
+                '${act['title']} - ${act['partName']}',
+                '${act['score']}/${act['totalQuestions']}',
+                _formatTimeDiff(act['createdAt']),
+              ),
+            )),
+          ],
+        ]),
+      ),
+    );
+  }
+
+  Widget _buildAIItem(String title, String subtitle, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: AppShadows.softShadow,
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: color, size: 24),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: GoogleFonts.inter(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                Text(
+                  subtitle,
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Icon(Icons.keyboard_arrow_right_rounded, color: AppColors.divider),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRecentActivityItem(String title, String score, String time) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: AppShadows.softShadow,
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.check_circle_rounded, color: AppColors.success, size: 24),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: GoogleFonts.inter(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  time,
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Text(
+            score,
+            style: GoogleFonts.inter(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: AppColors.primary,
             ),
           ),
         ],
       ),
     );
+  }
+
+  String _formatTimeDiff(String createdAt) {
+    final date = DateTime.parse(createdAt);
+    final diff = DateTime.now().difference(date);
+    if (diff.inDays > 0) return '${diff.inDays} ngày trước';
+    if (diff.inHours > 0) return '${diff.inHours} giờ trước';
+    if (diff.inMinutes > 0) return '${diff.inMinutes} phút trước';
+    return 'Vừa xong';
   }
 }

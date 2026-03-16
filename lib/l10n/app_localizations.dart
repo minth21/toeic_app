@@ -46,7 +46,7 @@ class AppLocalizations {
       'difficulty': 'Difficulty',
       'duration': 'Duration',
       'total_questions': 'Total Questions',
-      'structure': 'Structure',
+
       'listening': 'Listening',
       'reading': 'Reading',
       'start_test': 'Start Test',
@@ -83,7 +83,7 @@ class AppLocalizations {
       'difficulty': 'Độ khó',
       'duration': 'Thời gian',
       'total_questions': 'Tổng số câu',
-      'structure': 'Cấu trúc đề thi',
+
       'listening': 'Nghe hiểu',
       'reading': 'Đọc hiểu',
       'start_test': 'Bắt đầu làm bài',

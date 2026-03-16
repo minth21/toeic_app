@@ -70,7 +70,7 @@ class _LevelSelectionDialogState extends State<LevelSelectionDialog> {
                 children: [
                   Text(
                     'Chọn mức độ luyện tập',
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.inter(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
                       color: AppColors.textPrimary,
@@ -80,7 +80,7 @@ class _LevelSelectionDialogState extends State<LevelSelectionDialog> {
                   const SizedBox(height: 8),
                   Text(
                     'Bạn có thể thay đổi bất cứ lúc nào',
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.inter(
                       fontSize: 14,
                       color: AppColors.textSecondary,
                     ),
@@ -130,7 +130,7 @@ class _LevelSelectionDialogState extends State<LevelSelectionDialog> {
                   ),
                   child: Text(
                     'Xác nhận',
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.inter(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
                     ),
@@ -192,7 +192,7 @@ class _LevelSelectionDialogState extends State<LevelSelectionDialog> {
                         ),
                         child: Text(
                           level.scoreRange,
-                          style: GoogleFonts.poppins(
+                          style: GoogleFonts.inter(
                             fontSize: 10,
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
@@ -203,7 +203,7 @@ class _LevelSelectionDialogState extends State<LevelSelectionDialog> {
                       Expanded(
                         child: Text(
                           level.name,
-                          style: GoogleFonts.poppins(
+                          style: GoogleFonts.inter(
                             fontSize: 14,
                             fontWeight: FontWeight.bold,
                             color: AppColors.textPrimary,
@@ -215,7 +215,7 @@ class _LevelSelectionDialogState extends State<LevelSelectionDialog> {
                   const SizedBox(height: 4),
                   Text(
                     level.description,
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.inter(
                       fontSize: 12,
                       color: AppColors.textSecondary,
                     ),

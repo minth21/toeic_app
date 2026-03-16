@@ -145,7 +145,7 @@ class _SplashScreenState extends State<SplashScreen>
                       // App Name
                       Text(
                         'TOEIC - TEST',
-                        style: GoogleFonts.poppins(
+                        style: GoogleFonts.inter(
                           fontSize: 42, // Reduced slightly to fit
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
@@ -157,7 +157,7 @@ class _SplashScreenState extends State<SplashScreen>
                       // Subtitle
                       Text(
                         'Ôn luyện chuẩn format',
-                        style: GoogleFonts.poppins(
+                        style: GoogleFonts.inter(
                           fontSize: 16,
                           fontWeight: FontWeight.w300,
                           color: Colors.white.withValues(alpha: 0.9),

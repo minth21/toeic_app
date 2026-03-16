@@ -33,7 +33,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
       appBar: AppBar(
         title: Text(
           AppLocalizations.of(context)?.translate('practice') ?? 'Luyện tập',
-          style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+          style: GoogleFonts.inter(fontWeight: FontWeight.bold),
         ),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
@@ -114,15 +114,15 @@ class _PracticeScreenState extends State<PracticeScreen> {
                                 context,
                               )?.translate('error_occurred') ??
                               'Có lỗi xảy ra',
-                          style: GoogleFonts.poppins(
+                          style: GoogleFonts.inter(
                             fontSize: 16,
-                            fontWeight: FontWeight.w600,
+                            fontWeight: FontWeight.bold,
                             color: AppColors.error,
                           ),
                         ),
                         Text(
                           viewModel.error!,
-                          style: GoogleFonts.poppins(
+                          style: GoogleFonts.inter(
                             color: AppColors.textSecondary,
                           ),
                         ),
@@ -155,7 +155,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
                                 context,
                               )?.translate('no_tests_found') ??
                               'Không tìm thấy đề thi nào',
-                          style: GoogleFonts.poppins(
+                          style: GoogleFonts.inter(
                             fontSize: 16,
                             color: AppColors.textSecondary,
                           ),
@@ -204,7 +204,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
       },
       backgroundColor: Theme.of(context).cardColor,
       selectedColor: AppColors.primary.withValues(alpha: 0.2),
-      labelStyle: GoogleFonts.poppins(
+      labelStyle: GoogleFonts.inter(
         color: isSelected
             ? AppColors.primary
             : Theme.of(context).textTheme.bodyMedium?.color,
@@ -267,7 +267,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
                     const SizedBox(width: 4),
                     Text(
                       '${test.duration} ${AppLocalizations.of(context)?.translate('minutes')}',
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.inter(
                         fontSize: 12,
                         color: AppColors.textSecondary,
                       ),
@@ -279,7 +279,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
                   test.title,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.poppins(
+                  style: GoogleFonts.inter(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
                     color: Theme.of(context).textTheme.bodyLarge?.color,
@@ -335,7 +335,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
                     child: Text(
                       AppLocalizations.of(context)?.translate('start_now') ??
                           'Làm bài ngay',
-                      style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                      style: GoogleFonts.inter(fontWeight: FontWeight.bold),
                     ),
                   ),
                 ),
@@ -379,9 +379,9 @@ class _PracticeScreenState extends State<PracticeScreen> {
       ),
       child: Text(
         text,
-        style: GoogleFonts.poppins(
+        style: GoogleFonts.inter(
           fontSize: 11,
-          fontWeight: FontWeight.w600,
+          fontWeight: FontWeight.bold,
           color: color,
         ),
       ),
@@ -405,7 +405,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
           child: Text(
             label,
             overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.poppins(
+            style: GoogleFonts.inter(
               fontSize: 12,
               color: Theme.of(
                 context,

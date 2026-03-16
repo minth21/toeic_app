@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../auth/models/user_model.dart';
 import '../../../core/services/api_service.dart';
 import '../../../core/config/api_config.dart';
+import '../../../core/services/storage_service.dart';
 import 'package:intl/intl.dart';
 
 import 'package:google_sign_in/google_sign_in.dart';
@@ -244,6 +245,25 @@ class AuthApiService {
       );
 
       return response;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Upload user avatar
+  /// POST /api/users/avatar
+  Future<Map<String, dynamic>> uploadAvatar(String filePath) async {
+    try {
+      final storageService = StorageService();
+      final token = await storageService.getToken();
+      if (token == null) throw Exception('Unauthorized');
+
+      return await _apiService.uploadFile(
+        ApiConfig.userAvatar,
+        filePath,
+        field: 'avatar',
+        headers: ApiConfig.headersWithAuth(token),
+      );
     } catch (e) {
       rethrow;
     }

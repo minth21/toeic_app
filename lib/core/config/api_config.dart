@@ -11,6 +11,7 @@ class ApiConfig {
   static const String authRegister = '/auth/register';
   static const String authMe = '/auth/me';
   static const String usersMe = '/users/me';
+  static const String userAvatar = '/users/avatar';
 
   // Password Reset Endpoints
   static const String authForgotPassword = '/auth/forgot-password';
