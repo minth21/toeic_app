@@ -51,10 +51,10 @@ class MyApp extends StatelessWidget {
                 seedColor: AppColors.primary,
                 primary: AppColors.primary,
                 onPrimary: AppColors.textOnPrimary,
-                secondary: AppColors.accent,
+                secondary: AppColors.secondary,
                 surface: AppColors.surface,
                 onSurface: AppColors.textPrimary,
-                primaryContainer: AppColors.pastelBlue,
+                primaryContainer: AppColors.indigo50,
                 onPrimaryContainer: AppColors.primary,
                 surfaceTint: Colors.white,
                 error: AppColors.error,
@@ -97,7 +97,7 @@ class MyApp extends StatelessWidget {
                 color: AppColors.surface,
                 elevation: 0,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius: BorderRadius.circular(24),
                 ),
               ),
               elevatedButtonTheme: ElevatedButtonThemeData(
@@ -138,7 +138,7 @@ class MyApp extends StatelessWidget {
               colorScheme: ColorScheme.fromSeed(
                 seedColor: AppColors.primary,
                 primary: AppColors.primary,
-                secondary: AppColors.accent,
+                secondary: AppColors.secondary,
                 surface: AppColors.darkSurface,
                 surfaceTint: AppColors.darkSurface,
                 error: AppColors.error,
@@ -220,7 +220,7 @@ class MyApp extends StatelessWidget {
               ),
 
               cardColor:
-                  AppColors.darkCardBackground, // For backward compatibility
+                  AppColors.darkSurface, // For backward compatibility
             ),
             builder: (context, child) {
               return MediaQuery(

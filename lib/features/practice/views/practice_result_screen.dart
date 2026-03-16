@@ -165,7 +165,7 @@ class _PracticeResultScreenState extends State<PracticeResultScreen> {
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: AppColors.pastelBlue,
+                    color: AppColors.indigo50,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Text(

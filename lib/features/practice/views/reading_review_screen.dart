@@ -61,22 +61,25 @@ class _ReadingReviewScreenState extends State<ReadingReviewScreen> {
       : '';
 
   String _buildPassageHtml(int activeQuestionNumber) {
-    if (widget.partNumber != 6) {
-      return _rawPassage;
-    }
-
     final regex = RegExp(r'\[(\d+)\]');
     return _rawPassage.replaceAllMapped(regex, (match) {
       final num = match.group(1) ?? '';
       final isActive = num == activeQuestionNumber.toString();
       if (isActive) {
-        return '<span style="background:#2563EB;color:#ffffff;'
-            'border-radius:20px;padding:2px 10px;font-weight:bold;'
-            'box-shadow: 0 4px 8px rgba(37,99,235,0.3);">'
-            ' ($num) </span>';
+        // Active: Solid Indigo Premium Badge (Q147)
+        return '<span style="background: #4F46E5; color: #ffffff; '
+            'border-radius: 6px; padding: 2px 10px; font-weight: 700; '
+            'display: inline-flex; align-items: center; justify-content: center; '
+            'box-shadow: 0 2px 5px rgba(0,0,0,0.15); '
+            'font-size: 13px; margin: 0 4px; font-family: sans-serif;">'
+            'Q$num</span>';
       } else {
-        return '<span style="color:#64748B;border:1px solid #E2E8F0;'
-            'border-radius:6px;padding:0 6px;background:#EFF6FF;"> ($num) </span>';
+        // Inactive: Clean Slate Border Badge (#147)
+        return '<span style="background: #F8FAFC; color: #475569; '
+            'border: 1px solid #CBD5E1; border-radius: 4px; padding: 1px 8px; '
+            'font-weight: 600; display: inline-flex; font-size: 12px; '
+            'margin: 0 4px; font-family: sans-serif;">'
+            '#$num</span>';
       }
     });
   }
@@ -691,7 +694,7 @@ class _ReadingReviewScreenState extends State<ReadingReviewScreen> {
 
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.pastelBlueLight,
+        color: AppColors.indigo50,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: _primaryBlue.withValues(alpha: 0.2)),
         boxShadow: AppShadows.softShadow,

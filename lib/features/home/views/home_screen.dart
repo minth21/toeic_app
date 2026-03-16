@@ -135,7 +135,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                       decoration: BoxDecoration(
-                        color: AppColors.pastelBlue,
+                        color: AppColors.indigo50,
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(color: AppColors.primary.withValues(alpha: 0.1)),
                       ),
@@ -171,11 +171,7 @@ class _HomeScreenState extends State<HomeScreen> {
       margin: const EdgeInsets.all(20),
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [AppColors.primary, AppColors.primaryLight],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        gradient: AppColors.premiumGradient,
         borderRadius: BorderRadius.circular(24),
         boxShadow: AppShadows.premiumShadow,
       ),
@@ -279,7 +275,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: const BoxDecoration(
-                    color: AppColors.pastelBlue,
+                    color: AppColors.indigo50,
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(Icons.play_arrow_rounded, color: AppColors.primary, size: 28),
@@ -342,7 +338,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: _buildCategoryCard(
                       'Nghe',
                       Icons.headphones_rounded,
-                      AppColors.pastelBlueLight,
+                      AppColors.indigo50,
                       AppColors.primary,
                       onTap: () {
                         DefaultTabController.of(context).animateTo(1); // Go to Practice Tab

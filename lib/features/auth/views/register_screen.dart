@@ -124,7 +124,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       padding: const EdgeInsets.all(3),
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        gradient: AppColors.primaryGradient,
+                        gradient: AppColors.premiumGradient,
                       ),
                       child: Container(
                         padding: const EdgeInsets.all(20),
@@ -145,7 +145,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   // Title with gradient
                   ShaderMask(
                     shaderCallback: (bounds) =>
-                        AppColors.primaryGradient.createShader(bounds),
+                        AppColors.premiumGradient.createShader(bounds),
                     child: Text(
                       AppStrings.createAccount,
                       style: GoogleFonts.inter(

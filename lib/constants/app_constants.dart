@@ -7,79 +7,80 @@ class AppConstants {
 }
 
 class AppColors {
-  // Primary Colors - Modern Blue Theme
-  static const Color primary = Color(0xFF1E40AF); // Deep Blue
-  static const Color primaryLight = Color(0xFF3B82F6);
-  static const Color primaryDark = Color(0xFF1E3A8A);
-  static const Color background = Color(0xFFF1F5F9); // Light Gray Background
+  // Primary Colors - Premium Indigo-Purple Theme (Synchronized with Admin)
+  static const Color primary = Color(0xFF6366F1); // Indigo 500
+  static const Color primaryLight = Color(0xFF818CF8);
+  static const Color primaryDark = Color(0xFF4338CA);
+  static const Color secondary = Color(0xFF8B5CF6); // Violet 500
+  
+  static const Color background = Color(0xFFF8FAFC); // Slate 50
   static const Color surface = Color(0xFFFFFFFF);
 
-  // Pastel Shades (Maintained for compatibility, updated for new theme)
-  static const Color pastelBlue = Color(0xFFE0E7FF); // Indigo 100
-  static const Color pastelBlueLight = Color(0xFFEEF2FF); // Indigo 50
-  static const Color pastelBlueDark = Color(0xFFC7D2FE); // Indigo 200
+  // Premium Palette
+  static const Color indigo50 = Color(0xFFEEF2FF);
+  static const Color indigo100 = Color(0xFFE0E7FF);
+  static const Color purple50 = Color(0xFFF5F3FF);
+  static const Color purple100 = Color(0xFFEDE9FE);
 
-  // Secondary/Accent Colors
-  static const Color accent = Color(0xFFF59E0B); // Amber 500
-  static const Color accentDark = Color(0xFFD97706);
-  static const Color accentLight = Color(0xFFFBBF24);
-
-  // Background Colors (Updated)
-  static const Color cardBackground = Color(0xFFFFFFFF);
-
-  // Text Colors
-  static const Color textPrimary = Color(0xFF1E293B); // Slate 800
-  static const Color textSecondary = Color(0xFF64748B); // Slate 500
-  static const Color textHint = Color(0xFF94A3B8); // Slate 400
-  static const Color textOnPrimary = Color(0xFFFFFFFF);
-
-  // Status Colors
+  // Status Colors (Emerald & Amber)
   static const Color success = Color(0xFF10B981); // Emerald 500
   static const Color error = Color(0xFFEF4444); // Red 500
   static const Color warning = Color(0xFFF59E0B); // Amber 500
   static const Color info = Color(0xFF3B82F6); // Blue 500
 
-  // Other
-  static const Color divider = Color(0xFFE2E8F0); // Slate 200
-  static const Color disabled = Color(0xFFCBD5E1); // Slate 300
+  // Text Colors (Slate)
+  static const Color textPrimary = Color(0xFF0F172A); // Slate 900
+  static const Color textSecondary = Color(0xFF475569); // Slate 600
+  static const Color textHint = Color(0xFF94A3B8); // Slate 400
+  static const Color textOnPrimary = Color(0xFFFFFFFF);
 
-  // Gradient Colors
-  static const LinearGradient primaryGradient = LinearGradient(
-    colors: [Color(0xFF2563EB), Color(0xFF3B82F6)],
+  // UI Elements
+  static const Color divider = Color(0xFFE2E8F0); // Slate 200
+  static const Color border = Color(0xFFCBD5E1); 
+
+  // Gradient Colors (Matching Admin Panels)
+  static const LinearGradient premiumGradient = LinearGradient(
+    colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  static const LinearGradient successGradient = LinearGradient(
+    colors: [Color(0xFF10B981), Color(0xFF059669)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  static const LinearGradient warningGradient = LinearGradient(
+    colors: [Color(0xFFF59E0B), Color(0xFFD97706)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
 
   // Dark Mode Colors
-  static const Color darkBackground = Color(0xFF0F172A); // Slate 900
-  static const Color darkSurface = Color(0xFF1E293B); // Slate 800
-  static const Color darkTextPrimary = Color(0xFFF1F5F9); // Slate 100
-  static const Color darkTextSecondary = Color(0xFF94A3B8); // Slate 400
-  static const Color darkCardBackground = Color(0xFF1E293B);
+  static const Color darkBackground = Color(0xFF0F172A);
+  static const Color darkSurface = Color(0xFF1E293B);
 }
 
 class AppShadows {
   static List<BoxShadow> get premiumShadow => [
         BoxShadow(
-          color: const Color(0xFF2563EB).withValues(alpha: 0.12),
+          color: const Color(0xFF6366F1).withValues(alpha: 0.08),
           blurRadius: 24,
           offset: const Offset(0, 8),
+        ),
+        BoxShadow(
+          color: const Color(0xFF000000).withValues(alpha: 0.03),
+          blurRadius: 10,
+          offset: const Offset(0, 4),
         ),
       ];
 
   static List<BoxShadow> get softShadow => [
         BoxShadow(
-          color: Colors.black.withValues(alpha: 0.05),
+          color: Colors.black.withValues(alpha: 0.04),
           blurRadius: 12,
           offset: const Offset(0, 4),
-        ),
-      ];
-
-  static List<BoxShadow> get deepShadow => [
-        BoxShadow(
-          color: AppColors.primary.withValues(alpha: 0.08),
-          blurRadius: 24,
-          offset: const Offset(0, 12),
         ),
       ];
 }

@@ -74,7 +74,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       padding: const EdgeInsets.all(3),
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        gradient: AppColors.primaryGradient,
+                        gradient: AppColors.premiumGradient,
                       ),
                       child: Container(
                         padding: const EdgeInsets.all(20),
@@ -95,7 +95,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   // App Title with gradient
                   ShaderMask(
                     shaderCallback: (bounds) =>
-                        AppColors.primaryGradient.createShader(bounds),
+                        AppColors.premiumGradient.createShader(bounds),
                     child: Text(
                       'TOEIC - TEST',
                       style: GoogleFonts.inter(

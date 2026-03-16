@@ -215,7 +215,7 @@ class _TestSimulationScreenState extends State<TestSimulationScreen> {
     // Trạng thái 1: Câu đang được xem (màu xanh dương đậm - Primary)
     if (isCurrent) {
       return {
-        'bg': AppColors.primary,
+        'bg': AppColors.indigo50,
         'border': AppColors.primary,
         'text': Colors.white,
         'shadow': true,
@@ -264,8 +264,8 @@ class _TestSimulationScreenState extends State<TestSimulationScreen> {
     // Trạng thái 5: Câu đã trả lời nhưng chưa nộp (màu xanh pastel)
     if (isAnswered) {
       return {
-        'bg': AppColors.pastelBlue,    // Blue 100 (#DBEAFE)
-        'border': AppColors.primary,   // Blue 600 (#2563EB)
+        'bg': AppColors.indigo50,    // Indigo 50
+        'border': AppColors.primary,   // Indigo 500
         'text': AppColors.primary,
         'shadow': false,
       };
@@ -402,8 +402,8 @@ class _TestSimulationScreenState extends State<TestSimulationScreen> {
       spacing: 16,
       runSpacing: 8,
       children: [
-        _buildLegendChip(AppColors.primary, Colors.white, 'Đang xem'),
-        _buildLegendChip(AppColors.pastelBlue, AppColors.primary, 'Đã trả lời'),
+        _buildLegendChip(AppColors.indigo50, AppColors.primary, 'Đang xem'),
+        _buildLegendChip(AppColors.indigo50, AppColors.primary, 'Đã trả lời'),
         if (_isSubmitted) ...[
           _buildLegendChip(const Color(0xFFECFDF5), AppColors.success, 'Đúng'),
           _buildLegendChip(const Color(0xFFFEF2F2), AppColors.error, 'Sai'),
@@ -443,22 +443,25 @@ class _TestSimulationScreenState extends State<TestSimulationScreen> {
 
 
   String _buildPassageHtml(String rawPassage, int activeQuestionNumber) {
-    if (_selectedPart?.partNumber != 6) {
-      return rawPassage;
-    }
-
     final regex = RegExp(r'\[(\d+)\]');
     return rawPassage.replaceAllMapped(regex, (match) {
       final num = match.group(1) ?? '';
       final isActive = num == activeQuestionNumber.toString();
       if (isActive) {
-        return '<span style="background:#2563EB;color:#ffffff;'
-            'border-radius:20px;padding:2px 10px;font-weight:bold;'
-            'box-shadow: 0 4px 8px rgba(37,99,235,0.3);">'
-            ' ($num) </span>';
+        // Active: Solid Indigo Premium Badge (Q147)
+        return '<span style="background: #4F46E5; color: #ffffff; '
+            'border-radius: 6px; padding: 2px 10px; font-weight: 700; '
+            'display: inline-flex; align-items: center; justify-content: center; '
+            'box-shadow: 0 2px 5px rgba(0,0,0,0.15); '
+            'font-size: 13px; margin: 0 4px; font-family: sans-serif;">'
+            'Q$num</span>';
       } else {
-        return '<span style="color:#64748B;border:1px solid #E2E8F0;'
-            'border-radius:6px;padding:0 6px;background:#EFF6FF;"> ($num) </span>';
+        // Inactive: Clean Slate Border Badge (#147)
+        return '<span style="background: #F8FAFC; color: #475569; '
+            'border: 1px solid #CBD5E1; border-radius: 4px; padding: 1px 8px; '
+            'font-weight: 600; display: inline-flex; font-size: 12px; '
+            'margin: 0 4px; font-family: sans-serif;">'
+            '#$num</span>';
       }
     });
   }
@@ -749,8 +752,8 @@ class _TestSimulationScreenState extends State<TestSimulationScreen> {
                                           child: Container(
                                             padding: const EdgeInsets.all(6),
                                             decoration: BoxDecoration(
-                                              color: Colors.black.withValues(alpha: 0.5),
-                                              borderRadius: BorderRadius.circular(8),
+                                              color: AppColors.indigo50.withValues(alpha: 0.5),
+                                              borderRadius: BorderRadius.circular(12),
                                             ),
                                             child: const Icon(Icons.zoom_in_rounded, color: Colors.white, size: 18),
                                           ),
@@ -986,7 +989,7 @@ class _TestSimulationScreenState extends State<TestSimulationScreen> {
             textColor = AppColors.warning;
             borderColor = AppColors.warning;
           } else if (isAnswered) {
-            bgColor = AppColors.pastelBlue;
+            bgColor = AppColors.indigo50;
             textColor = AppColors.primary;
             borderColor = AppColors.primary.withValues(alpha: 0.5);
           }
@@ -1054,7 +1057,7 @@ class _TestSimulationScreenState extends State<TestSimulationScreen> {
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.pastelBlueLight : Colors.white,
+          color: isSelected ? AppColors.indigo50 : Colors.white,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: isSelected ? AppColors.primary : AppColors.divider,
