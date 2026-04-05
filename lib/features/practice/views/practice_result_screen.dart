@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'package:lottie/lottie.dart';
+import 'package:shimmer/shimmer.dart';
 import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
 import 'package:provider/provider.dart';
 import '../../../constants/app_constants.dart';
@@ -9,6 +9,11 @@ import '../viewmodels/practice_viewmodel.dart';
 import '../models/part_model.dart';
 import 'reading_review_screen.dart';
 import 'part1_simulation_screen.dart';
+import 'test_simulation_screen.dart';
+import '../models/question_model.dart';
+import 'widgets/vocab_flashcard_panel.dart';
+import '../../auth/viewmodels/auth_viewmodel.dart';
+import 'class_feedback_screen.dart';
 
 class PracticeResultScreen extends StatefulWidget {
   final Map<String, dynamic> resultData;
@@ -29,15 +34,54 @@ class PracticeResultScreen extends StatefulWidget {
 class _PracticeResultScreenState extends State<PracticeResultScreen> {
   bool _isAnalyzing = true;
   Map<String, dynamic>? _aiData;
+  bool _isLoadingDetail = false;
+  List<Map<String, dynamic>> _recommendations = [];
+  Map<String, Map<String, int>> _topicStats = {}; // topic -> {correct, total}
   final ScrollController _aiScrollController = ScrollController();
+  String _loadingMessage = 'AI đang tổng hợp kết quả...';
 
   @override
   void initState() {
     super.initState();
     _fetchAIData();
+    _fetchRecommendations();
+    _startLoadingTimer();
+  }
+
+  void _startLoadingTimer() {
+    int seconds = 0;
+    const messages = [
+      'Đang tổng hợp kết quả...',
+      'Đang dò tìm bộ lọc kiến thức...',
+      'Gia sư AI đang viết nhận xét chi tiết...',
+      'Sắp xong rồi, chờ một chút nhé...',
+      'Đang tối ưu lộ trình học tập cho bạn...',
+    ];
+
+    Future.doWhile(() async {
+      await Future.delayed(const Duration(seconds: 8));
+      if (!mounted || !_isAnalyzing) return false;
+      setState(() {
+        seconds += 8;
+        int index = (seconds ~/ 8) % messages.length;
+        _loadingMessage = messages[index];
+      });
+      return true;
+    });
+  }
+
+  Future<void> _fetchRecommendations() async {
+    final viewModel = context.read<PracticeViewModel>();
+    final recs = await viewModel.getDailyRecommendations();
+    if (mounted) {
+      setState(() {
+        _recommendations = recs;
+      });
+    }
   }
 
   Future<void> _fetchAIData() async {
+    setState(() => _isAnalyzing = true);
     final viewModel = context.read<PracticeViewModel>();
     final data = await viewModel.pollAIAssessment(widget.attemptId);
 
@@ -64,15 +108,16 @@ class _PracticeResultScreenState extends State<PracticeResultScreen> {
   @override
   Widget build(BuildContext context) {
     final int score = widget.resultData['score'] ?? 0;
-    final int total = widget.resultData['totalQuestions'] ?? widget.resultData['total'] ?? 0;
+    final int total =
+        widget.resultData['totalQuestions'] ?? widget.resultData['total'] ?? 0;
+    final int toeicScore = widget.resultData['toeicScore'] ?? 0;
     final double percentage = total > 0 ? (score / total) * 100 : 0;
     final bool isListening = widget.part.partNumber <= 4;
+    final user = context.watch<AuthViewModel>().currentUser;
 
     return Scaffold(
       body: Container(
-        decoration: BoxDecoration(
-          color: AppColors.background,
-        ),
+        decoration: BoxDecoration(color: AppColors.background),
         child: SafeArea(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(20),
@@ -84,7 +129,7 @@ class _PracticeResultScreenState extends State<PracticeResultScreen> {
                       onPressed: () => Navigator.pop(context),
                       icon: const Icon(Icons.arrow_back_ios_new, size: 20),
                     ),
-                    const Text(
+                    Text(
                       'Kết quả luyện tập',
                       style: TextStyle(
                         fontSize: 18,
@@ -93,15 +138,21 @@ class _PracticeResultScreenState extends State<PracticeResultScreen> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 20),
-                _buildScoreHeader(score, total, percentage),
-                const SizedBox(height: 30),
-                if (_isAnalyzing)
-                  _buildAnalyzingState()
-                else
-                  _buildAnalysisContent(isListening),
-                const SizedBox(height: 30),
-                _buildActionButtons(),
+                const SizedBox(height: 4),
+                _buildScoreHeader(score, total, percentage, toeicScore),
+                const SizedBox(height: 16),
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 800),
+                  child: _buildAnalysisContent(isListening),
+                ),
+                const SizedBox(height: 16),
+                if (_isLoadingDetail)
+                  const CircularProgressIndicator()
+                else if (_topicStats.isNotEmpty)
+                  _buildTopicStatsSection(),
+                const SizedBox(height: 16),
+                _buildActionButtons(user?.classId),
+                const SizedBox(height: 16), // Bottom padding
               ],
             ),
           ),
@@ -110,113 +161,167 @@ class _PracticeResultScreenState extends State<PracticeResultScreen> {
     );
   }
 
-  Widget _buildScoreHeader(int score, int total, double percentage) {
+  Widget _buildScoreHeader(
+    int score,
+    int total,
+    double percentage,
+    int toeicScore,
+  ) {
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(32),
+        borderRadius: BorderRadius.circular(24),
         boxShadow: AppShadows.premiumShadow,
+        border: Border.all(color: const Color(0xFFF1F5F9)),
       ),
-      child: Row(
+      child: Column(
         children: [
-          Stack(
-            alignment: Alignment.center,
+          Row(
             children: [
-              SizedBox(
-                width: 90,
-                height: 90,
-                child: CircularProgressIndicator(
-                  value: percentage / 100,
-                  strokeWidth: 10,
-                  backgroundColor: AppColors.background,
-                  valueColor: const AlwaysStoppedAnimation<Color>(
-                    AppColors.primary,
-                  ),
-                ),
-              ),
-              Column(
-                mainAxisSize: MainAxisSize.min,
+              Stack(
+                alignment: Alignment.center,
                 children: [
-                   Text(
-                    '${percentage.toInt()}%',
-                    style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.primary,
+                  SizedBox(
+                    width: 70,
+                    height: 70,
+                    child: CircularProgressIndicator(
+                      value: percentage / 100,
+                      strokeWidth: 8,
+                      backgroundColor: AppColors.background,
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        percentage >= 80
+                            ? Colors.green
+                            : (percentage >= 50
+                                  ? AppColors.primary
+                                  : Colors.orange),
+                      ),
                     ),
                   ),
-                   Text(
-                    'Score',
-                    style: TextStyle(fontSize: 10, color: AppColors.textSecondary),
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        '${percentage.toInt()}%',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: percentage >= 80
+                              ? Colors.green
+                              : (percentage >= 50
+                                    ? AppColors.primary
+                                    : Colors.orange),
+                        ),
+                      ),
+                      Text(
+                        'Đúng',
+                        style: TextStyle(
+                          fontSize: 9,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
-            ],
-          ),
-          const SizedBox(width: 24),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.indigo50,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Text(
-                    'Tổng số câu đúng',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.bold,
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.indigo50,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        'Kết quả',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
-                  ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '$score/$total',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  '$score/$total',
-                  style: const TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                Text(
-                  widget.part.partName,
-                  style: const TextStyle(fontSize: 16, color: AppColors.textSecondary),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ],
       ),
     );
   }
 
-  Widget _buildAnalyzingState() {
-    return Column(
-      children: [
-        Lottie.network(
-          'https://assets10.lottiefiles.com/packages/lf20_m6cuL6.json',
-          height: 200,
-          errorBuilder: (context, error, stackTrace) =>
-              const Icon(Icons.psychology, size: 100, color: Colors.blue),
+  Widget _buildAIAssessmentShimmer() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: AppShadows.softShadow,
+      ),
+      child: Shimmer.fromColors(
+        baseColor: Colors.grey[300]!,
+        highlightColor: Colors.grey[100]!,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 150,
+              height: 16,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              height: 10,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              width: double.infinity,
+              height: 10,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Center(
+              child: Text(
+                _loadingMessage,
+                style: TextStyle(
+                  color: AppColors.primary,
+                  fontSize: 12,
+                  fontStyle: FontStyle.italic,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: 20),
-        const Text(
-          'AI đang phân tích bài làm của bạn...',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w500,
-            fontStyle: FontStyle.italic,
-          ),
-        ),
-      ],
+      ),
     );
   }
 
@@ -230,58 +335,68 @@ class _PracticeResultScreenState extends State<PracticeResultScreen> {
       children: [
         if (!isListening) ...[
           _buildSectionTitle('Phân tích kỹ năng'),
-          const SizedBox(height: 16),
+          const SizedBox(height: 8),
           Container(
-            height: 280,
-            padding: const EdgeInsets.all(20),
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(24),
               boxShadow: AppShadows.softShadow,
             ),
-            child: RadarChart(
-              RadarChartData(
-                radarShape: RadarShape.polygon,
-                ticksTextStyle: const TextStyle(color: Colors.transparent),
-                gridBorderData: const BorderSide(color: Colors.grey, width: 0.5),
-                radarBorderData: const BorderSide(color: Colors.transparent),
-                titlePositionPercentageOffset: 0.2,
-                titleTextStyle: const TextStyle(
-                  color: Colors.black54,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
-                dataSets: [
-                  RadarDataSet(
-                    fillColor: AppColors.primary.withValues(alpha: 0.3),
-                    borderColor: AppColors.primary,
-                    entryRadius: 4,
-                    dataEntries: [
-                      RadarEntry(value: (skills['grammar'] ?? 0).toDouble()),
-                      RadarEntry(value: (skills['vocabulary'] ?? 0).toDouble()),
-                      RadarEntry(value: (skills['inference'] ?? 0).toDouble()),
-                      RadarEntry(value: (skills['mainIdea'] ?? 0).toDouble()),
-                    ],
+            child: AspectRatio(
+              aspectRatio: 1.5,
+              child: RadarChart(
+                RadarChartData(
+                  radarShape: RadarShape.polygon,
+                  ticksTextStyle: const TextStyle(color: Colors.transparent),
+                  gridBorderData: const BorderSide(
+                    color: Colors.grey,
+                    width: 0.5,
                   ),
-                ],
-                getTitle: (index, angle) {
-                  switch (index) {
-                    case 0:
-                      return RadarChartTitle(text: 'Ngữ pháp', angle: angle);
-                    case 1:
-                      return RadarChartTitle(text: 'Từ vựng', angle: angle);
-                    case 2:
-                      return RadarChartTitle(text: 'Suy luận', angle: angle);
-                    case 3:
-                      return RadarChartTitle(text: 'Ý chính', angle: angle);
-                    default:
-                      return const RadarChartTitle(text: '');
-                  }
-                },
+                  radarBorderData: const BorderSide(color: Colors.transparent),
+                  titlePositionPercentageOffset: 0.2,
+                  titleTextStyle: const TextStyle(
+                    color: Colors.black87,
+                    fontSize: 10, // Reduced from 11
+                    fontWeight: FontWeight.w700,
+                  ),
+                  dataSets: [
+                    RadarDataSet(
+                      fillColor: AppColors.primary.withValues(alpha: 0.3),
+                      borderColor: AppColors.primary,
+                      entryRadius: 3,
+                      dataEntries: [
+                        RadarEntry(value: (skills['grammar'] ?? 0).toDouble()),
+                        RadarEntry(
+                          value: (skills['vocabulary'] ?? 0).toDouble(),
+                        ),
+                        RadarEntry(
+                          value: (skills['inference'] ?? 0).toDouble(),
+                        ),
+                        RadarEntry(value: (skills['mainIdea'] ?? 0).toDouble()),
+                      ],
+                    ),
+                  ],
+                  getTitle: (index, angle) {
+                    switch (index) {
+                      case 0:
+                        return RadarChartTitle(text: 'Ngữ pháp', angle: angle);
+                      case 1:
+                        return RadarChartTitle(text: 'Từ vựng', angle: angle);
+                      case 2:
+                        return RadarChartTitle(text: 'Suy luận', angle: angle);
+                      case 3:
+                        return RadarChartTitle(text: 'Ý chính', angle: angle);
+                      default:
+                        return const RadarChartTitle(text: '');
+                    }
+                  },
+                ),
               ),
             ),
           ),
-          const SizedBox(height: 32),
+          const SizedBox(height: 16),
         ],
         if (_aiData?['strengths'] != null ||
             _aiData?['weaknesses'] != null) ...[
@@ -289,68 +404,153 @@ class _PracticeResultScreenState extends State<PracticeResultScreen> {
             _aiData?['strengths'],
             _aiData?['weaknesses'],
           ),
-          const SizedBox(height: 32),
+          const SizedBox(height: 16),
         ],
-        _buildSectionTitle('Gia sư AI nhận xét'),
-        const SizedBox(height: 16),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(24),
-            boxShadow: AppShadows.softShadow,
-          ),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxHeight: 400),
-            child: Scrollbar(
-              controller: _aiScrollController,
-              thumbVisibility: true,
-              trackVisibility: true,
-              thickness: 4,
-              radius: const Radius.circular(10),
-              child: SingleChildScrollView(
-                controller: _aiScrollController,
-                padding: const EdgeInsets.only(right: 12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (_aiData?['shortFeedback'] != null)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 16),
-                        child: Text(
-                          _aiData!['shortFeedback']
-                              .toString()
-                              .replaceAll('\\n', '\n')
-                              .replaceAll('\\"', '"')
-                              .replaceAll('\\t', '\t'),
-                          style: const TextStyle(
-                            fontSize: 17,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF1E3A8A),
-                            fontStyle: FontStyle.italic,
-                          ),
-                        ),
-                      ),
-                    HtmlWidget(
-                      (_aiData?['detailedAssessment'] ??
-                              '<p>Đang chuẩn bị nội dung đánh giá chi tiết...</p>')
-                          .toString()
-                          .replaceAll('\\n', '\n')
-                          .replaceAll('\\"', '"')
-                          .replaceAll('\\t', '\t'),
-                      textStyle: const TextStyle(
-                        fontSize: 15,
-                        height: 1.7,
-                        color: Color(0xFF334155),
-                      ),
-                    ),
-                  ],
+        if (_aiData?['vocabularyFlashcards'] != null &&
+            (_aiData?['vocabularyFlashcards'] as List).isNotEmpty) ...[
+          _buildVocabularySection(_aiData?['vocabularyFlashcards'] as List),
+          const SizedBox(height: 16),
+        ],
+        _buildSectionTitle('Nhận xét từ AI'),
+        const SizedBox(height: 8),
+        _isAnalyzing
+            ? _buildAIAssessmentShimmer()
+            : Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: AppShadows.softShadow,
+                  border: Border.all(color: const Color(0xFFF1F5F9)),
                 ),
+                child: _aiData == null
+                    ? Column(
+                        children: [
+                          const Icon(
+                            Icons.info_outline_rounded,
+                            color: Colors.orange,
+                            size: 32,
+                          ),
+                          const SizedBox(height: 8),
+                          const Text(
+                            'AI đang bận hoặc cần thêm thời gian để phân tích bài làm của bạn.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Color(0xFF64748B),
+                              fontSize: 12,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          TextButton.icon(
+                            onPressed: _fetchAIData,
+                            icon: const Icon(Icons.refresh_rounded, size: 16),
+                            label: const Text('Thử tải lại'),
+                            style: TextButton.styleFrom(
+                              foregroundColor: AppColors.primary,
+                            ),
+                          ),
+                        ],
+                      )
+                    : Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (_aiData?['shortFeedback'] != null)
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              margin: const EdgeInsets.only(bottom: 12),
+                              decoration: BoxDecoration(
+                                color: AppColors.indigo50,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: AppColors.primary.withValues(
+                                    alpha: 0.1,
+                                  ),
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(
+                                    Icons.auto_awesome,
+                                    color: AppColors.primary,
+                                    size: 24,
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Flexible(
+                                    child: Text(
+                                      _aiData!['shortFeedback'].toString(),
+                                      softWrap: true,
+                                      overflow: TextOverflow.visible,
+                                      style: const TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.bold,
+                                        color: Color(0xFF1E3A8A),
+                                        fontStyle: FontStyle.italic,
+                                        height: 1.5,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          HtmlWidget(
+                            (_aiData?['detailedAssessment'] ??
+                                    '<p>Hệ thống ghi nhận kết quả bài làm thành công.</p>')
+                                .toString(),
+                            textStyle: const TextStyle(
+                              fontSize: 15,
+                              height: 1.8,
+                              color: Color(0xFF334155),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          // Quick Action: View Detailed Explanation
+                          Center(
+                            child: TextButton.icon(
+                              onPressed: _isLoadingDetail
+                                  ? null
+                                  : _handleReview,
+                              icon: _isLoadingDetail
+                                  ? const SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : const Icon(Icons.arrow_right_alt_rounded),
+                              label: const FittedBox(
+                                child: Text(
+                                  'XEM LỜI GIẢI',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 13,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                              ),
+                              style: TextButton.styleFrom(
+                                foregroundColor: AppColors.primary,
+                                backgroundColor: AppColors.primary.withValues(
+                                  alpha: 0.05,
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 20,
+                                  vertical: 12,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
               ),
-            ),
-          ),
-        ),
+        if (_recommendations.isNotEmpty) ...[
+          const SizedBox(height: 40),
+          _buildRecommendationsSection(),
+        ],
       ],
     );
   }
@@ -411,6 +611,215 @@ class _PracticeResultScreenState extends State<PracticeResultScreen> {
     );
   }
 
+  Widget _buildVocabularySection(List<dynamic> vocabItems) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [Expanded(child: _buildSectionTitle('Làm chủ Từ vựng'))],
+        ),
+        const SizedBox(height: 12),
+        VocabFlashcardPanel(
+          vocabItems: vocabItems,
+          partId: widget.part.id,
+          onAllSwiped: null, // No auto-advance on result page
+        ),
+      ],
+    );
+  }
+
+  void _showRetryConfirmation() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.refresh_rounded, color: Colors.orange),
+            SizedBox(width: 12),
+            Text('Làm lại bài thi?'),
+          ],
+        ),
+        content: Text(
+          'Hệ thống sẽ làm mới toàn bộ câu trả lời để bạn bắt đầu lượt thi mới. Mọi lượt làm bài trước đó vẫn được lưu lại trong lịch sử.',
+          style: TextStyle(height: 1.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Hủy', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context); // Close dialog
+              _handleRetry();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: const Text('Bắt đầu'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _handleRetry() async {
+    final viewModel = context.read<PracticeViewModel>();
+
+    // Navigate back to simulation screen
+    if (widget.part.partNumber == 1) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => Part1SimulationScreen(
+            test: viewModel.currentTest!,
+            partId: widget.part.id,
+          ),
+        ),
+      );
+    } else {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => TestSimulationScreen(
+            test: viewModel.currentTest!,
+            partId: widget.part.id,
+          ),
+        ),
+      );
+    }
+  }
+
+  Future<void> _handleReview({String? filterTopic}) async {
+    if (_isLoadingDetail) return;
+    setState(() => _isLoadingDetail = true);
+
+    try {
+      final viewModel = context.read<PracticeViewModel>();
+      final attempt = await viewModel.loadAttemptDetail(widget.attemptId);
+
+      if (attempt != null && mounted) {
+        final List<dynamic> details = attempt['details'] ?? [];
+
+        final Map<String, Map<String, int>> stats = {};
+        final List<dynamic> aggregatedVocab = [];
+        final Set<String> seenWords = {};
+
+        for (var d in details) {
+          final qMap = d['question'] as Map<String, dynamic>;
+          
+          // 1. Parse topic stats
+          final tag = qMap['topic_tag'] ?? 'Tổng quát';
+          final isCorrect = d['selectedOption'] == (qMap['correctAnswer'] ?? '');
+
+          if (!stats.containsKey(tag)) {
+            stats[tag] = {'correct': 0, 'total': 0};
+          }
+          stats[tag]!['total'] = stats[tag]!['total']! + 1;
+          if (isCorrect) {
+            stats[tag]!['correct'] = stats[tag]!['correct']! + 1;
+          }
+
+          // 2. Aggregate keyVocabulary
+          final rawKeyVocab = qMap['keyVocabulary'];
+          if (rawKeyVocab != null && rawKeyVocab.toString().isNotEmpty) {
+            try {
+              final decoded = jsonDecode(rawKeyVocab.toString());
+              if (decoded is List) {
+                for (var v in decoded) {
+                  final word = (v['word'] ?? v['text'] ?? '').toString();
+                  if (word.isNotEmpty && !seenWords.contains(word.toLowerCase())) {
+                    aggregatedVocab.add(v);
+                    seenWords.add(word.toLowerCase());
+                  }
+                }
+              }
+            } catch (e) {
+              debugPrint('Error parsing keyVocabulary: $e');
+            }
+          }
+        }
+
+        setState(() {
+          _topicStats = stats;
+          // Update _aiData to include these vocab cards if not already present
+          if (_aiData == null) {
+            _aiData = {'vocabularyFlashcards': aggregatedVocab};
+          } else {
+            final List currentVocab = (_aiData!['vocabularyFlashcards'] as List?) ?? [];
+            if (currentVocab.isEmpty) {
+              _aiData!['vocabularyFlashcards'] = aggregatedVocab;
+            } else {
+              // Merge if needed, but usually aggregatedVocab is better
+              _aiData!['vocabularyFlashcards'] = aggregatedVocab;
+            }
+          }
+        });
+
+        final List<QuestionModel> questions = details.where((d) {
+          if (filterTopic == null) return true;
+          final qMap = d['question'] as Map<String, dynamic>;
+          final tag = qMap['topic_tag'] ?? 'Tổng quát';
+          return tag == filterTopic;
+        }).map((d) {
+          final qMap = d['question'] as Map<String, dynamic>;
+          return QuestionModel.fromJson(qMap);
+        }).toList();
+
+        final Map<String, String> userAnswers = {};
+        for (var d in details) {
+          final qId = d['questionId'].toString();
+          userAnswers[qId] = d['selectedOption'] ?? '';
+        }
+
+        if (widget.part.partNumber == 1) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => Part1SimulationScreen(
+                test: viewModel.currentTest!,
+                partId: widget.part.id,
+                isReviewMode: true,
+                initialUserAnswers: userAnswers,
+                aiFeedbacks: _aiData?['questionFeedbacks'],
+              ),
+            ),
+          );
+        } else {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ReadingReviewScreen(
+                questions: questions,
+                userAnswers: userAnswers,
+                flaggedQuestions:
+                    (widget.resultData['flaggedQuestions'] as List?)
+                        ?.cast<String>() ??
+                    [],
+                partNumber: widget.part.partNumber,
+                aiFeedbacks: _aiData?['questionFeedbacks'],
+              ),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Lỗi tải dữ liệu: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _isLoadingDetail = false);
+    }
+  }
+
   Widget _buildSectionTitle(String title) {
     return Row(
       children: [
@@ -437,77 +846,113 @@ class _PracticeResultScreenState extends State<PracticeResultScreen> {
     );
   }
 
-  Widget _buildActionButtons() {
+  Widget _buildActionButtons(String? classId) {
     return Column(
       children: [
-        Container(
-          width: double.infinity,
-          height: 60,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: AppShadows.premiumShadow,
-          ),
-          child: ElevatedButton(
-            onPressed: () {
-              if (widget.part.partNumber == 1) {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => Part1SimulationScreen(
-                      test: context.read<PracticeViewModel>().currentTest!,
-                      partId: widget.part.id,
-                      isReviewMode: true,
-                      initialUserAnswers: (widget.resultData['userAnswers'] as Map).map<String, String>(
-                        (k, v) => MapEntry(k.toString(), v.toString()),
+        Row(
+          children: [
+            Expanded(
+              flex: 3,
+              child: Container(
+                height: 56,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: AppShadows.premiumShadow,
+                ),
+                child: ElevatedButton.icon(
+                  onPressed: _handleReview,
+                  icon: _isLoadingDetail
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Icon(Icons.visibility_rounded),
+                  label: FittedBox(
+                    child: Text(
+                      _isLoadingDetail ? 'ĐANG TẢI...' : 'XEM LỜI GIẢI',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 14,
+                        letterSpacing: 0.5,
                       ),
-                      aiFeedbacks: _aiData?['questionFeedbacks'],
                     ),
                   ),
-                );
-              } else {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                                    builder: (context) => ReadingReviewScreen(
-                                      questions: context
-                                          .read<PracticeViewModel>()
-                                          .currentQuestions,
-                                      userAnswers: (widget.resultData['userAnswers'] as Map).map<String, String>(
-                                        (k, v) => MapEntry(k.toString(), v.toString()),
-                                      ),
-                                      partNumber: widget.part.partNumber,
-                                      aiFeedbacks: _aiData?['questionFeedbacks'],
-                                    ),
-                  ),
-                );
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF2563EB),
-              foregroundColor: Colors.white,
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
-            ),
-            child: const Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.auto_awesome_rounded),
-                SizedBox(width: 12),
-                Text(
-                  'SMART DEEP REVIEW',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 1,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    elevation: 0,
                   ),
                 ),
-              ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              flex: 2,
+              child: Container(
+                height: 56,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: OutlinedButton.icon(
+                  onPressed: _showRetryConfirmation,
+                  icon: const Icon(Icons.refresh_rounded, size: 20),
+                  label: const FittedBox(
+                    child: Text(
+                      'LÀM LẠI',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                    ),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.primary,
+                    side: const BorderSide(color: Color(0xFFE2E8F0), width: 2),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    backgroundColor: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+        if (classId != null) ...[
+          const SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            height: 52,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              color: Colors.white,
+              border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+            ),
+            child: TextButton.icon(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const ClassFeedbackScreen()),
+                );
+              },
+              icon: const Icon(Icons.chat_bubble_outline_rounded, size: 20, color: AppColors.primary),
+              label: const Text(
+                'Ý KIẾN GIÁO VIÊN',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                  color: AppColors.primary,
+                  letterSpacing: 0.5,
+                ),
+              ),
             ),
           ),
-        ),
-        const SizedBox(height: 16),
+        ],
+        const SizedBox(height: 24),
         TextButton(
           onPressed: () => Navigator.pop(context),
           child: const Text(
@@ -520,5 +965,294 @@ class _PracticeResultScreenState extends State<PracticeResultScreen> {
         ),
       ],
     );
+  }
+
+  Widget _buildRecommendationsSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionTitle('Lộ trình gợi ý'),
+        const SizedBox(height: 16),
+        SizedBox(
+          height: 140,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            itemCount: _recommendations.length,
+            itemBuilder: (context, index) {
+              final rec = _recommendations[index];
+              return _buildRecommendationCard(rec);
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTopicStatsSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionTitle('Điểm mạnh theo chủ đề'),
+        const SizedBox(height: 16),
+        ..._topicStats.entries.map((entry) {
+          final String topic = entry.key == 'Tổng quát' ? 'Kỹ năng tổng hợp' : entry.key;
+          final int correct = entry.value['correct']!;
+          final int total = entry.value['total']!;
+          final double percent = total > 0 ? correct / total : 0;
+          
+          final Color themeColor = percent >= 0.7 
+              ? AppColors.success 
+              : (percent >= 0.4 ? Colors.orange : AppColors.error);
+
+          return Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            child: Material(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              elevation: 0,
+              child: InkWell(
+                onTap: () => _handleReview(filterTopic: entry.key),
+                borderRadius: BorderRadius.circular(20),
+                child: Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: themeColor.withValues(alpha: 0.1)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: themeColor.withValues(alpha: 0.1),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  _getTopicIcon(entry.key),
+                                  size: 18,
+                                  color: themeColor,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Text(
+                                topic,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 15,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                            ],
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: themeColor.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              '$correct/$total',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w900,
+                                color: themeColor,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(5),
+                        child: LinearProgressIndicator(
+                          value: percent,
+                          minHeight: 10,
+                          backgroundColor: AppColors.background,
+                          valueColor: AlwaysStoppedAnimation<Color>(themeColor),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            percent >= 0.7 ? 'Hoàn thành tốt' : (percent >= 0.4 ? 'Cần cố gắng' : 'Cần xem lại ngay'),
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: themeColor,
+                            ),
+                          ),
+                          const Icon(Icons.arrow_forward_ios, size: 12, color: AppColors.textSecondary),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+        }),
+      ],
+    );
+  }
+
+  IconData _getTopicIcon(String topic) {
+    String t = topic.toLowerCase();
+    if (t.contains('ngữ pháp') || t.contains('grammar')) return Icons.architecture;
+    if (t.contains('từ vựng') || t.contains('vocab')) return Icons.translate;
+    if (t.contains('suy luận')) return Icons.psychology;
+    if (t.contains('ý chính')) return Icons.summarize;
+    return Icons.lightbulb_outline;
+  }
+
+  Widget _buildRecommendationCard(Map<String, dynamic> rec) {
+    return GestureDetector(
+      onTap: () => _handleRecommendationTap(rec),
+      child: Container(
+        width: 200,
+        margin: const EdgeInsets.only(right: 16, bottom: 4),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Colors.white, AppColors.indigo50.withValues(alpha: 0.3)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: AppShadows.softShadow,
+          border: Border.all(color: AppColors.primary.withValues(alpha: 0.1)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppColors.primary,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                'Part ${rec['partNumber']}',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              rec['title'] ?? '',
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+                color: AppColors.textPrimary,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            Text(
+              rec['testTitle'] ?? '',
+              style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const Spacer(),
+            Row(
+              children: [
+                const Icon(
+                  Icons.help_outline,
+                  size: 12,
+                  color: AppColors.textSecondary,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  '${rec['totalQuestions']} câu',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                const Spacer(),
+                const Icon(
+                  Icons.arrow_forward_ios,
+                  size: 12,
+                  color: AppColors.primary,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _handleRecommendationTap(Map<String, dynamic> rec) async {
+    final partId = rec['id'];
+    if (partId == null) return;
+
+    // Show loading
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      final viewModel = context.read<PracticeViewModel>();
+      await viewModel.loadQuestions(partId);
+
+      if (mounted) {
+        Navigator.pop(context); // Close loading
+
+        // Find the full part object from the test if possible,
+        // or we need a way to navigate to test detail first.
+        // For now, let's assume we can navigate to Part1Simulation or TestSimulation.
+        // But we need the PartModel object.
+
+        // Simple strategy: reload all tests and find the part
+        await viewModel.loadTests();
+        PartModel? targetPart;
+        for (var test in viewModel.tests) {
+          for (var p in test.parts) {
+            if (p.id == partId) {
+              targetPart = p;
+              break;
+            }
+          }
+        }
+
+        if (targetPart != null && mounted) {
+          // Navigate to Test Simulation (which handles instructions etc.)
+          // We need to import test_detail_screen or just push simulation directly
+          // but TestDetailScreen is better for starting a new attempt.
+          final test = viewModel.tests.firstWhere(
+            (t) => t.parts.any((p) => p.id == partId),
+          );
+
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) =>
+                  TestSimulationScreen(test: test, partId: partId),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
+      }
+    }
   }
 }

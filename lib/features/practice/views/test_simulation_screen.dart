@@ -10,6 +10,9 @@ import '../viewmodels/practice_viewmodel.dart';
 import 'practice_result_screen.dart';
 import '../../../l10n/app_localizations.dart';
 import 'widgets/touchable_passage_widget.dart';
+import 'package:google_fonts/google_fonts.dart';
+import '../../auth/viewmodels/auth_viewmodel.dart';
+import 'class_feedback_screen.dart';
 
 class TestSimulationScreen extends StatefulWidget {
   final ExamModel test;
@@ -189,7 +192,7 @@ class _TestSimulationScreenState extends State<TestSimulationScreen> {
             builder: (context) => PracticeResultScreen(
               resultData: {...result, 'userAnswers': _userAnswers},
               part: _selectedPart!,
-              attemptId: result['id'].toString(),
+              attemptId: (result['attemptId'] ?? result['id']).toString(),
             ),
           ),
         );
@@ -205,91 +208,78 @@ class _TestSimulationScreenState extends State<TestSimulationScreen> {
   }
 
   // Xác định màu sắc cho ô câu hỏi trong Bottom Sheet.
-  // Logic ưu tiên: Đang chọn > Đánh cờ > Đúng > Sai > Đã trả lời > Chưa trả lời.
   Map<String, dynamic> _getBottomSheetColorInfo(
       String qId, int index, List<dynamic> questions) {
     final bool isCurrent = index == _currentIndex;
     final bool isFlagged = _flaggedQuestions.contains(qId);
     final bool isAnswered = _userAnswers.containsKey(qId);
 
-    // Trạng thái 1: Câu đang được xem (màu xanh dương đậm - Primary)
-    if (isCurrent) {
-      return {
-        'bg': AppColors.indigo50,
-        'border': AppColors.primary,
-        'text': Colors.white,
-        'shadow': true,
-      };
-    }
+    // Default styles
+    Map<String, dynamic> info = {
+      'bg': Colors.white,
+      'border': AppColors.divider,
+      'text': AppColors.textSecondary,
+      'shadow': false,
+      'borderWidth': 1.5,
+    };
 
-    // Trạng thái 2: Câu đã bị đánh cờ (màu cam/amber)
-    if (isFlagged) {
-      return {
-        'bg': const Color(0xFFFFFBEB), // Amber 50
-        'border': AppColors.warning,   // Amber 500
-        'text': AppColors.warning,
-        'shadow': false,
-      };
-    }
-
-    // Khi đã nộp bài, phân biệt Đúng/Sai
+    // 1. Priority: Correct/Incorrect if submitted
     if (_isSubmitted && isAnswered) {
       final userAnswer = _userAnswers[qId];
-      // Tìm câu hỏi trong danh sách để lấy đáp án đúng
       final questionList = context.read<PracticeViewModel>().currentQuestions;
       if (index < questionList.length) {
         final correctAnswer = questionList[index].correctAnswer;
         final isCorrect = userAnswer == correctAnswer;
 
         if (isCorrect) {
-          // Trạng thái 3: Câu trả lời Đúng (màu xanh lá nhạt)
-          return {
-            'bg': const Color(0xFFECFDF5),   // Emerald 50
-            'border': AppColors.success,      // Emerald 500 (#10B981)
-            'text': AppColors.success,
-            'shadow': false,
-          };
+          info['bg'] = const Color(0xFF10B981);
+          info['border'] = const Color(0xFF059669);
+          info['text'] = Colors.white;
         } else {
-          // Trạng thái 4: Câu trả lời Sai (màu đỏ nhạt)
-          return {
-            'bg': const Color(0xFFFEF2F2),   // Red 50
-            'border': AppColors.error,        // Red 500 (#EF4444)
-            'text': AppColors.error,
-            'shadow': false,
-          };
+          info['bg'] = const Color(0xFFEF4444);
+          info['border'] = const Color(0xFFDC2626);
+          info['text'] = Colors.white;
         }
+      }
+    } else if (isAnswered && !_isSubmitted) {
+      // Only show purple background if NOT submitted
+      info['bg'] = AppColors.primary;
+      info['border'] = const Color(0xFF1E3A8A);
+      info['text'] = Colors.white;
+    }
+
+    // 2. Override for Flagged (High Priority Visibility during test)
+    if (isFlagged && !_isSubmitted) {
+      info['bg'] = const Color(0xFFF59E0B);
+      info['border'] = const Color(0xFFD97706);
+      info['text'] = Colors.white;
+    }
+
+    // 3. Highlight Current
+    if (isCurrent) {
+      info['border'] = _isSubmitted ? (info['text'] == Colors.white ? Colors.white : AppColors.primary) : AppColors.primary;
+      info['borderWidth'] = 3.5;
+      info['shadow'] = true;
+      if (info['bg'] == Colors.white) {
+        info['bg'] = AppColors.indigo50;
+        info['text'] = AppColors.primary;
       }
     }
 
-    // Trạng thái 5: Câu đã trả lời nhưng chưa nộp (màu xanh pastel)
-    if (isAnswered) {
-      return {
-        'bg': AppColors.indigo50,    // Indigo 50
-        'border': AppColors.primary,   // Indigo 500
-        'text': AppColors.primary,
-        'shadow': false,
-      };
-    }
-
-    // Trạng thái 6: Câu chưa trả lời (màu xám nhạt mặc định)
-    return {
-      'bg': Colors.white,
-      'border': AppColors.divider,     // Slate 200 (#E2E8F0)
-      'text': AppColors.textSecondary, // Slate 500 (#64748B)
-      'shadow': false,
-    };
+    return info;
   }
 
   void _showQuestionPalette() {
     final viewModel = context.read<PracticeViewModel>();
     final questions = viewModel.currentQuestions;
+    final user = context.read<AuthViewModel>().currentUser;
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => Container(
-        height: MediaQuery.of(context).size.height * 0.72,
+        height: MediaQuery.of(context).size.height * 0.78,
         decoration: const BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
@@ -354,17 +344,23 @@ class _TestSimulationScreenState extends State<TestSimulationScreen> {
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
                           color: colorInfo['border'],
-                          width: colorInfo['shadow'] ? 2 : 1.5,
+                          width: colorInfo['borderWidth'] ?? 1.5,
                         ),
                         boxShadow: colorInfo['shadow'] == true
-                            ? AppShadows.softShadow
+                            ? [
+                                BoxShadow(
+                                  color: AppColors.primary.withValues(alpha: 0.3),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                )
+                              ]
                             : [],
                       ),
                       child: Stack(
                         alignment: Alignment.center,
                         children: [
                           Text(
-                            '${index + 1}',
+                            '${questions[index].questionNumber}',
                             style: TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.bold,
@@ -379,7 +375,7 @@ class _TestSimulationScreenState extends State<TestSimulationScreen> {
                               child: Icon(
                                 Icons.flag_rounded,
                                 size: 9,
-                                color: AppColors.warning,
+                                color: colorInfo['text'] == Colors.white ? Colors.white : AppColors.warning,
                               ),
                             ),
                         ],
@@ -387,6 +383,197 @@ class _TestSimulationScreenState extends State<TestSimulationScreen> {
                     ),
                   );
                 },
+              ),
+            ),
+            
+            // Teacher Feedback Button at the very bottom
+            if (user?.classId != null) ...[
+              const SizedBox(height: 16),
+              Container(
+                width: double.infinity,
+                height: 54,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  color: AppColors.indigo50,
+                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+                ),
+                child: TextButton.icon(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const ClassFeedbackScreen()),
+                    );
+                  },
+                  icon: const Icon(Icons.chat_bubble_outline_rounded, size: 20, color: AppColors.primary),
+                  label: const Text(
+                    'GỬI Ý KIẾN GIÁO VIÊN',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                      color: AppColors.primary,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showPartInstructions() {
+    if (_selectedPart == null) return;
+    const Color adminBlue = Color(0xFF2563EB);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        height: MediaQuery.of(context).size.height * 0.85,
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+        ),
+        child: Column(
+          children: [
+            // Handle and Header
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 12, 24, 16),
+              child: Column(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: AppColors.divider,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: adminBlue.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.info_outline_rounded, color: adminBlue, size: 20),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          _selectedPart!.partName,
+                          style: GoogleFonts.inter(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                            color: const Color(0xFF1E293B),
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        icon: const Icon(Icons.close_rounded),
+                        padding: EdgeInsets.zero,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            
+            // Content
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(24, 0, 24, 32),
+                physics: const BouncingScrollPhysics(),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Image (if any)
+                    if (_selectedPart!.instructionImgUrl != null)
+                      Container(
+                        width: double.infinity,
+                        margin: const EdgeInsets.only(bottom: 24),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.05),
+                              blurRadius: 15,
+                              offset: const Offset(0, 5),
+                            ),
+                          ],
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(20),
+                          child: Image.network(
+                            _selectedPart!.instructionImgUrl!,
+                            fit: BoxFit.cover,
+                            loadingBuilder: (context, child, progress) {
+                              if (progress == null) return child;
+                              return Center(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(20.0),
+                                  child: CircularProgressIndicator(
+                                    value: progress.expectedTotalBytes != null
+                                        ? progress.cumulativeBytesLoaded / progress.expectedTotalBytes!
+                                        : null,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+
+                    // Instructions Content (HTML)
+                    if (_selectedPart!.instructions != null)
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                        ),
+                        child: HtmlWidget(
+                          _selectedPart!.instructions!,
+                          textStyle: GoogleFonts.inter(
+                            fontSize: 15,
+                            height: 1.7,
+                            color: const Color(0xFF475569),
+                          ),
+                        ),
+                      ),
+                    
+                    const SizedBox(height: 16),
+                    // Tip/Note
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.amber.shade50,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.amber.shade100),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.lightbulb_outline_rounded, color: Colors.amber.shade700, size: 20),
+                          const SizedBox(width: 12),
+                          const Expanded(
+                            child: Text(
+                              'Đọc kỹ hướng dẫn giúp bạn tránh những sai sót không đáng có khi làm bài.',
+                              style: TextStyle(fontSize: 13, color: Color(0xFF92400E), height: 1.4),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ],
@@ -402,14 +589,12 @@ class _TestSimulationScreenState extends State<TestSimulationScreen> {
       spacing: 16,
       runSpacing: 8,
       children: [
-        _buildLegendChip(AppColors.indigo50, AppColors.primary, 'Đang xem'),
-        _buildLegendChip(AppColors.indigo50, AppColors.primary, 'Đã trả lời'),
+        _buildLegendChip(const Color(0xFFF59E0B), const Color(0xFFD97706), 'Cắm cờ'),
         if (_isSubmitted) ...[
-          _buildLegendChip(const Color(0xFFECFDF5), AppColors.success, 'Đúng'),
-          _buildLegendChip(const Color(0xFFFEF2F2), AppColors.error, 'Sai'),
+          _buildLegendChip(const Color(0xFF10B981), const Color(0xFF059669), 'Đúng'),
+          _buildLegendChip(const Color(0xFFEF4444), const Color(0xFFDC2626), 'Sai'),
         ],
         _buildLegendChip(Colors.white, AppColors.divider, 'Chưa trả lời'),
-        _buildLegendChip(const Color(0xFFFFFBEB), AppColors.warning, 'Đã cắm cờ'),
       ],
     );
   }
@@ -501,7 +686,7 @@ class _TestSimulationScreenState extends State<TestSimulationScreen> {
                     Icon(Icons.article_outlined, size: 16, color: adminBlue),
                     const SizedBox(width: 6),
                     Text(
-                      'Passage',
+                      'Đoạn văn',
                       style: TextStyle(
                         color: adminBlue,
                         fontWeight: FontWeight.bold,
@@ -512,7 +697,7 @@ class _TestSimulationScreenState extends State<TestSimulationScreen> {
                 ),
               ),
               const Spacer(),
-              _buildThemeBadge('Pro Reader'),
+              _buildThemeBadge('Đọc Thông minh'),
             ],
           ),
           const SizedBox(height: 16),
@@ -617,8 +802,8 @@ class _TestSimulationScreenState extends State<TestSimulationScreen> {
                   ? vm.currentQuestions[_currentIndex].id : null;
               final bool isFlagged = qId != null && _flaggedQuestions.contains(qId);
               return Icon(
-                isFlagged ? Icons.flag_rounded : Icons.outlined_flag_rounded,
-                color: isFlagged ? const Color(0xFFF59E0B) : const Color(0xFF64748B),
+                isFlagged ? Icons.flag_rounded : Icons.flag_outlined,
+                color: isFlagged ? Colors.amber : Colors.white70,
               );
             }),
             onPressed: () {
@@ -628,6 +813,12 @@ class _TestSimulationScreenState extends State<TestSimulationScreen> {
               }
             },
             tooltip: 'Cắm cờ câu này',
+          ),
+          IconButton(
+            icon: const Icon(Icons.help_outline_rounded),
+            onPressed: _showPartInstructions,
+            color: const Color(0xFF64748B),
+            tooltip: 'Hướng dẫn làm bài',
           ),
           IconButton(
             icon: const Icon(Icons.grid_view_rounded),
@@ -813,13 +1004,32 @@ class _TestSimulationScreenState extends State<TestSimulationScreen> {
                   );
                 }
 
-                // Part 5 View
-                return Column(
-                  children: [
-                    Expanded(child: _buildQuestionArea(questions)),
-                    _buildMiniPalette(questions.length),
-                    _buildBottomNavigation(questions.length),
-                  ],
+                // Part 5 / No Passage View
+                return Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        AppColors.indigo50.withValues(alpha: 0.5),
+                        Colors.white,
+                      ],
+                    ),
+                  ),
+                  child: Column(
+                    children: [
+                      Expanded(
+                        child: Center(
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 600),
+                            child: _buildQuestionArea(questions),
+                          ),
+                        ),
+                      ),
+                      _buildMiniPalette(questions.length),
+                      _buildBottomNavigation(questions.length),
+                    ],
+                  ),
                 );
               },
             ),
@@ -969,8 +1179,9 @@ class _TestSimulationScreenState extends State<TestSimulationScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 12),
         itemBuilder: (context, index) {
           final vm = context.read<PracticeViewModel>();
-          final String? qId = vm.currentQuestions.length > index 
-              ? vm.currentQuestions[index].id : null;
+          final questions = vm.currentQuestions;
+          final String? qId = questions.length > index 
+              ? questions[index].id : null;
           
           final bool isCurrent = index == _currentIndex;
           final bool isAnswered = qId != null && _userAnswers.containsKey(qId);
@@ -1010,7 +1221,7 @@ class _TestSimulationScreenState extends State<TestSimulationScreen> {
                 children: [
                   Center(
                     child: Text(
-                      '${index + 1}',
+                      '${questions[index].questionNumber}',
                       style: TextStyle(
                         fontSize: 13,
                         color: textColor,
@@ -1183,37 +1394,118 @@ class _TestSimulationScreenState extends State<TestSimulationScreen> {
   }
 
   Widget _buildInstructionScreen(BuildContext context) {
+    const Color adminBlue = Color(0xFF2563EB);
+
     return Scaffold(
-      appBar: AppBar(title: Text(_selectedPart?.partName ?? 'Instructions')),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              "Directions:",
-              style: Theme.of(
-                context,
-              ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            if (_selectedPart!.instructionImgUrl != null)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 16.0),
-                child: Image.network(_selectedPart!.instructionImgUrl!),
-              ),
-            if (_selectedPart!.instructions != null)
-              Expanded(
-                child: SingleChildScrollView(
-                  child: Text(
-                    _selectedPart!.instructions!,
-                    style: const TextStyle(fontSize: 16),
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        title: Text(
+          _selectedPart?.partName ?? 'Instructions',
+          style: GoogleFonts.inter(fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: adminBlue,
+        foregroundColor: Colors.white,
+        elevation: 0,
+      ),
+      body: Column(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24.0),
+              physics: const BouncingScrollPhysics(),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Directions Header
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: adminBlue.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(Icons.info_outline_rounded, color: adminBlue, size: 20),
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        "Directions",
+                        style: GoogleFonts.inter(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                          color: const Color(0xFF1E293B),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
+                  const SizedBox(height: 24),
+
+                  // Image (if any)
+                  if (_selectedPart!.instructionImgUrl != null)
+                    Container(
+                      width: double.infinity,
+                      margin: const EdgeInsets.only(bottom: 24),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.05),
+                            blurRadius: 15,
+                            offset: const Offset(0, 5),
+                          ),
+                        ],
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(20),
+                        child: Image.network(
+                          _selectedPart!.instructionImgUrl!,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    ),
+
+                  // Instructions Content (HTML)
+                  if (_selectedPart!.instructions != null)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                      ),
+                      child: HtmlWidget(
+                        _selectedPart!.instructions!,
+                        textStyle: GoogleFonts.inter(
+                          fontSize: 15,
+                          height: 1.7,
+                          color: const Color(0xFF475569),
+                        ),
+                      ),
+                    ),
+                  
+                  const SizedBox(height: 32),
+                ],
               ),
-            const SizedBox(height: 24),
-            SizedBox(
+            ),
+          ),
+
+          // Bottom Button Area
+          Container(
+            padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 20,
+                  offset: const Offset(0, -5),
+                ),
+              ],
+            ),
+            child: SizedBox(
               width: double.infinity,
+              height: 56,
               child: ElevatedButton(
                 onPressed: () {
                   setState(() {
@@ -1221,21 +1513,25 @@ class _TestSimulationScreenState extends State<TestSimulationScreen> {
                   });
                 },
                 style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  backgroundColor: AppColors.primary,
+                  backgroundColor: adminBlue,
                   foregroundColor: Colors.white,
+                  elevation: 0,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
                   ),
                 ),
                 child: Text(
-                  AppLocalizations.of(context)?.translate('start') ?? "Bắt đầu",
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  AppLocalizations.of(context)?.translate('start') ?? "Bắt đầu ngay",
+                  style: GoogleFonts.inter(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.5,
+                  ),
                 ),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

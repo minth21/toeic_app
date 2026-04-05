@@ -1,23 +1,29 @@
+import '../../../constants/app_constants.dart';
+
 class UserModel {
   final String id;
-  final String email;
+  final String username;
   final String name;
   final String role; // STUDENT or ADMIN
   final String? phoneNumber;
   final DateTime? dateOfBirth;
   final String? gender; // MALE, FEMALE, OTHER
   final String? avatarUrl;
-  final String? difficulty; // EASY, MEDIUM, HARD
+  final String? difficulty; // A1_A2, B1_B2, C1
   final int progress; // 0-100%
   final int? targetScore; // Target TOEIC score
   final bool hasPassword;
   final DateTime createdAt;
   final int totalTestsTaken;
   final int averageScore;
+  final bool isFirstLogin;
+  final String? classId;
+  final String? className;
+  final String? teacherName;
 
   UserModel({
     required this.id,
-    required this.email,
+    required this.username,
     required this.name,
     required this.role,
     this.phoneNumber,
@@ -31,12 +37,16 @@ class UserModel {
     required this.createdAt,
     this.totalTestsTaken = 0,
     this.averageScore = 0,
+    this.isFirstLogin = true,
+    this.classId,
+    this.className,
+    this.teacherName,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
     return UserModel(
       id: json['id'] as String,
-      email: json['email'] as String,
+      username: json['username'] as String? ?? '',
       name: json['name'] as String,
       role: json['role'] as String? ?? 'STUDENT',
       phoneNumber: json['phoneNumber'] as String?,
@@ -50,15 +60,19 @@ class UserModel {
       targetScore: json['targetScore'] as int?,
       hasPassword: (json['hasPassword'] as bool?) ?? false,
       createdAt: DateTime.parse(json['createdAt'] as String),
-      totalTestsTaken: json['totalTestsTaken'] as int? ?? 0,
+      totalTestsTaken: (json['totalAttempts'] as int? ?? json['totalTestsTaken'] as int? ?? 0),
       averageScore: json['averageScore'] as int? ?? 0,
+      isFirstLogin: json['isFirstLogin'] as bool? ?? true,
+      classId: json['classId'] as String?,
+      className: json['className'] as String?,
+      teacherName: json['teacherName'] as String?,
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
       'id': id,
-      'email': email,
+      'username': username,
       'name': name,
       'role': role,
       if (phoneNumber != null) 'phoneNumber': phoneNumber,
@@ -72,12 +86,16 @@ class UserModel {
       'createdAt': createdAt.toIso8601String(),
       'totalTestsTaken': totalTestsTaken,
       'averageScore': averageScore,
+      'isFirstLogin': isFirstLogin,
+      if (classId != null) 'classId': classId,
+      if (className != null) 'className': className,
+      if (teacherName != null) 'teacherName': teacherName,
     };
   }
 
   UserModel copyWith({
     String? id,
-    String? email,
+    String? username,
     String? name,
     String? role,
     String? phoneNumber,
@@ -91,10 +109,14 @@ class UserModel {
     DateTime? createdAt,
     int? totalTestsTaken,
     int? averageScore,
+    bool? isFirstLogin,
+    String? classId,
+    String? className,
+    String? teacherName,
   }) {
     return UserModel(
       id: id ?? this.id,
-      email: email ?? this.email,
+      username: username ?? this.username,
       name: name ?? this.name,
       role: role ?? this.role,
       phoneNumber: phoneNumber ?? this.phoneNumber,
@@ -108,12 +130,38 @@ class UserModel {
       createdAt: createdAt ?? this.createdAt,
       totalTestsTaken: totalTestsTaken ?? this.totalTestsTaken,
       averageScore: averageScore ?? this.averageScore,
+      isFirstLogin: isFirstLogin ?? this.isFirstLogin,
+      classId: classId ?? this.classId,
+      className: className ?? this.className,
+      teacherName: teacherName ?? this.teacherName,
     );
   }
 
   // Helper getters
-  bool get isAdmin => role == 'ADMIN';
-  bool get isStudent => role == 'STUDENT';
+  bool get isAdmin => role.toUpperCase() == 'ADMIN';
+  bool get isStudent => role.toUpperCase() == 'STUDENT';
+  bool get isTeacher => role.toUpperCase() == 'TEACHER';
+  bool get isSpecialist => role.toUpperCase() == 'SPECIALIST' || role.toUpperCase() == 'STAFF';
+  
+  // Mobile Access Control
+  bool get canAccessMobileApp => isAdmin || isStudent;
+
   bool get isMale => gender == 'MALE';
   bool get isFemale => gender == 'FEMALE';
+
+  // Role display label
+  String get roleLabel {
+    switch (role.toUpperCase()) {
+      case 'ADMIN':
+        return AppStrings.roleAdmin;
+      case 'SPECIALIST':
+        return AppStrings.roleSpecialist;
+      case 'TEACHER':
+        return AppStrings.roleTeacher;
+      case 'STUDENT':
+        return AppStrings.roleStudent;
+      default:
+        return role;
+    }
+  }
 }

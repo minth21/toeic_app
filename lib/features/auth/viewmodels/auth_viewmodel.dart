@@ -31,7 +31,25 @@ class AuthViewModel extends ChangeNotifier {
         if (response['success'] == true) {
           final userData = response['data']?['user'];
           if (userData != null) {
-            _currentUser = _authApiService.parseUser(userData);
+            final user = _authApiService.parseUser(userData);
+            
+            if (user == null) {
+              _errorMessage = 'Lỗi dữ liệu người dùng';
+              _isLoading = false;
+              notifyListeners();
+              return;
+            }
+
+            // ROLE CHECK: Only Admin & Student can access Mobile
+            if (!user.canAccessMobileApp) {
+              _errorMessage = 'Tài khoản của bạn chỉ được phép truy cập trên trang Quản trị (CMS).';
+              await logout(); // Force clear session
+              _isLoading = false;
+              notifyListeners();
+              return;
+            }
+
+            _currentUser = user;
             _token = token;
             // Ensure userId is saved for API calls
             await _storageService.saveUserId(_currentUser!.id);
@@ -50,7 +68,7 @@ class AuthViewModel extends ChangeNotifier {
   }
 
   /// Login với API thật
-  Future<bool> login(String email, String password) async {
+  Future<bool> login(String username, String password) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
@@ -58,7 +76,7 @@ class AuthViewModel extends ChangeNotifier {
     try {
       // Gọi API login
       final response = await _authApiService.login(
-        email: email,
+        username: username,
         password: password,
       );
 
@@ -67,7 +85,24 @@ class AuthViewModel extends ChangeNotifier {
         // Parse user từ response
         final userData = response['user'];
         if (userData != null) {
-          _currentUser = _authApiService.parseUser(userData);
+          final user = _authApiService.parseUser(userData);
+          
+          if (user == null) {
+            _errorMessage = 'Lỗi thông tin người dùng';
+             _isLoading = false;
+            notifyListeners();
+            return false;
+          }
+
+          // ROLE CHECK: Only Admin & Student can access Mobile
+          if (!user.canAccessMobileApp) {
+            _errorMessage = 'Tài khoản của bạn chỉ được phép truy cập trên trang Quản trị (CMS).';
+            _isLoading = false;
+            notifyListeners();
+            return false;
+          }
+
+          _currentUser = user;
           _token = response['token'];
 
           await _storageService.saveToken(_token!); // Save token
@@ -96,64 +131,6 @@ class AuthViewModel extends ChangeNotifier {
     }
   }
 
-  /// Register new user with API
-  Future<bool> register(
-    String name,
-    String email,
-    String password, {
-    String? phoneNumber,
-    DateTime? dateOfBirth,
-    String? gender,
-  }) async {
-    _isLoading = true;
-    _errorMessage = null;
-    notifyListeners();
-
-    try {
-      // Gọi API register
-      final response = await _authApiService.register(
-        name: name,
-        email: email,
-        password: password,
-        phoneNumber: phoneNumber,
-        dateOfBirth: dateOfBirth,
-        gender: gender,
-      );
-
-      // Kiểm tra response
-      if (response['success'] == true) {
-        // Parse user từ response
-        final userData = response['user'];
-        if (userData != null) {
-          _currentUser = _authApiService.parseUser(userData);
-          _token = response['token'];
-
-          await _storageService.saveToken(_token!); // Save token
-          await _storageService.saveUserId(_currentUser!.id); // Save userId
-
-          _isLoading = false;
-          notifyListeners();
-          return true;
-        } else {
-          _errorMessage = 'Không nhận được thông tin người dùng';
-          _isLoading = false;
-          notifyListeners();
-          return false;
-        }
-      } else {
-        _errorMessage = response['message'] ?? 'Đăng ký thất bại';
-        _isLoading = false;
-        notifyListeners();
-        return false;
-      }
-    } catch (e) {
-      _errorMessage = e.toString();
-      _isLoading = false;
-      notifyListeners();
-      return false;
-    }
-  }
-
   /// Lấy thông tin user hiện tại (dùng token)
   Future<bool> getCurrentUser() async {
     if (_token == null) return false;
@@ -167,7 +144,25 @@ class AuthViewModel extends ChangeNotifier {
       if (response['success'] == true) {
         final userData = response['data']?['user'];
         if (userData != null) {
-          _currentUser = _authApiService.parseUser(userData);
+          final user = _authApiService.parseUser(userData);
+          
+          if (user == null) {
+            _errorMessage = 'Lỗi dữ liệu người dùng';
+             _isLoading = false;
+            notifyListeners();
+            return false;
+          }
+
+          // ROLE CHECK: Only Admin & Student can access Mobile
+          if (!user.canAccessMobileApp) {
+             _errorMessage = 'Tài khoản của bạn chỉ được phép truy cập trên trang Quản trị (CMS).';
+             await logout(); // Kick unauthorized role
+             _isLoading = false;
+             notifyListeners();
+             return false;
+          }
+
+          _currentUser = user;
           _isLoading = false;
           notifyListeners();
           return true;
@@ -190,7 +185,7 @@ class AuthViewModel extends ChangeNotifier {
     String? name,
     String? phoneNumber,
     DateTime? dateOfBirth,
-    String? gender,
+    String? avatarUrl,
   }) async {
     if (_token == null) return false;
 
@@ -203,14 +198,32 @@ class AuthViewModel extends ChangeNotifier {
         name: name,
         phoneNumber: phoneNumber,
         dateOfBirth: dateOfBirth,
-        gender: gender,
+        avatarUrl: avatarUrl,
         token: _token,
       );
 
       if (response['success'] == true) {
         final userData = response['user'];
         if (userData != null) {
-          _currentUser = _authApiService.parseUser(userData);
+          final user = _authApiService.parseUser(userData);
+          
+          if (user == null) {
+            _errorMessage = 'Lỗi cập nhật dữ liệu';
+            _isLoading = false;
+            notifyListeners();
+            return false;
+          }
+
+          // ROLE CHECK: If role changed to unauthorized, logout
+          if (!user.canAccessMobileApp) {
+             _errorMessage = 'Tài khoản của bạn đã bị giới hạn quyền truy cập Mobile.';
+             await logout();
+             _isLoading = false;
+             notifyListeners();
+             return false;
+          }
+
+          _currentUser = user;
           _isLoading = false;
           notifyListeners();
           return true;
@@ -229,46 +242,6 @@ class AuthViewModel extends ChangeNotifier {
     }
   }
 
-  /// Google Login
-  Future<bool> googleLogin() async {
-    _isLoading = true;
-    _errorMessage = null;
-    notifyListeners();
-
-    try {
-      final response = await _authApiService.googleLogin();
-
-      if (response['success'] == true) {
-        final userData = response['user'];
-        if (userData != null) {
-          _currentUser = _authApiService.parseUser(userData);
-          _token = response['token'];
-
-          await _storageService.saveToken(_token!); // Save token
-          await _storageService.saveUserId(_currentUser!.id); // Save userId
-
-          _isLoading = false;
-          notifyListeners();
-          return true;
-        } else {
-          _errorMessage = 'Không nhận được thông tin người dùng';
-          _isLoading = false;
-          notifyListeners();
-          return false;
-        }
-      } else {
-        _errorMessage = response['message'] ?? 'Đăng nhập Google thất bại';
-        _isLoading = false;
-        notifyListeners();
-        return false;
-      }
-    } catch (e) {
-      _errorMessage = 'Lỗi đăng nhập Google: ${e.toString()}';
-      _isLoading = false;
-      notifyListeners();
-      return false;
-    }
-  }
 
   /// Refresh current user data (sau khi upload avatar, etc.)
   Future<bool> refreshCurrentUser() async {
@@ -327,6 +300,44 @@ class AuthViewModel extends ChangeNotifier {
     }
   }
 
+  /// Change password lần đầu login
+  Future<bool> changeFirstPassword({
+    required String newPassword,
+  }) async {
+    if (_token == null) return false;
+
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final response = await _authApiService.changeFirstPassword(
+        newPassword: newPassword,
+        token: _token!,
+      );
+
+      if (response['success'] == true) {
+        // Sau khi đổi thành công, cập nhật isFirstLogin = false local
+        if (_currentUser != null) {
+          _currentUser = _currentUser!.copyWith(isFirstLogin: false);
+        }
+        _isLoading = false;
+        notifyListeners();
+        return true;
+      }
+
+      _errorMessage = response['message'] ?? 'Đổi mật khẩu thất bại';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    } catch (e) {
+      _errorMessage = 'Lỗi: ${e.toString()}';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
   /// Upload Avatar
   Future<void> uploadAvatar(String filePath) async {
     _isLoading = true;
@@ -337,10 +348,19 @@ class AuthViewModel extends ChangeNotifier {
       if (response['success'] == true) {
         final updatedUser = response['user'];
         if (updatedUser != null) {
-          _currentUser = _authApiService.parseUser(updatedUser);
-          await _storageService.saveUserId(
-            _currentUser!.id,
-          ); // Ensure ID persistence just in case
+          final user = _authApiService.parseUser(updatedUser);
+          
+          if (user != null) {
+            // ROLE CHECK: If role changed to unauthorized, logout
+            if (!user.canAccessMobileApp) {
+               _errorMessage = 'Tài khoản của bạn đã bị giới hạn quyền truy cập Mobile.';
+               await logout();
+               return;
+            }
+            
+            _currentUser = user;
+            await _storageService.saveUserId(_currentUser!.id);
+          }
         }
       } else {
         throw Exception(response['message'] ?? 'Upload failed');

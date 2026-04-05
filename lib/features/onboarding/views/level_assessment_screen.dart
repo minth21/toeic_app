@@ -18,27 +18,27 @@ class _LevelAssessmentScreenState extends State<LevelAssessmentScreen> {
   // 3 Difficulty Levels
   final List<ToeicLevel> _levels = const [
     ToeicLevel(
-      id: 'EASY',
+      id: 'A1_A2',
       scoreRange: '0-450',
-      name: 'Easy',
+      name: 'A1-A2 (Cơ bản)',
       color: Color(0xFF4CAF50), // Green
-      description: 'Dành cho người mới bắt đầu, mất gốc',
+      description: 'Dành cho người mới bắt đầu hoặc mất gốc kiến thức',
       icon: Icons.sentiment_satisfied_alt,
     ),
     ToeicLevel(
-      id: 'MEDIUM',
+      id: 'B1_B2',
       scoreRange: '450-750',
-      name: 'Medium',
+      name: 'B1-B2 (Trung cấp)',
       color: Color(0xFFFF9800), // Orange
-      description: 'Dành cho người có nền tảng, muốn cải thiện',
+      description: 'Dành cho người đã có nền tảng, muốn nâng cao kỹ năng',
       icon: Icons.trending_up,
     ),
     ToeicLevel(
-      id: 'HARD',
+      id: 'C1',
       scoreRange: '750-990',
-      name: 'Hard',
+      name: 'C1 (Cao cấp)',
       color: Color(0xFFF44336), // Red
-      description: 'Dành cho người muốn chinh phục điểm cao',
+      description: 'Dành cho người hướng tới mức điểm chuyên sâu',
       icon: Icons.whatshot,
     ),
   ];

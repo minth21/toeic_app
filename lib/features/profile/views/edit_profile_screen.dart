@@ -18,7 +18,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   late TextEditingController _phoneController;
   late TextEditingController _dobController;
   DateTime? _selectedDate;
-  String? _selectedGender;
 
   bool _isLoading = false;
 
@@ -37,9 +36,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     } else {
       _dobController = TextEditingController();
     }
-
-    _selectedGender =
-        user?.gender; // Expecting 'MALE', 'FEMALE', 'OTHER' or null
   }
 
   @override
@@ -88,7 +84,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           ? null
           : _phoneController.text.trim(),
       dateOfBirth: _selectedDate,
-      gender: _selectedGender,
     );
 
     if (!mounted) return;
@@ -172,30 +167,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   style: GoogleFonts.inter(),
                 ),
                 const SizedBox(height: 20),
-                _buildLabel('Giới tính'),
-                DropdownButtonFormField<String>(
-                  initialValue: _selectedGender,
-                  decoration: _buildInputDecoration('Chọn giới tính'),
-                  items: [
-                    DropdownMenuItem(
-                      value: 'MALE',
-                      child: Text('Nam', style: GoogleFonts.inter()),
-                    ),
-                    DropdownMenuItem(
-                      value: 'FEMALE',
-                      child: Text('Nữ', style: GoogleFonts.inter()),
-                    ),
-                    DropdownMenuItem(
-                      value: 'OTHER',
-                      child: Text('Khác', style: GoogleFonts.inter()),
-                    ),
-                  ],
-                  onChanged: (value) {
-                    setState(() {
-                      _selectedGender = value;
-                    });
-                  },
-                ),
                 const SizedBox(height: 40),
                 SizedBox(
                   width: double.infinity,

@@ -12,7 +12,7 @@ class AppColors {
   static const Color primaryLight = Color(0xFF818CF8);
   static const Color primaryDark = Color(0xFF4338CA);
   static const Color secondary = Color(0xFF8B5CF6); // Violet 500
-  
+
   static const Color background = Color(0xFFF8FAFC); // Slate 50
   static const Color surface = Color(0xFFFFFFFF);
 
@@ -36,7 +36,7 @@ class AppColors {
 
   // UI Elements
   static const Color divider = Color(0xFFE2E8F0); // Slate 200
-  static const Color border = Color(0xFFCBD5E1); 
+  static const Color border = Color(0xFFCBD5E1);
 
   // Gradient Colors (Matching Admin Panels)
   static const LinearGradient premiumGradient = LinearGradient(
@@ -64,25 +64,25 @@ class AppColors {
 
 class AppShadows {
   static List<BoxShadow> get premiumShadow => [
-        BoxShadow(
-          color: const Color(0xFF6366F1).withValues(alpha: 0.08),
-          blurRadius: 24,
-          offset: const Offset(0, 8),
-        ),
-        BoxShadow(
-          color: const Color(0xFF000000).withValues(alpha: 0.03),
-          blurRadius: 10,
-          offset: const Offset(0, 4),
-        ),
-      ];
+    BoxShadow(
+      color: const Color(0xFF6366F1).withValues(alpha: 0.08),
+      blurRadius: 24,
+      offset: const Offset(0, 8),
+    ),
+    BoxShadow(
+      color: const Color(0xFF000000).withValues(alpha: 0.03),
+      blurRadius: 10,
+      offset: const Offset(0, 4),
+    ),
+  ];
 
   static List<BoxShadow> get softShadow => [
-        BoxShadow(
-          color: Colors.black.withValues(alpha: 0.04),
-          blurRadius: 12,
-          offset: const Offset(0, 4),
-        ),
-      ];
+    BoxShadow(
+      color: Colors.black.withValues(alpha: 0.04),
+      blurRadius: 12,
+      offset: const Offset(0, 4),
+    ),
+  ];
 }
 
 class AppStrings {
@@ -92,7 +92,8 @@ class AppStrings {
   // Auth
   static const String login = 'Đăng nhập';
   static const String register = 'Đăng ký';
-  static const String email = 'Email';
+  static const String username = 'Mã học viên';
+  static const String usernameRequired = 'Vui lòng nhập Mã học viên';
   static const String password = 'Mật khẩu';
   static const String fullName = 'Họ và tên';
   static const String confirmPassword = 'Xác nhận mật khẩu';
@@ -100,14 +101,12 @@ class AppStrings {
   static const String dontHaveAccount = 'Chưa có tài khoản?';
   static const String alreadyHaveAccount = 'Đã có tài khoản?';
   static const String loginSuccess = 'Đăng nhập thành công!';
-  static const String loginFailed = 'Email hoặc mật khẩu không đúng';
+  static const String loginFailed = 'Mã học viên hoặc mật khẩu không đúng';
   static const String registerSuccess = 'Đăng ký thành công!';
   static const String registerFailed = 'Đăng ký thất bại. Vui lòng thử lại';
   static const String createAccount = 'Tạo tài khoản mới';
 
   // Validation
-  static const String emailRequired = 'Vui lòng nhập email';
-  static const String emailInvalid = 'Email không hợp lệ';
   static const String passwordRequired = 'Vui lòng nhập mật khẩu';
   static const String passwordTooShort = 'Mật khẩu phải có ít nhất 6 ký tự';
   static const String fullNameRequired = 'Vui lòng nhập họ và tên';
@@ -119,4 +118,16 @@ class AppStrings {
   static const String startPractice = 'Bắt đầu luyện tập';
   static const String myProgress = 'Tiến độ của tôi';
   static const String logout = 'Đăng xuất';
+
+  // Force Change Password
+  static const String forceChangePasswordTitle = 'Đổi mật khẩu lần đầu';
+  static const String forceChangePasswordMessage =
+      'Chào mừng bạn! Vì lý do bảo mật, bạn cần đổi mật khẩu mặc định trước khi có thể sử dụng ứng dụng.';
+  static const String updateAndStart = 'Cập nhật & Bắt đầu';
+
+  // Roles
+  static const String roleAdmin = 'Quản trị viên';
+  static const String roleSpecialist = 'Chuyên viên';
+  static const String roleTeacher = 'Giáo viên';
+  static const String roleStudent = 'Học viên';
 }

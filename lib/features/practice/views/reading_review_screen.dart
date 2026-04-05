@@ -5,21 +5,26 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../constants/app_constants.dart';
 import '../models/question_model.dart';
 import 'widgets/touchable_passage_widget.dart';
+import 'widgets/vocab_flashcard_panel.dart';
 
 /// Unified "Smart Reader" review screen for Reading parts (Part 6 & 7).
 /// Redesigned with "Pro Blue" EdTech Premium aesthetic.
 class ReadingReviewScreen extends StatefulWidget {
   final List<QuestionModel> questions;
   final Map<String, String> userAnswers; // questionId → selectedOption
+  final List<String> flaggedQuestions; // questionIds
   final int partNumber;
   final List<dynamic>? aiFeedbacks;
+  final String? overallFeedback;
 
   const ReadingReviewScreen({
     super.key,
     required this.questions,
     required this.userAnswers,
+    this.flaggedQuestions = const [],
     required this.partNumber,
     this.aiFeedbacks,
+    this.overallFeedback,
   });
 
   @override
@@ -28,6 +33,8 @@ class ReadingReviewScreen extends StatefulWidget {
 
 class _ReadingReviewScreenState extends State<ReadingReviewScreen> {
   int _activeIndex = 0;
+  bool _isTranslationMode = false;
+  bool _isSmartReader = false; // New: Smart Reader mode for Part 7 images
   late final PageController _pageController;
   final ScrollController _passageScrollController = ScrollController();
 
@@ -63,34 +70,98 @@ class _ReadingReviewScreenState extends State<ReadingReviewScreen> {
   String _buildPassageHtml(int activeQuestionNumber) {
     final regex = RegExp(r'\[(\d+)\]');
     return _rawPassage.replaceAllMapped(regex, (match) {
-      final num = match.group(1) ?? '';
-      final isActive = num == activeQuestionNumber.toString();
+      final numStr = match.group(1) ?? '';
+      final questionNum = int.tryParse(numStr) ?? 0;
+      final isActive = numStr == activeQuestionNumber.toString();
+
+      // Find the question info to determine color
+      final questionIndex = widget.questions.indexWhere((q) => q.questionNumber == questionNum);
+      
+      String bgColor = '#F1F5F9'; // Default Slate-50
+      String textColor = '#475569'; // Slate-600
+      String borderColor = '#CBD5E1'; // Slate-300
+      String labelPrefix = '#';
+
       if (isActive) {
-        // Active: Solid Indigo Premium Badge (Q147)
-        return '<span style="background: #4F46E5; color: #ffffff; '
-            'border-radius: 6px; padding: 2px 10px; font-weight: 700; '
-            'display: inline-flex; align-items: center; justify-content: center; '
-            'box-shadow: 0 2px 5px rgba(0,0,0,0.15); '
-            'font-size: 13px; margin: 0 4px; font-family: sans-serif;">'
-            'Q$num</span>';
-      } else {
-        // Inactive: Clean Slate Border Badge (#147)
-        return '<span style="background: #F8FAFC; color: #475569; '
-            'border: 1px solid #CBD5E1; border-radius: 4px; padding: 1px 8px; '
-            'font-weight: 600; display: inline-flex; font-size: 12px; '
-            'margin: 0 4px; font-family: sans-serif;">'
-            '#$num</span>';
+        bgColor = '#4F46E5'; // Indigo-600
+        textColor = '#FFFFFF';
+        borderColor = '#4F46E5';
+        labelPrefix = 'Q';
+      } else if (questionIndex != -1) {
+        final q = widget.questions[questionIndex];
+        final userAnswer = widget.userAnswers[q.id];
+        final isCorrect = userAnswer == q.correctAnswer;
+        final isUnanswered = userAnswer == null || userAnswer.isEmpty;
+        final isFlagged = widget.flaggedQuestions.contains(q.id);
+
+        if (isFlagged) {
+          bgColor = '#FFF7ED'; // Orange-50
+          textColor = '#C2410C'; // Orange-700
+          borderColor = '#FB923C'; // Orange-400
+        } else if (isUnanswered) {
+          bgColor = '#FFFFFF';
+          textColor = '#64748B'; // Slate-500
+          borderColor = '#CBD5E1';
+        } else if (isCorrect) {
+          bgColor = '#F0FDF4'; // Emerald-50
+          textColor = '#15803D'; // Emerald-700
+          borderColor = '#4ADE80'; // Emerald-400
+        } else {
+          bgColor = '#FEF2F2'; // Rose-50
+          textColor = '#B91C1C'; // Rose-700
+          borderColor = '#F87171'; // Rose-400
+        }
       }
+
+      return '<span style="background: $bgColor; color: $textColor; '
+          'border: 1px solid $borderColor; border-radius: 6px; padding: 2px 10px; '
+          'font-weight: 700; display: inline-flex; align-items: center; '
+          'justify-content: center; font-size: 13px; margin: 0 4px; '
+          'font-family: sans-serif; transition: all 0.2s;">'
+          '$labelPrefix$numStr</span>';
     });
   }
 
   Map<String, dynamic>? _parseAiData(QuestionModel q) {
     final result = <String, dynamic>{};
 
-    // 1. Try to parse from structured JSON (New Format)
+    // 1. Priority: Model Fields (New Format)
+    if ((q.analysis != null && q.analysis!.isNotEmpty) || 
+        (q.evidence != null && q.evidence!.isNotEmpty) ||
+        (q.questionTranslation != null && q.questionTranslation!.isNotEmpty)) {
+      result['analysis'] = q.analysis ?? '';
+      result['evidence'] = q.evidence ?? '';
+      result['questionTranslation'] = q.questionTranslation ?? '';
+    }
+
+    // Pass the full passage translation string if available
+    final passageVi = q.fullPassageTranslation;
+    if (passageVi.isNotEmpty) {
+      result['passageTranslation'] = passageVi;
+    }
+
+    // Key Vocabulary from dedicated field
+    if (q.keyVocabulary != null && q.keyVocabulary!.isNotEmpty) {
+      try {
+        result['vocabulary'] = jsonDecode(q.keyVocabulary!);
+      } catch (e) {
+        debugPrint('Error parsing keyVocabulary: $e');
+      }
+    }
+
+    // Option Translations from dedicated field
+    if (q.optionTranslations != null && q.optionTranslations!.isNotEmpty) {
+      try {
+        result['optionTranslations'] = jsonDecode(q.optionTranslations!);
+      } catch (e) {
+        debugPrint('Error parsing optionTranslations: $e');
+      }
+    }
+
     if (q.passageTranslationData != null && q.passageTranslationData!.isNotEmpty) {
       try {
         final decoded = jsonDecode(q.passageTranslationData!);
+        // If we don't have analysis/evidence yet, try to get from structured data (backward compatibility)
         if (decoded is Map && decoded.containsKey('questions')) {
           final aiQs = decoded['questions'] as List;
           final aiQ = aiQs.firstWhere(
@@ -98,21 +169,22 @@ class _ReadingReviewScreenState extends State<ReadingReviewScreen> {
             orElse: () => null,
           );
           if (aiQ != null) {
-            result['analysis'] = aiQ['analysis'] ?? '';
-            result['evidence'] = aiQ['evidence'] ?? '';
-            result['optionTranslations'] = aiQ['optionTranslations'] ?? {};
+            if (result['analysis'] == null || result['analysis'].isEmpty) result['analysis'] = aiQ['analysis'] ?? '';
+            if (result['evidence'] == null || result['evidence'].isEmpty) result['evidence'] = aiQ['evidence'] ?? '';
+            if (result['optionTranslations'] == null) result['optionTranslations'] = aiQ['optionTranslations'] ?? {};
             
-            // Vocabulary gộp từ toàn bộ group passage nếu có
-            if (decoded.containsKey('vocabulary')) {
+            if (decoded.containsKey('vocabulary') && result['vocabulary'] == null) {
               result['vocabulary'] = decoded['vocabulary'];
             }
-            return result;
           }
         }
       } catch (e) {
         debugPrint('Error parsing structured AI JSON: $e');
       }
     }
+
+    // If we have some rich data, we can stop here
+    if (result.containsKey('analysis') && result['analysis'].isNotEmpty) return result;
 
     // 2. Fallback to regex parsing from raw explanation string
     if (q.explanation == null || q.explanation!.isEmpty) return null;
@@ -140,7 +212,6 @@ class _ReadingReviewScreenState extends State<ReadingReviewScreen> {
         }
         result['optionTranslations'] = opts;
       }
-
       final analysisMatch = RegExp(
         r'✏️ Phân tích:\n([\s\S]*)$',
       ).firstMatch(text);
@@ -152,44 +223,53 @@ class _ReadingReviewScreenState extends State<ReadingReviewScreen> {
     return null;
   }
 
-  Map<String, dynamic> _getPaletteColorInfo(int i, List<QuestionModel> questions) {
+  Map<String, dynamic> _getPaletteColorInfo(int i) {
     final isActive = i == _activeIndex;
-    final userAnswer = widget.userAnswers[questions[i].id];
+    final q = widget.questions[i];
+    final userAnswer = widget.userAnswers[q.id];
     final isUnanswered = userAnswer == null || userAnswer.isEmpty;
-    final isCorrect = userAnswer == questions[i].correctAnswer;
+    final isCorrect = userAnswer == q.correctAnswer;
+    final isFlagged = widget.flaggedQuestions.contains(q.id);
+
+    Map<String, dynamic> info = {
+      'bg': Colors.white,
+      'border': const Color(0xFFE2E8F0),
+      'text': _slateSubtext,
+      'activeBorder': Colors.transparent,
+      'borderWidth': 1.5,
+      'shadow': false,
+    };
+
+    if (isFlagged) {
+      info['bg'] = const Color(0xFFFFF7ED);
+      info['border'] = const Color(0xFFFB923C);
+      info['text'] = const Color(0xFFC2410C);
+    } else if (!isUnanswered) {
+      if (isCorrect) {
+        info['bg'] = Colors.green.shade50;
+        info['border'] = _emerald;
+        info['text'] = _emerald;
+      } else {
+        info['bg'] = Colors.red.shade50;
+        info['border'] = _rose;
+        info['text'] = _rose;
+      }
+    }
 
     if (isActive) {
-      return {
-        'bg': _primaryBlue,
-        'border': _primaryBlue,
-        'text': Colors.white,
-      };
+      info['activeBorder'] = _primaryBlue;
+      info['borderWidth'] = 3.5;
+      info['shadow'] = true;
+      if (info['bg'] == Colors.white) {
+        info['bg'] = _primaryBlue.withValues(alpha: 0.05);
+        info['text'] = _primaryBlue;
+      }
     }
 
-    if (isUnanswered) {
-      return {
-        'bg': Colors.white,
-        'border': AppColors.divider,
-        'text': _slateSubtext,
-      };
-    }
-
-    if (isCorrect) {
-      return {
-        'bg': AppColors.success.withValues(alpha: 0.1),
-        'border': AppColors.success,
-        'text': AppColors.success,
-      };
-    }
-
-    return {
-      'bg': AppColors.error.withValues(alpha: 0.1),
-      'border': AppColors.error,
-      'text': AppColors.error,
-    };
+    return info;
   }
 
-  void _showQuestionGrid(BuildContext context, List<QuestionModel> questions) {
+  void _showQuestionGrid(BuildContext context) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.white,
@@ -202,30 +282,30 @@ class _ReadingReviewScreenState extends State<ReadingReviewScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Legend
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   _buildLegendItem(AppColors.success.withValues(alpha: 0.1), AppColors.success, 'Đúng'),
-                  const SizedBox(width: 16),
+                  const SizedBox(width: 12),
                   _buildLegendItem(AppColors.error.withValues(alpha: 0.1), AppColors.error, 'Sai'),
-                  const SizedBox(width: 16),
+                  const SizedBox(width: 12),
+                  _buildLegendItem(Colors.orange.shade50, Colors.orange, 'Cắm cờ'),
+                  const SizedBox(width: 12),
                   _buildLegendItem(Colors.white, AppColors.divider, 'Bỏ trống'),
                 ],
               ),
               const SizedBox(height: 24),
-              // Grid
               Flexible(
                 child: GridView.builder(
                   shrinkWrap: true,
-                  itemCount: questions.length,
+                  itemCount: widget.questions.length,
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 6,
                     mainAxisSpacing: 10,
                     crossAxisSpacing: 10,
                   ),
                   itemBuilder: (context, i) {
-                    final colorInfo = _getPaletteColorInfo(i, questions);
+                    final colorInfo = _getPaletteColorInfo(i);
                     return GestureDetector(
                       onTap: () {
                         Navigator.pop(ctx);
@@ -237,16 +317,30 @@ class _ReadingReviewScreenState extends State<ReadingReviewScreen> {
                       },
                       child: Container(
                         decoration: BoxDecoration(
-                          color: colorInfo['bg'],
+                          color: colorInfo['bg'] as Color,
                           borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: colorInfo['border'], width: 1.5),
+                          border: Border.all(
+                            color: (colorInfo['activeBorder'] as Color) != Colors.transparent 
+                                ? (colorInfo['activeBorder'] as Color) 
+                                : (colorInfo['border'] as Color), 
+                            width: (colorInfo['borderWidth'] as num).toDouble(),
+                          ),
+                          boxShadow: colorInfo['shadow'] == true
+                              ? [
+                                  BoxShadow(
+                                    color: _primaryBlue.withValues(alpha: 0.2),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 2),
+                                  )
+                                ]
+                              : null,
                         ),
                         child: Center(
                           child: Text(
-                            '${i + 1}',
+                            '${widget.questions[i].questionNumber}',
                             style: GoogleFonts.inter(
                               fontWeight: FontWeight.bold,
-                              color: colorInfo['text'],
+                              color: colorInfo['text'] as Color,
                             ),
                           ),
                         ),
@@ -280,6 +374,7 @@ class _ReadingReviewScreenState extends State<ReadingReviewScreen> {
       ],
     );
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -327,29 +422,66 @@ class _ReadingReviewScreenState extends State<ReadingReviewScreen> {
                               ),
                             ),
                             const Spacer(),
-                            IconButton(
-                              icon: const Icon(Icons.grid_view_rounded, color: _primaryBlue, size: 20),
-                              onPressed: () => _showQuestionGrid(context, questions),
-                            ),
+                            // Smart Reader Toggle
+                            if (questions.isNotEmpty && questions[_activeIndex].passageImageUrls.isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(right: 8),
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: _isSmartReader ? Colors.purple.withValues(alpha: 0.1) : Colors.grey.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      TextButton.icon(
+                                        onPressed: () => setState(() => _isSmartReader = !_isSmartReader),
+                                        icon: Icon(
+                                          _isSmartReader ? Icons.visibility_outlined : Icons.auto_awesome,
+                                          size: 18,
+                                          color: _isSmartReader ? _primaryBlue : Colors.purple,
+                                        ),
+                                        label: Text(
+                                          _isSmartReader ? 'Xem ảnh' : 'AI Scan',
+                                          style: GoogleFonts.inter(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.bold,
+                                            color: _isSmartReader ? _primaryBlue : Colors.purple,
+                                          ),
+                                        ),
+                                        style: TextButton.styleFrom(
+                                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                                        ),
+                                      ),
+                                      if (_isSmartReader) ...[
+                                        Container(width: 1, height: 20, color: Colors.purple.withValues(alpha: 0.2)),
+                                        IconButton(
+                                          icon: Icon(
+                                            _isTranslationMode ? Icons.translate : Icons.translate_outlined,
+                                            size: 18,
+                                            color: _isTranslationMode ? Colors.purple : Colors.grey,
+                                          ),
+                                          onPressed: () => setState(() => _isTranslationMode = !_isTranslationMode),
+                                          tooltip: 'Hiện tất cả bản dịch',
+                                          constraints: const BoxConstraints(minWidth: 40),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                              ),
+                             IconButton(
+                               icon: const Icon(Icons.grid_view_rounded, color: _primaryBlue, size: 20),
+                               onPressed: () => _showQuestionGrid(context),
+                             ),
                           ],
                         ),
                       ),
-                      // Passage Content
                       Expanded(
                         child: SingleChildScrollView(
                           controller: _passageScrollController,
                           padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                          child: TouchablePassageWidget(
-                            htmlContent: _buildPassageHtml(
-                              questions.isNotEmpty ? questions[_activeIndex].questionNumber : 0,
-                            ),
-                            translations: questions[_activeIndex].passageTranslations,
-                            textStyle: GoogleFonts.tinos(
-                              fontSize: 18,
-                              height: 1.8,
-                              color: const Color(0xFF334155),
-                            ),
-                          ),
+                          child: _buildPassageContentView(questions.isNotEmpty ? questions[_activeIndex] : null),
                         ),
                       ),
                     ],
@@ -403,7 +535,7 @@ class _ReadingReviewScreenState extends State<ReadingReviewScreen> {
                     const Spacer(),
                     IconButton(
                       icon: const Icon(Icons.grid_view_rounded, color: _primaryBlue, size: 20),
-                      onPressed: () => _showQuestionGrid(context, questions),
+                      onPressed: () => _showQuestionGrid(context),
                     ),
                   ],
                 ),
@@ -451,6 +583,9 @@ class _ReadingReviewScreenState extends State<ReadingReviewScreen> {
         padding: const EdgeInsets.all(20),
         children: [
           // Question Header
+          if (index == 0 && widget.overallFeedback != null && widget.overallFeedback!.isNotEmpty)
+             _buildOverallAssessmentCard(),
+
           Row(
             children: [
               Container(
@@ -535,14 +670,21 @@ class _ReadingReviewScreenState extends State<ReadingReviewScreen> {
 
   Widget _buildExplanationArea(QuestionModel question, int index, bool isCorrect, Map<String, dynamic>? aiData) {
     final bool hasAIFeedback = widget.aiFeedbacks != null && index < widget.aiFeedbacks!.length;
-    final bool hasExplanation = question.explanation?.isNotEmpty ?? false;
+    
+    // Check for ANY professional content from DB or AI data
+    final bool hasExpertContent = (question.explanation?.isNotEmpty ?? false) || 
+                                 (question.analysis?.isNotEmpty ?? false) || 
+                                 (question.evidence?.isNotEmpty ?? false) ||
+                                 (question.questionTranslation?.isNotEmpty ?? false) ||
+                                 (question.keyVocabulary?.isNotEmpty ?? false) ||
+                                 (aiData != null && (aiData.containsKey('analysis') || aiData.containsKey('evidence')));
 
-    if (!hasAIFeedback && !hasExplanation) return const SizedBox.shrink();
+    if (!hasAIFeedback && !hasExpertContent) return const SizedBox.shrink();
 
     return Column(
       children: [
         if (hasAIFeedback) _buildAIFeedbackCard(index),
-        if (hasExplanation) ...[
+        if (hasExpertContent) ...[
           const SizedBox(height: 16),
           _buildAIExplanationCard(question, index, aiData),
         ],
@@ -551,8 +693,21 @@ class _ReadingReviewScreenState extends State<ReadingReviewScreen> {
   }
 
   Widget _buildAIFeedbackCard(int index) {
-    final feedback = widget.aiFeedbacks![index];
-    if (feedback == null || feedback.toString().isEmpty) return const SizedBox.shrink();
+    if (widget.aiFeedbacks == null) return const SizedBox.shrink();
+
+    final currentQuestion = widget.questions[index];
+    
+    // Find feedback by questionNumber to be robust
+    final feedbackItem = widget.aiFeedbacks!.firstWhere(
+      (f) => (f is Map && f['questionNumber'] == currentQuestion.questionNumber) || 
+             (f is Map && f['pnum'] == currentQuestion.questionNumber),
+      orElse: () => null,
+    );
+
+    if (feedbackItem == null) return const SizedBox.shrink();
+    
+    final String comment = feedbackItem['comment'] ?? feedbackItem['tip'] ?? feedbackItem['feedback'] ?? feedbackItem.toString();
+    if (comment.isEmpty) return const SizedBox.shrink();
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -580,7 +735,7 @@ class _ReadingReviewScreenState extends State<ReadingReviewScreen> {
                 ),
                 const SizedBox(height: 4),
                 HtmlWidget(
-                  feedback.toString(),
+                  comment,
                   textStyle: GoogleFonts.inter(
                     fontSize: 14,
                     height: 1.5,
@@ -588,6 +743,84 @@ class _ReadingReviewScreenState extends State<ReadingReviewScreen> {
                   ),
                 ),
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOverallAssessmentCard() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 24),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [const Color(0xFFF59E0B).withValues(alpha: 0.1), Colors.white],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.2)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFF59E0B).withValues(alpha: 0.05),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF59E0B).withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.psychology_alt_rounded, color: Color(0xFFF59E0B), size: 28),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'TỔNG KẾT TỪ AI COACH',
+                      style: GoogleFonts.inter(
+                        fontWeight: FontWeight.w900,
+                        color: const Color(0xFF92400E),
+                        fontSize: 16,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    Text(
+                      'Phân tích năng lực làm bài của bạn',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFFB45309),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 16),
+            child: Divider(color: Color(0xFFF59E0B), thickness: 0.5),
+          ),
+          HtmlWidget(
+            widget.overallFeedback!,
+            textStyle: GoogleFonts.inter(
+              fontSize: 15,
+              height: 1.6,
+              color: const Color(0xFF92400E),
+              fontWeight: FontWeight.w500,
             ),
           ),
         ],
@@ -603,7 +836,16 @@ class _ReadingReviewScreenState extends State<ReadingReviewScreen> {
       'D': q.optionD,
     };
 
-    final optionTranslations = aiData?['optionTranslations'] as Map<String, dynamic>?;
+    Map<String, dynamic>? optionTranslations;
+    if (q.optionTranslations != null && q.optionTranslations!.isNotEmpty) {
+      try {
+        optionTranslations = jsonDecode(q.optionTranslations!);
+      } catch (e) {
+        debugPrint('Failed to parse optionTranslations: $e');
+      }
+    } else {
+      optionTranslations = aiData?['optionTranslations'] as Map<String, dynamic>?;
+    }
 
     return Column(
       children: options.entries.map((entry) {
@@ -672,7 +914,7 @@ class _ReadingReviewScreenState extends State<ReadingReviewScreen> {
                   Padding(
                     padding: const EdgeInsets.only(top: 4, left: 22),
                     child: Text(
-                      optionTranslations[label],
+                      optionTranslations[label].toString(),
                       style: GoogleFonts.inter(
                         fontSize: 13,
                         color: _slateSubtext,
@@ -689,52 +931,401 @@ class _ReadingReviewScreenState extends State<ReadingReviewScreen> {
   }
 
   Widget _buildAIExplanationCard(QuestionModel question, int index, Map<String, dynamic>? aiData) {
-    final content = question.explanation;
-    if (content == null || content.isEmpty) return const SizedBox.shrink();
+    final String? explanation = question.explanation;
+    
+    // Priority: New DB field -> aiData fallback -> null
+    final String? analysis = (question.analysis != null && question.analysis!.isNotEmpty)
+        ? question.analysis
+        : (aiData != null && aiData['analysis'] != null) ? aiData['analysis'] : null;
+        
+    final String? evidence = (question.evidence != null && question.evidence!.isNotEmpty)
+        ? question.evidence
+        : (aiData != null && aiData['evidence'] != null) ? aiData['evidence'] : null;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.indigo50,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _primaryBlue.withValues(alpha: 0.2)),
-        boxShadow: AppShadows.softShadow,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Card Header
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-            child: Row(
+    final String? questionTranslation = (question.questionTranslation != null && question.questionTranslation!.isNotEmpty)
+        ? question.questionTranslation
+        : null;
+
+    List<dynamic>? vocabulary;
+    if (question.keyVocabulary != null && question.keyVocabulary!.isNotEmpty) {
+      try {
+        vocabulary = jsonDecode(question.keyVocabulary!);
+      } catch (e) {
+        debugPrint('Failed to parse keyVocabulary: $e');
+      }
+    } else {
+      vocabulary = aiData?['vocabulary'] as List<dynamic>?;
+    }
+
+    if (explanation == null && analysis == null && evidence == null && vocabulary == null && questionTranslation == null) {
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      children: [
+        // 0. Question Translation
+        if (questionTranslation != null)
+          Container(
+            width: double.infinity,
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF1F5F9),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.auto_awesome, color: Colors.orange, size: 20),
-                const SizedBox(width: 8),
+                Row(
+                  children: [
+                    const Icon(Icons.translate_rounded, color: Color(0xFF475569), size: 20),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Dịch câu hỏi',
+                      style: GoogleFonts.inter(
+                        fontWeight: FontWeight.bold,
+                        color: const Color(0xFF475569),
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
                 Text(
-                  'Phân tích câu hỏi',
+                  questionTranslation,
                   style: GoogleFonts.inter(
-                    fontWeight: FontWeight.bold,
-                    color: _slateText,
-                    fontSize: 15,
+                    fontSize: 14,
+                    height: 1.6,
+                    color: const Color(0xFF334155),
+                    fontStyle: FontStyle.italic,
                   ),
                 ),
               ],
             ),
           ),
-          const Divider(),
-          // Content
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-            child: HtmlWidget(
-              content,
-              textStyle: GoogleFonts.inter(
-                fontSize: 14,
-                height: 1.6,
-                color: const Color(0xFF475569),
+
+        // 1. Analysis Card
+        if (analysis != null && analysis.isNotEmpty)
+          Container(
+            width: double.infinity,
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.blue.shade50.withValues(alpha: 0.5),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.blue.shade100),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.psychology_outlined, color: _primaryBlue, size: 20),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Phân tích chuyên sâu',
+                      style: GoogleFonts.inter(
+                        fontWeight: FontWeight.bold,
+                        color: _primaryBlue,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  analysis,
+                  style: GoogleFonts.inter(
+                    fontSize: 14,
+                    height: 1.6,
+                    color: _slateText,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+        // 2. Evidence Card
+        if (evidence != null && evidence.isNotEmpty)
+          Container(
+            width: double.infinity,
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.green.shade50.withValues(alpha: 0.5),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.green.shade100),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.fact_check_outlined, color: _emerald, size: 20),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Bằng chứng trong bài',
+                      style: GoogleFonts.inter(
+                        fontWeight: FontWeight.bold,
+                        color: _emerald,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  evidence,
+                  style: GoogleFonts.inter(
+                    fontSize: 14,
+                    height: 1.6,
+                    color: _slateText,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+        // 3. Vocabulary Flashcard Panel
+        if (vocabulary != null && vocabulary.isNotEmpty)
+          VocabFlashcardPanel(
+            vocabItems: vocabulary,
+            partId: question.partId,
+            onAllSwiped: () {
+              // Auto-advance to next question when all cards are swiped
+              final questions = widget.questions;
+              if (index < questions.length - 1) {
+                _pageController.nextPage(
+                  duration: const Duration(milliseconds: 450),
+                  curve: Curves.easeOut,
+                );
+              }
+            },
+          ),
+
+        // 4. Translation Card (Hide if already in Translation Mode @ top)
+        if (!_isTranslationMode && (explanation != null && explanation.isNotEmpty))
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.indigo50,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: _primaryBlue.withValues(alpha: 0.2)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.translate_rounded, color: Colors.indigo, size: 20),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Bản dịch đoạn văn',
+                      style: GoogleFonts.inter(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.indigo,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                HtmlWidget(
+                  explanation,
+                  textStyle: GoogleFonts.inter(
+                    fontSize: 14,
+                    height: 1.6,
+                    color: const Color(0xFF475569),
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  // ── Smart View Switcher ───────────────────────────────────────────────────
+
+  Widget _buildPassageContentView(QuestionModel? q) {
+    if (q == null) return const SizedBox.shrink();
+
+    // 1. Translation Mode (Bilingual List)
+    if (_isTranslationMode) {
+      return _buildBilingualPassage(q);
+    }
+
+    // 2. Smart Reader Mode (Interactive Text even if images exist)
+    if (_isSmartReader) {
+      return TouchablePassageWidget(
+        htmlContent: _buildPassageHtml(q.questionNumber),
+        translations: q.passageTranslations,
+        showAllTranslations: _isTranslationMode, // Pass the integrated toggle state
+        textStyle: GoogleFonts.tinos(
+          fontSize: 18,
+          height: 1.8,
+          color: const Color(0xFF334155),
+        ),
+      );
+    }
+
+    // 3. Original Mode (Images)
+    if (q.passageImageUrls.isNotEmpty) {
+      return _buildPassageImages(q);
+    }
+
+    // Fallback to Interactive Text (Part 6 or Text-only Part 7)
+    return TouchablePassageWidget(
+      htmlContent: _buildPassageHtml(q.questionNumber),
+      translations: q.passageTranslations,
+      textStyle: GoogleFonts.tinos(
+        fontSize: 18,
+        height: 1.8,
+        color: const Color(0xFF334155),
+      ),
+    );
+  }
+
+  Widget _buildPassageImages(QuestionModel q) {
+    return Column(
+      children: q.passageImageUrls.map((url) {
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Image.network(
+              url,
+              fit: BoxFit.contain,
+              width: double.infinity,
+              loadingBuilder: (context, child, loadingProgress) {
+                if (loadingProgress == null) return child;
+                return Container(
+                  height: 200,
+                  color: Colors.grey.shade100,
+                  child: const Center(child: CircularProgressIndicator()),
+                );
+              },
+              errorBuilder: (context, error, stackTrace) => Container(
+                padding: const EdgeInsets.all(20),
+                color: Colors.red.shade50,
+                child: const Column(
+                  children: [
+                    Icon(Icons.error_outline, color: Colors.red),
+                    SizedBox(height: 8),
+                    Text('Không thể tải ảnh đoạn văn', style: TextStyle(color: Colors.red, fontSize: 12)),
+                  ],
+                ),
               ),
             ),
           ),
-        ],
-      ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildBilingualPassage(QuestionModel q) {
+    final translations = q.passageTranslations;
+    if (translations.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(40),
+          child: Column(
+            children: [
+              Icon(Icons.translate_rounded, size: 48, color: Colors.grey.shade300),
+              const SizedBox(height: 16),
+              Text(
+                'Chưa có bản dịch song ngữ cho câu này.',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.inter(color: _slateSubtext),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: translations.map((block) {
+        final label = block['label']?.toString() ?? '';
+        final sentences = (block['sentences'] as List<dynamic>?) ?? [];
+
+        return Container(
+          margin: const EdgeInsets.only(bottom: 24),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.divider),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (label.isNotEmpty || (q.passageTitle != null && q.passageTitle!.isNotEmpty))
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: _primaryBlue.withValues(alpha: 0.05),
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.label_important_outline, size: 16, color: _primaryBlue),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          (q.passageTitle != null && q.passageTitle!.isNotEmpty)
+                              ? q.passageTitle!
+                              : label.toUpperCase(),
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: _primaryBlue,
+                            letterSpacing: 1.1,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: RichText(
+                  text: TextSpan(
+                    children: sentences.expand((s) {
+                      final en = s['en']?.toString() ?? '';
+                      final vi = s['vi']?.toString() ?? '';
+                      return [
+                        TextSpan(
+                          text: '$en ',
+                          style: GoogleFonts.tinos(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFF1E293B),
+                            height: 1.6,
+                          ),
+                        ),
+                        TextSpan(
+                          text: '($vi) ',
+                          style: GoogleFonts.inter(
+                            fontSize: 15,
+                            color: Colors.indigo.shade600,
+                            fontStyle: FontStyle.italic,
+                            height: 1.6,
+                          ),
+                        ),
+                        // const TextSpan(text: '\n\n'), // Removed to make it a true paragraph
+                      ];
+                    }).toList(),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
     );
   }
 
@@ -762,7 +1353,7 @@ class _ReadingReviewScreenState extends State<ReadingReviewScreen> {
               itemCount: questions.length,
               padding: const EdgeInsets.symmetric(horizontal: 16),
               itemBuilder: (context, i) {
-                final colorInfo = _getPaletteColorInfo(i, questions);
+                final colorInfo = _getPaletteColorInfo(i);
                 
                 return GestureDetector(
                   onTap: () => _pageController.animateToPage(
@@ -775,19 +1366,19 @@ class _ReadingReviewScreenState extends State<ReadingReviewScreen> {
                     margin: const EdgeInsets.symmetric(horizontal: 4),
                     width: 44,
                     decoration: BoxDecoration(
-                      color: colorInfo['bg'],
+                      color: colorInfo['bg']!,
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
-                        color: colorInfo['border'],
+                        color: colorInfo['border']!,
                         width: 2,
                       ),
                     ),
                     child: Center(
                       child: Text(
-                        '${i + 1}',
+                        '${questions[i].questionNumber}',
                         style: GoogleFonts.inter(
                           fontWeight: FontWeight.bold,
-                          color: colorInfo['text'],
+                          color: colorInfo['text']!,
                         ),
                       ),
                     ),

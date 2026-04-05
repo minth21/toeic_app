@@ -5,6 +5,7 @@ import '../../../constants/app_constants.dart';
 import '../models/exam_model.dart';
 import '../viewmodels/practice_viewmodel.dart';
 import 'test_detail_screen.dart';
+import 'practice_history_screen.dart';
 // import '../../auth/viewmodels/auth_viewmodel.dart'; // Unused
 import '../../../l10n/app_localizations.dart';
 
@@ -40,6 +41,17 @@ class _PracticeScreenState extends State<PracticeScreen> {
         elevation: 0,
         actions: [
           IconButton(
+            icon: const Icon(Icons.history_rounded),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const PracticeHistoryScreen(),
+                ),
+              );
+            },
+          ),
+          IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () {
               context.read<PracticeViewModel>().loadTests();
@@ -50,42 +62,69 @@ class _PracticeScreenState extends State<PracticeScreen> {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Difficulty Filter Section
+          // Modern Structured Filter Bar
           Container(
-            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+            padding: const EdgeInsets.symmetric(vertical: 16),
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  minWidth: MediaQuery.of(context).size.width - 32,
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    _buildFilterChip(
-                      context,
-                      AppLocalizations.of(context)?.translate('all') ??
-                          'Tất cả',
-                      null,
-                    ),
-                    _buildFilterChip(
-                      context,
-                      AppLocalizations.of(context)?.translate('easy') ?? 'Dễ',
-                      'EASY',
-                    ),
-                    _buildFilterChip(
-                      context,
-                      AppLocalizations.of(context)?.translate('medium') ??
-                          'Trung bình',
-                      'MEDIUM',
-                    ),
-                    _buildFilterChip(
-                      context,
-                      AppLocalizations.of(context)?.translate('hard') ?? 'Khó',
-                      'HARD',
-                    ),
-                  ],
-                ),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Consumer<PracticeViewModel>(
+                builder: (context, vm, _) {
+                  final isNoFilter = vm.selectedDifficulty == null && vm.selectedSkill == null;
+                  
+                  return Row(
+                    children: [
+                      // 1. CLEAR ALL BUTTON
+                      ActionChip(
+                        onPressed: () {
+                          vm.setDifficulty(null);
+                          vm.setSkillFilter(null);
+                        },
+                        label: const Text('Tất cả'),
+                        avatar: isNoFilter 
+                          ? const Icon(Icons.done_all, size: 16, color: Colors.white) 
+                          : const Icon(Icons.clear_all, size: 16, color: AppColors.primary),
+                        backgroundColor: isNoFilter ? AppColors.primary : Colors.white,
+                        labelStyle: GoogleFonts.inter(
+                          color: isNoFilter ? Colors.white : AppColors.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          side: BorderSide(
+                            color: isNoFilter ? AppColors.primary : AppColors.primary.withValues(alpha: 0.3),
+                          ),
+                        ),
+                      ),
+                      
+                      const VerticalDivider(width: 24, thickness: 1, indent: 8, endIndent: 8),
+
+                      // 2. SKILL GROUP
+                      Text(
+                        'Kỹ năng:',
+                        style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.textSecondary),
+                      ),
+                      const SizedBox(width: 8),
+                      _buildSkillChip(context, 'Nghe', 'listening'),
+                      const SizedBox(width: 6),
+                      _buildSkillChip(context, 'Đọc', 'reading'),
+
+                      const VerticalDivider(width: 24, thickness: 1, indent: 8, endIndent: 8),
+
+                      // 3. LEVEL GROUP
+                      Text(
+                        'Cấp độ:',
+                        style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.textSecondary),
+                      ),
+                      const SizedBox(width: 8),
+                      _buildFilterChip(context, 'A1-A2', 'A1_A2'),
+                      const SizedBox(width: 6),
+                      _buildFilterChip(context, 'B1-B2', 'B1_B2'),
+                      const SizedBox(width: 6),
+                      _buildFilterChip(context, 'C1', 'C1'),
+                    ],
+                  );
+                },
               ),
             ),
           ),
@@ -224,6 +263,42 @@ class _PracticeScreenState extends State<PracticeScreen> {
     );
   }
 
+  Widget _buildSkillChip(
+    BuildContext context,
+    String label,
+    String? skillValue,
+  ) {
+    final viewModel = context.watch<PracticeViewModel>();
+    final isSelected = viewModel.selectedSkill == skillValue;
+
+    return FilterChip(
+      label: Text(label),
+      selected: isSelected,
+      onSelected: (selected) {
+        context.read<PracticeViewModel>().setSkillFilter(
+              selected ? skillValue : null,
+            );
+      },
+      backgroundColor: Theme.of(context).cardColor,
+      selectedColor: AppColors.primary.withValues(alpha: 0.15),
+      labelStyle: GoogleFonts.inter(
+        fontSize: 12,
+        color: isSelected ? AppColors.primary : AppColors.textSecondary,
+        fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+      ),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: isSelected
+              ? AppColors.primary
+              : Colors.grey.withValues(alpha: 0.2),
+        ),
+      ),
+      showCheckmark: false,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+    );
+  }
+
   Widget _buildTestCard(BuildContext context, ExamModel test) {
     return Container(
       decoration: BoxDecoration(
@@ -333,8 +408,9 @@ class _PracticeScreenState extends State<PracticeScreen> {
                       elevation: 0,
                     ),
                     child: Text(
-                      AppLocalizations.of(context)?.translate('start_now') ??
-                          'Làm bài ngay',
+                      test.progress == 0
+                          ? (AppLocalizations.of(context)?.translate('start_now') ?? 'Làm bài ngay')
+                          : (test.progress < 100 ? 'Tiếp tục' : 'Luyện tập lại'),
                       style: GoogleFonts.inter(fontWeight: FontWeight.bold),
                     ),
                   ),
@@ -352,18 +428,18 @@ class _PracticeScreenState extends State<PracticeScreen> {
     String text;
 
     switch (difficulty) {
-      case 'EASY':
+      case 'A1_A2':
         color = const Color(0xFF4CAF50);
-        text = AppLocalizations.of(context)?.translate('easy') ?? 'Dễ';
+        text = AppLocalizations.of(context)?.translate('a1_a2') ?? 'A1-A2';
         break;
-      case 'MEDIUM':
+      case 'B1_B2':
         color = const Color(0xFFFF9800);
         text =
-            AppLocalizations.of(context)?.translate('medium') ?? 'Trung bình';
+            AppLocalizations.of(context)?.translate('b1_b2') ?? 'B1-B2';
         break;
-      case 'HARD':
+      case 'C1':
         color = const Color(0xFFF44336);
-        text = AppLocalizations.of(context)?.translate('hard') ?? 'Khó';
+        text = AppLocalizations.of(context)?.translate('c1') ?? 'C1';
         break;
       default:
         color = Colors.grey;

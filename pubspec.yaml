@@ -68,6 +68,10 @@ dependencies:
   flutter_widget_from_html: ^0.15.3
   mime: ^2.0.0
   lottie: ^3.3.2
+  timelines: ^0.1.0
+  flutter_heatmap_calendar: ^1.0.5
+  youtube_player_flutter: ^9.1.1
+  url_launcher: ^6.3.1
 
 dev_dependencies:
   flutter_test:

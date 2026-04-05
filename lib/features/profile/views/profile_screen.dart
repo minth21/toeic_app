@@ -10,6 +10,7 @@ import '../../auth/viewmodels/auth_viewmodel.dart';
 import 'edit_profile_screen.dart';
 import 'change_password_screen.dart';
 import '../../auth/views/login_screen.dart';
+import '../../practice/views/class_feedback_screen.dart';
 // Note: ProfileViewModel might not exist, checking imports.
 // It seems AuthViewModel holds the user. Let's use AuthViewModel for now or check if we need a new VM.
 // The user update happens in AuthViewModel usually.
@@ -236,7 +237,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       const SizedBox(height: 16),
                       // Name
                       Text(
-                        user?.name ?? 'User',
+                        user?.name ?? 'Người dùng',
                         style: GoogleFonts.inter(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
@@ -244,9 +245,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                       ),
                       const SizedBox(height: 4),
-                      // Email
+                      // Username (Display as student code)
                       Text(
-                        user?.email ?? '',
+                        user?.username ?? '',
                         style: GoogleFonts.inter(
                           fontSize: 14,
                           color: Colors.white.withValues(alpha: 0.9),
@@ -294,6 +295,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       );
                     },
                   ),
+                  if (user?.classId != null)
+                    _buildSettingItem(
+                      icon: Icons.chat_bubble_outline_rounded,
+                      title: 'Ý kiến giáo viên',
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const ClassFeedbackScreen(),
+                          ),
+                        );
+                      },
+                    ),
                   if (user?.hasPassword == true)
                     _buildSettingItem(
                       icon: Icons.lock_outline_rounded,
@@ -523,60 +537,76 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void _showLogoutDialog(BuildContext context) {
     showDialog(
       context: context,
+      barrierDismissible: true,
       builder: (context) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
+        elevation: 0,
+        backgroundColor: Colors.transparent,
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: Theme.of(context).cardColor,
+            borderRadius: BorderRadius.circular(28),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.1),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
                   color: AppColors.error.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.logout_rounded,
                   color: AppColors.error,
-                  size: 48,
+                  size: 40,
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
               Text(
-                AppLocalizations.of(context)?.translate('logout') ??
-                    'Đăng xuất',
+                AppLocalizations.of(context)?.translate('logout') ?? 'Đăng xuất',
                 style: GoogleFonts.inter(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  color: Theme.of(context).textTheme.bodyLarge?.color,
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
               Text(
                 AppLocalizations.of(context)?.translate('logout_message') ??
-                    'Bạn có chắc chắn muốn đăng xuất?',
+                    'Bạn có chắc chắn muốn đăng xuất tài khoản này không?',
                 textAlign: TextAlign.center,
-                style: GoogleFonts.inter(color: AppColors.textSecondary),
+                style: GoogleFonts.inter(
+                  fontSize: 15,
+                  color: AppColors.textSecondary,
+                  height: 1.5,
+                ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 32),
               Row(
                 children: [
                   Expanded(
                     child: TextButton(
                       onPressed: () => Navigator.pop(context),
                       style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          side: const BorderSide(color: AppColors.divider),
+                          borderRadius: BorderRadius.circular(16),
                         ),
                       ),
                       child: Text(
-                        AppLocalizations.of(context)?.translate('cancel') ??
-                            'Hủy',
+                        AppLocalizations.of(context)?.translate('cancel') ?? 'Hủy',
                         style: GoogleFonts.inter(
                           color: AppColors.textSecondary,
-                          fontWeight: FontWeight.bold,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15,
                         ),
                       ),
                     ),
@@ -595,16 +625,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.error,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
                         elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
                       ),
                       child: Text(
-                        AppLocalizations.of(context)?.translate('logout') ??
-                            'Đăng xuất',
-                        style: GoogleFonts.inter(fontWeight: FontWeight.bold),
+                        AppLocalizations.of(context)?.translate('logout') ?? 'Đăng xuất',
+                        style: GoogleFonts.inter(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 15,
+                        ),
                       ),
                     ),
                   ),

@@ -1,17 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
+import 'package:provider/provider.dart';
+import 'package:google_fonts/google_fonts.dart';
+import '../../../../constants/app_constants.dart';
+import '../../../vocabulary/viewmodels/vocabulary_viewmodel.dart';
 import '../../services/practice_api_service.dart';
 
 class TouchablePassageWidget extends StatefulWidget {
   final String htmlContent;
   final List<Map<String, dynamic>> translations;
   final TextStyle? textStyle;
+  final bool showAllTranslations;
 
   const TouchablePassageWidget({
     super.key,
     required this.htmlContent,
     required this.translations,
     this.textStyle,
+    this.showAllTranslations = false,
   });
 
   @override
@@ -160,11 +167,75 @@ class _TouchablePassageWidgetState extends State<TouchablePassageWidget> {
                 style: TextStyle(fontSize: 14, color: Colors.grey.shade700),
               ),
             ],
-            const SizedBox(height: 24),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  _saveToFlashcards(word, meaning, ipa);
+                  Navigator.pop(context);
+                },
+                icon: const Icon(Icons.bookmark_add_rounded, size: 20),
+                label: const Text(
+                  'Lưu vào Flashcards',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
           ],
         ),
       ),
     );
+  }
+
+  Future<void> _saveToFlashcards(String word, String meaning, String ipa) async {
+    final vocab = <Map<String, dynamic>>[
+      {
+        'word': word,
+        'meaning': meaning,
+        'ipa': ipa,
+      }
+    ];
+
+    try {
+      final vm = context.read<VocabularyViewModel>();
+      final success = await vm.saveNewVocab(vocab, null);
+
+      if (mounted && success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.white, size: 18),
+                const SizedBox(width: 8),
+                Text(
+                  'Đã lưu "$word" vào Từ vựng!',
+                  style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
+            backgroundColor: AppColors.success,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Không thể lưu từ vựng: $e')),
+        );
+      }
+    }
   }
 
   Widget _buildInteractiveSentence(
@@ -173,51 +244,53 @@ class _TouchablePassageWidgetState extends State<TouchablePassageWidget> {
     List<dynamic> vocab,
   ) {
     if (!isActive) {
-      return Text(
-        sentence,
-        style:
-            widget.textStyle?.copyWith(height: 1.6) ??
-            const TextStyle(fontSize: 16, height: 1.6),
+      return RichText(
+        text: TextSpan(
+          text: sentence,
+          style: widget.textStyle?.copyWith(height: 1.6, color: Colors.black87) ?? 
+                 const TextStyle(fontSize: 16, height: 1.6, color: Colors.black87),
+        ),
       );
     }
 
-    // Split by whitespace but keep punctuation attached to words
+    // Split by whitespace
     final words = sentence.split(' ');
+    final spans = <TextSpan>[];
 
-    return Wrap(
-      spacing: 0,
-      runSpacing: 4,
-      children: words.map((word) {
-        return GestureDetector(
-          onTap: () => _showWordTranslation(word, sentence, vocab),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 2.0),
-            decoration: BoxDecoration(
-              border: Border(
-                bottom: BorderSide(
-                  color: Colors.blue.withValues(alpha: 0.3),
-                  width: 1,
-                ),
-              ),
-            ),
-            child: Text(
-              word,
-              style:
-                  widget.textStyle?.copyWith(
-                    height: 1.6,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.blue.shade800,
-                  ) ??
-                  TextStyle(
-                    fontSize: 16,
-                    height: 1.6,
-                    color: Colors.blue.shade800,
-                    fontWeight: FontWeight.w600,
-                  ),
-            ),
+    for (int i = 0; i < words.length; i++) {
+      final word = words[i];
+      spans.add(
+        TextSpan(
+          text: word,
+          style: widget.textStyle?.copyWith(
+            height: 1.6,
+            fontWeight: FontWeight.w600,
+            color: Colors.blue.shade800,
+            decoration: TextDecoration.underline,
+            decorationColor: Colors.blue.withValues(alpha: 0.3),
+          ) ?? TextStyle(
+            fontSize: 16,
+            height: 1.6,
+            color: Colors.blue.shade800,
+            fontWeight: FontWeight.w600,
+            decoration: TextDecoration.underline,
+            decorationColor: Colors.blue.withValues(alpha: 0.3),
           ),
-        );
-      }).toList(),
+          recognizer: TapGestureRecognizer()
+            ..onTap = () => _showWordTranslation(word, sentence, vocab),
+        ),
+      );
+      
+      // Add a space between words, but not after the last word
+      if (i < words.length - 1) {
+        spans.add(const TextSpan(text: ' '));
+      }
+    }
+
+    return RichText(
+      text: TextSpan(
+        children: spans,
+      ),
     );
   }
 
@@ -411,26 +484,29 @@ class _TouchablePassageWidgetState extends State<TouchablePassageWidget> {
                       ) {
                         final pair =
                             sentences[sentenceIndex] as Map<String, dynamic>;
-                        final String currentKey =
-                            '${blockIndex}_$sentenceIndex';
+                        final String currentKey = '${blockIndex}_$sentenceIndex';
                         final bool isTapped = _tappedKey == currentKey;
+                        final bool isEffectiveTapped = isTapped || widget.showAllTranslations;
 
                         return GestureDetector(
                           onTap: () {
+                            if (widget.showAllTranslations) return; // Disable manual toggle in "Show All" mode
                             setState(() {
                               _tappedKey = isTapped ? null : currentKey;
                             });
                           },
-                          child: Container(
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 300),
+                            curve: Curves.easeInOut,
                             margin: const EdgeInsets.only(bottom: 12.0),
                             padding: const EdgeInsets.all(8.0),
                             decoration: BoxDecoration(
-                              color: isTapped
+                              color: isEffectiveTapped
                                   ? passageColor.withValues(alpha: 0.08)
                                   : Colors.transparent,
                               borderRadius: BorderRadius.circular(8.0),
                               border: Border.all(
-                                color: isTapped
+                                color: isEffectiveTapped
                                     ? passageColor.withValues(alpha: 0.3)
                                     : Colors.transparent,
                               ),
@@ -441,114 +517,123 @@ class _TouchablePassageWidgetState extends State<TouchablePassageWidget> {
                                 isChat
                                     ? _buildChatBubble(
                                         pair['en'] ?? '',
-                                        isTapped,
+                                        isEffectiveTapped,
                                         pair['vocab'] ?? [],
                                       )
                                     : _buildInteractiveSentence(
                                         pair['en'] ?? '',
-                                        isTapped,
+                                        isEffectiveTapped,
                                         pair['vocab'] ?? [],
                                       ),
-                                if (isTapped &&
-                                    (pair['vi']?.isNotEmpty ?? false)) ...[
-                                  const SizedBox(height: 12),
-                                  Container(
-                                    padding: const EdgeInsets.all(12.0),
-                                    decoration: BoxDecoration(
-                                      color: passageColor.withValues(
-                                        alpha: 0.05,
-                                      ),
-                                      borderRadius: BorderRadius.circular(8.0),
-                                      border: Border(
-                                        left: BorderSide(
-                                          color: passageColor,
-                                          width: 4,
-                                        ),
-                                      ),
-                                    ),
-                                    child: Row(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Icon(
-                                          Icons.translate,
-                                          size: 16,
-                                          color: passageColor,
-                                        ),
-                                        const SizedBox(width: 8),
-                                        Expanded(
-                                          child: Text(
-                                            pair['vi']!,
-                                            style: TextStyle(
-                                              fontSize: 15,
-                                              color: Colors.black87,
-                                              fontStyle: FontStyle.italic,
-                                              height: 1.5,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  if (pair['vocab'] != null &&
-                                      (pair['vocab'] as List).isNotEmpty) ...[
-                                    const SizedBox(height: 12),
-                                    Wrap(
-                                      spacing: 8.0,
-                                      runSpacing: 8.0,
-                                      children: (pair['vocab'] as List).map((
-                                        vocabItem,
-                                      ) {
-                                        final text =
-                                            vocabItem['text']?.toString() ?? '';
-                                        final meaning =
-                                            vocabItem['meaning']?.toString() ??
-                                            '';
-                                        if (text.isEmpty) {
-                                          return const SizedBox.shrink();
-                                        }
-                                        return ActionChip(
-                                          backgroundColor: Colors.white,
-                                          side: BorderSide(
-                                            color: passageColor.withValues(
-                                              alpha: 0.2,
-                                            ),
-                                          ),
-                                          label: RichText(
-                                            text: TextSpan(
-                                              children: [
-                                                TextSpan(
-                                                  text: '$text: ',
-                                                  style: TextStyle(
-                                                    color: passageColor,
-                                                    fontWeight: FontWeight.bold,
-                                                    fontSize: 13,
-                                                  ),
+                                
+                                AnimatedSize(
+                                  duration: const Duration(milliseconds: 300),
+                                  curve: Curves.easeInOut,
+                                  child: isEffectiveTapped && (pair['vi']?.isNotEmpty ?? false)
+                                    ? Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          const SizedBox(height: 12),
+                                          Container(
+                                            padding: const EdgeInsets.all(12.0),
+                                            decoration: BoxDecoration(
+                                              color: passageColor.withValues(
+                                                alpha: 0.05,
+                                              ),
+                                              borderRadius: BorderRadius.circular(8.0),
+                                              border: Border(
+                                                left: BorderSide(
+                                                  color: passageColor,
+                                                  width: 4,
                                                 ),
-                                                TextSpan(
-                                                  text: meaning,
-                                                  style: TextStyle(
-                                                    color: Colors.grey.shade800,
-                                                    fontSize: 13,
+                                              ),
+                                            ),
+                                            child: Row(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Icon(
+                                                  Icons.translate,
+                                                  size: 16,
+                                                  color: passageColor,
+                                                ),
+                                                const SizedBox(width: 8),
+                                                Expanded(
+                                                  child: Text(
+                                                    pair['vi']!,
+                                                    style: const TextStyle(
+                                                      fontSize: 15,
+                                                      color: Colors.black87,
+                                                      fontStyle: FontStyle.italic,
+                                                      height: 1.5,
+                                                    ),
                                                   ),
                                                 ),
                                               ],
                                             ),
                                           ),
-                                          onPressed: () =>
-                                              _displayTranslationSheet(
-                                                word: text,
-                                                meaning: meaning,
-                                                ipa: vocabItem['ipa'] ?? '',
-                                                type: '',
-                                                example: '',
-                                                exampleVi: '',
-                                              ),
-                                        );
-                                      }).toList(),
-                                    ),
-                                  ],
-                                ],
+                                          if (pair['vocab'] != null &&
+                                              (pair['vocab'] as List).isNotEmpty) ...[
+                                            const SizedBox(height: 12),
+                                            Wrap(
+                                              spacing: 8.0,
+                                              runSpacing: 8.0,
+                                              children: (pair['vocab'] as List).map((
+                                                vocabItem,
+                                              ) {
+                                                final text =
+                                                    vocabItem['text']?.toString() ?? '';
+                                                final meaning =
+                                                    vocabItem['meaning']?.toString() ??
+                                                    '';
+                                                if (text.isEmpty) {
+                                                  return const SizedBox.shrink();
+                                                }
+                                                return ActionChip(
+                                                  backgroundColor: Colors.white,
+                                                  side: BorderSide(
+                                                    color: passageColor.withValues(
+                                                      alpha: 0.2,
+                                                    ),
+                                                  ),
+                                                  label: RichText(
+                                                    text: TextSpan(
+                                                      children: [
+                                                        TextSpan(
+                                                          text: '$text: ',
+                                                          style: TextStyle(
+                                                            color: passageColor,
+                                                            fontWeight: FontWeight.bold,
+                                                            fontSize: 13,
+                                                          ),
+                                                        ),
+                                                        TextSpan(
+                                                          text: meaning,
+                                                          style: TextStyle(
+                                                            color: Colors.grey.shade800,
+                                                            fontSize: 13,
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                  onPressed: () =>
+                                                      _displayTranslationSheet(
+                                                        word: text,
+                                                        meaning: meaning,
+                                                        ipa: vocabItem['ipa'] ?? '',
+                                                        type: '',
+                                                        example: '',
+                                                        exampleVi: '',
+                                                      ),
+                                                );
+                                              }).toList(),
+                                            ),
+                                          ],
+                                        ],
+                                      )
+                                    : const SizedBox.shrink(),
+                                ),
                               ],
                             ),
                           ),

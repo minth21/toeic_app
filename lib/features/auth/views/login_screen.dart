@@ -4,8 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../constants/app_constants.dart';
 import '../viewmodels/auth_viewmodel.dart';
 import '../../navigation/main_navigation.dart';
-import 'register_screen.dart';
-import 'forgot_password_screen.dart';
+import 'force_change_password_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -16,13 +15,13 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController();
+  final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
 
   @override
   void dispose() {
-    _emailController.dispose();
+    _usernameController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
@@ -32,16 +31,28 @@ class _LoginScreenState extends State<LoginScreen> {
       final authViewModel = context.read<AuthViewModel>();
 
       final success = await authViewModel.login(
-        _emailController.text.trim(),
+        _usernameController.text.trim(),
         _passwordController.text,
       );
 
       if (success && mounted) {
-        // Navigate to main navigation and remove all previous routes
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const MainNavigation()),
-          (route) => false, // Remove all previous routes
-        );
+        final authViewModel = context.read<AuthViewModel>();
+        final isFirstLogin = authViewModel.currentUser?.isFirstLogin ?? false;
+
+        if (isFirstLogin) {
+          // Navigate to Force Change Password
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => const ForceChangePasswordScreen(),
+            ),
+          );
+        } else {
+          // Navigate to main navigation and remove all previous routes
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (_) => const MainNavigation()),
+            (route) => false,
+          );
+        }
       } else if (mounted) {
         // Show error message
         ScaffoldMessenger.of(context).showSnackBar(
@@ -118,13 +129,14 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 48),
 
-                  // Email Field
+                  // Student ID Field
                   TextFormField(
-                    controller: _emailController,
-                    keyboardType: TextInputType.emailAddress,
+                    controller: _usernameController,
+                    keyboardType: TextInputType.text,
                     decoration: InputDecoration(
-                      labelText: AppStrings.email,
-                      prefixIcon: const Icon(Icons.email_outlined),
+                      labelText: AppStrings.username,
+                      hintText: 'Nhập mã học viên của bạn',
+                      prefixIcon: const Icon(Icons.person_outline),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -133,10 +145,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return AppStrings.emailRequired;
-                      }
-                      if (!value.contains('@')) {
-                        return AppStrings.emailInvalid;
+                        return AppStrings.usernameRequired;
                       }
                       return null;
                     },
@@ -180,32 +189,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 8),
 
-                  // Forgot Password Link
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton(
-                      onPressed: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => const ForgotPasswordScreen(),
-                          ),
-                        );
-                      },
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 0),
-                      ),
-                      child: Text(
-                        'Quên mật khẩu?',
-                        style: GoogleFonts.inter(
-                          color: AppColors.primary,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
                   // Login Button
                   Consumer<AuthViewModel>(
                     builder: (context, authViewModel, child) {
@@ -245,153 +228,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 24),
 
-                  // Divider with "OR"
-                  Row(
-                    children: [
-                      const Expanded(child: Divider()),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Text(
-                          'HOẶC',
-                          style: GoogleFonts.inter(
-                            color: AppColors.textSecondary,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                      const Expanded(child: Divider()),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Google Sign-In Button
-                  Consumer<AuthViewModel>(
-                    builder: (context, authViewModel, child) {
-                      return InkWell(
-                        onTap: authViewModel.isLoading
-                            ? null
-                            : () async {
-                                final success = await authViewModel
-                                    .googleLogin();
-                                if (!context.mounted) return;
-
-                                if (success) {
-                                  Navigator.of(context).pushAndRemoveUntil(
-                                    MaterialPageRoute(
-                                      builder: (_) => const MainNavigation(),
-                                    ),
-                                    (route) => false,
-                                  );
-                                } else if (authViewModel.errorMessage != null) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        authViewModel.errorMessage!,
-                                      ),
-                                      backgroundColor: AppColors.error,
-                                    ),
-                                  );
-                                }
-                              },
-                        borderRadius: BorderRadius.circular(12),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: Colors.grey.withValues(alpha: 0.2),
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.05),
-                                blurRadius: 10,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child: authViewModel.isLoading
-                              ? const Center(
-                                  child: SizedBox(
-                                    height: 24,
-                                    width: 24,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      valueColor: AlwaysStoppedAnimation<Color>(
-                                        AppColors.primary,
-                                      ),
-                                    ),
-                                  ),
-                                )
-                              : Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Image.network(
-                                      'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_"G"_logo.svg/1200px-Google_"G"_logo.svg.png',
-                                      height: 24,
-                                      width: 24,
-                                      errorBuilder:
-                                          (context, error, stackTrace) =>
-                                              const Icon(
-                                                Icons.login,
-                                                size: 24,
-                                                color: Colors.red,
-                                              ),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Text(
-                                      'Đăng nhập bằng Google',
-                                      style: GoogleFonts.inter(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                        color: AppColors.textPrimary,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                        ),
-                      );
-                    },
-                  ),
                   const SizedBox(height: 32),
-
-                  const SizedBox(height: 24),
-
-                  // Register Link
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        AppStrings.dontHaveAccount,
-                        style: GoogleFonts.inter(
-                          color: AppColors.textSecondary,
-                          fontSize: 14,
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      TextButton(
-                        onPressed: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => const RegisterScreen(),
-                            ),
-                          );
-                        },
-                        style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 8),
-                        ),
-                        child: Text(
-                          AppStrings.register,
-                          style: GoogleFonts.inter(
-                            color: AppColors.primary,
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
                 ],
               ),
             ),

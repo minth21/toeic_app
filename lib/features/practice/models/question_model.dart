@@ -6,8 +6,13 @@ class QuestionModel {
   final String partId;
   final int questionNumber;
   final String? passage;
+  final String? passageTitle;
+  final String? passageImageUrl;
   final String? passageTranslationData;
   final String? questionText;
+  final String? questionTranslation;
+  final String? optionTranslations;
+  final String? keyVocabulary;
   final String? imageUrl;
   final String? optionA;
   final String? optionB;
@@ -15,6 +20,8 @@ class QuestionModel {
   final String? optionD;
   final String? correctAnswer;
   final String? explanation;
+  final String? analysis;
+  final String? evidence;
   final String? audioUrl;
   final String? transcript;
 
@@ -23,8 +30,13 @@ class QuestionModel {
     required this.partId,
     required this.questionNumber,
     this.passage,
+    this.passageTitle,
+    this.passageImageUrl,
     this.passageTranslationData,
     this.questionText,
+    this.questionTranslation,
+    this.optionTranslations,
+    this.keyVocabulary,
     this.imageUrl,
     this.optionA,
     this.optionB,
@@ -32,6 +44,8 @@ class QuestionModel {
     this.optionD,
     this.correctAnswer,
     this.explanation,
+    this.analysis,
+    this.evidence,
     this.audioUrl,
     this.transcript,
   });
@@ -42,8 +56,13 @@ class QuestionModel {
       partId: json['partId'] ?? '',
       questionNumber: json['questionNumber'] ?? 0,
       passage: json['passage'],
+      passageTitle: json['passageTitle'],
+      passageImageUrl: json['passageImageUrl'],
       passageTranslationData: json['passageTranslationData'],
       questionText: json['questionText'],
+      questionTranslation: json['questionTranslation'],
+      optionTranslations: json['optionTranslations'],
+      keyVocabulary: json['keyVocabulary'],
       imageUrl: json['imageUrl'],
       optionA: json['optionA'],
       optionB: json['optionB'],
@@ -51,6 +70,8 @@ class QuestionModel {
       optionD: json['optionD'],
       correctAnswer: json['correctAnswer'],
       explanation: json['explanation'],
+      analysis: json['analysis'],
+      evidence: json['evidence'],
       audioUrl: json['audioUrl'],
       transcript: json['transcript'],
     );
@@ -141,5 +162,28 @@ class QuestionModel {
       debugPrint('Critical error parsing passageTranslationData: $e');
       return [];
     }
+  }
+
+  // ✅ New: Get combined passage translation text
+  String get fullPassageTranslation {
+    final translations = passageTranslations;
+    if (translations.isEmpty) return '';
+    
+    return translations.map((section) {
+      final label = section['label']?.toString() ?? '';
+      final sentences = (section['sentences'] as List<Map<String, dynamic>>?) ?? [];
+      final content = sentences.map((s) => s['vi']?.toString() ?? '').join(' ');
+      
+      if (label.isNotEmpty) {
+        return '<b>$label</b><br/>$content';
+      }
+      return content;
+    }).join('<br/><br/>');
+  }
+
+  // ✅ New: Get list of passage image URLs (split by CSV)
+  List<String> get passageImageUrls {
+    if (passageImageUrl == null || passageImageUrl!.isEmpty) return [];
+    return passageImageUrl!.split(',').map((url) => url.trim()).where((url) => url.isNotEmpty).toList();
   }
 }

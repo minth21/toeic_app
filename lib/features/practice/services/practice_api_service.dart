@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../../../constants/app_constants.dart';
 import '../models/exam_model.dart';
@@ -39,7 +40,7 @@ class PracticeApiService {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         if (data['success'] == true) {
-          final List<dynamic> testsJson = data['tests'];
+          final List<dynamic> testsJson = data['tests'] ?? data['data'] ?? [];
           return testsJson.map((json) => ExamModel.fromJson(json)).toList();
         } else {
           throw Exception(data['message'] ?? 'Failed to load tests');
@@ -189,6 +190,40 @@ class PracticeApiService {
     }
   }
 
+  Future<List<Map<String, dynamic>>> getUserHistory() async {
+    try {
+      final token = await _storageService.getToken();
+      final userId = await _storageService.getUserId();
+
+      if (token == null || userId == null) {
+        return [];
+      }
+
+      final uri = Uri.parse(
+        '${AppConstants.baseUrl}/practice/history/all/$userId',
+      );
+
+      final response = await http.get(
+        uri,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['success'] == true) {
+          return List<Map<String, dynamic>>.from(data['data']);
+        }
+      }
+      return [];
+    } catch (e) {
+      debugPrint('Error fetching user history: $e');
+      return [];
+    }
+  }
+
   Future<Map<String, dynamic>?> getAttemptDetail(String attemptId) async {
     try {
       final token = await _storageService.getToken();
@@ -241,6 +276,63 @@ class PracticeApiService {
       return null;
     } catch (e) {
       return null;
+    }
+  }
+
+  Future<bool> saveFlashcards(List<Map<String, dynamic>> flashcards, String partId) async {
+    try {
+      final token = await _storageService.getToken();
+      final userId = await _storageService.getUserId();
+      if (token == null || userId == null) return false;
+
+      final uri = Uri.parse('${AppConstants.baseUrl}/flashcards/bulk');
+
+      final body = {
+        'userId': userId,
+        'partId': partId,
+        'flashcards': flashcards,
+      };
+
+      final response = await http.post(
+        uri,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode(body),
+      );
+
+      return response.statusCode == 201;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getDailyRecommendations() async {
+    try {
+      final token = await _storageService.getToken();
+      if (token == null) return [];
+
+      final uri = Uri.parse('${AppConstants.baseUrl}/recommendations/daily');
+
+      final response = await http.get(
+        uri,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['success'] == true) {
+          return List<Map<String, dynamic>>.from(data['data']);
+        }
+      }
+      return [];
+    } catch (e) {
+      debugPrint('Error fetching recommendations: $e');
+      return [];
     }
   }
 }

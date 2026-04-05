@@ -10,6 +10,12 @@ import 'features/home/viewmodels/dashboard_viewmodel.dart';
 
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'features/settings/viewmodels/language_viewmodel.dart';
+import 'features/practice/viewmodels/ai_timeline_viewmodel.dart';
+import 'features/vocabulary/viewmodels/vocabulary_viewmodel.dart';
+import 'features/progress/viewmodels/progress_viewmodel.dart';
+import 'features/navigation/viewmodels/navigation_viewmodel.dart';
+import 'features/practice/viewmodels/feedback_viewmodel.dart';
+import 'features/class/viewmodels/class_material_viewmodel.dart';
 import 'l10n/app_localizations.dart';
 
 void main() {
@@ -28,6 +34,12 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => LanguageViewModel()),
         ChangeNotifierProvider(create: (_) => PracticeViewModel()),
         ChangeNotifierProvider(create: (_) => DashboardViewModel()),
+        ChangeNotifierProvider(create: (_) => AiTimelineViewModel()),
+        ChangeNotifierProvider(create: (_) => VocabularyViewModel()),
+        ChangeNotifierProvider(create: (_) => ProgressViewModel()),
+        ChangeNotifierProvider(create: (_) => NavigationViewModel()),
+        ChangeNotifierProvider(create: (_) => FeedbackViewModel()),
+        ChangeNotifierProvider(create: (_) => ClassMaterialViewModel()),
       ],
       child: Consumer2<ThemeViewModel, LanguageViewModel>(
         builder: (context, themeViewModel, languageViewModel, child) {

@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../onboarding/views/welcome_screen.dart';
 import '../viewmodels/auth_viewmodel.dart';
 import '../../navigation/main_navigation.dart';
+import 'force_change_password_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -65,17 +66,33 @@ class _SplashScreenState extends State<SplashScreen>
     if (!mounted) return;
 
     if (authViewModel.isLoggedIn) {
-      // User is logged in, go to MainNavigation
-      Navigator.of(context).pushReplacement(
-        PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) =>
-              const MainNavigation(),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            return FadeTransition(opacity: animation, child: child);
-          },
-          transitionDuration: const Duration(milliseconds: 500),
-        ),
-      );
+      final isFirstLogin = authViewModel.currentUser?.isFirstLogin ?? false;
+      
+      if (isFirstLogin) {
+        // User must change password first
+        Navigator.of(context).pushReplacement(
+          PageRouteBuilder(
+            pageBuilder: (context, animation, secondaryAnimation) =>
+                const ForceChangePasswordScreen(),
+            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+              return FadeTransition(opacity: animation, child: child);
+            },
+            transitionDuration: const Duration(milliseconds: 500),
+          ),
+        );
+      } else {
+        // User is logged in, go to MainNavigation
+        Navigator.of(context).pushReplacement(
+          PageRouteBuilder(
+            pageBuilder: (context, animation, secondaryAnimation) =>
+                const MainNavigation(),
+            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+              return FadeTransition(opacity: animation, child: child);
+            },
+            transitionDuration: const Duration(milliseconds: 500),
+          ),
+        );
+      }
     } else {
       // Not logged in, go to Welcome Screen
       Navigator.of(context).pushReplacement(

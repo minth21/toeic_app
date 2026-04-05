@@ -3,8 +3,11 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../constants/app_constants.dart';
 import '../home/views/home_screen.dart';
 import '../practice/views/practice_screen.dart';
+import '../vocabulary/views/vocabulary_screen.dart';
 import '../progress/views/progress_screen.dart';
 import '../profile/views/profile_screen.dart';
+import 'viewmodels/navigation_viewmodel.dart';
+import 'package:provider/provider.dart';
 
 /// Main Navigation - Bottom navigation wrapper cho toàn bộ app
 class MainNavigation extends StatefulWidget {
@@ -15,7 +18,6 @@ class MainNavigation extends StatefulWidget {
 }
 
 class _MainNavigationState extends State<MainNavigation> {
-  int _currentIndex = 0;
 
   // Danh sách navigation items
   final List<NavigationItem> _navItems = const [
@@ -32,6 +34,12 @@ class _MainNavigationState extends State<MainNavigation> {
       color: Color(0xFF2196F3),
     ),
     NavigationItem(
+      icon: Icons.style_outlined,
+      activeIcon: Icons.style,
+      label: 'Từ vựng',
+      color: Color(0xFFE91E63),
+    ),
+    NavigationItem(
       icon: Icons.bar_chart_outlined,
       activeIcon: Icons.bar_chart,
       label: 'Tiến độ',
@@ -45,22 +53,22 @@ class _MainNavigationState extends State<MainNavigation> {
     ),
   ];
 
-  void _onTabTapped(int index) {
-    setState(() {
-      _currentIndex = index;
-    });
+  void _onTabTapped(BuildContext context, int index) {
+    context.read<NavigationViewModel>().setIndex(index);
   }
 
   // Get current screen based on index
-  Widget _getCurrentScreen() {
-    switch (_currentIndex) {
+  Widget _getCurrentScreen(int index) {
+    switch (index) {
       case 0:
         return const HomeScreen();
       case 1:
         return const PracticeScreen();
       case 2:
-        return const ProgressScreen();
+        return const VocabularyScreen();
       case 3:
+        return const ProgressScreen();
+      case 4:
         return const ProfileScreen();
       default:
         return const HomeScreen();
@@ -69,8 +77,11 @@ class _MainNavigationState extends State<MainNavigation> {
 
   @override
   Widget build(BuildContext context) {
+    final navVM = context.watch<NavigationViewModel>();
+    final currentIndex = navVM.currentIndex;
+
     return Scaffold(
-      body: _getCurrentScreen(), // Only render current screen
+      body: _getCurrentScreen(currentIndex), // Only render current screen
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           color: Theme.of(context).cardColor,
@@ -83,8 +94,8 @@ class _MainNavigationState extends State<MainNavigation> {
           ],
         ),
         child: BottomNavigationBar(
-          currentIndex: _currentIndex,
-          onTap: _onTabTapped,
+          currentIndex: currentIndex,
+          onTap: (index) => _onTabTapped(context, index),
           type: BottomNavigationBarType.fixed,
           backgroundColor: Theme.of(context).cardColor,
           selectedItemColor: AppColors.primary,
@@ -101,7 +112,7 @@ class _MainNavigationState extends State<MainNavigation> {
           ),
           elevation: 0,
           items: _navItems.map((item) {
-            final isSelected = _navItems.indexOf(item) == _currentIndex;
+            final isSelected = _navItems.indexOf(item) == currentIndex;
             return BottomNavigationBarItem(
               icon: Icon(isSelected ? item.activeIcon : item.icon, size: 24),
               label: item.label,

@@ -17,7 +17,7 @@ class OnboardingService {
     await prefs.setBool(_keyFirstLaunch, false);
   }
 
-  /// Save selected Difficulty (EASY, MEDIUM, HARD)
+  /// Save selected Difficulty (A1_A2, B1_B2, C1)
   static Future<void> saveSelectedDifficulty(String difficulty) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_keySelectedDifficulty, difficulty);

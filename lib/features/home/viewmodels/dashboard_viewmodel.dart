@@ -23,6 +23,32 @@ class DashboardViewModel extends ChangeNotifier {
   List<dynamic> get recentActivities => _dashboardData?['recentActivities'] ?? [];
   List<dynamic> get recommendations => _dashboardData?['recommendations'] ?? [];
   Map<String, dynamic>? get resumeLearning => _dashboardData?['resumeLearning'];
+  List<dynamic> get activityStats => _dashboardData?['activityStats'] ?? [];
+
+  /// Converts activityStats (last 7 days) → `Map<DateTime, int>` for heatmap.
+  /// Reconstructs real DateTime by counting back from today.
+  Map<DateTime, int> get heatmapData {
+    final stats = activityStats;
+    if (stats.isEmpty) return {};
+
+    final result = <DateTime, int>{};
+    final today = DateTime.now();
+
+    // activityStats is ordered oldest → newest (index 0 = 6 days ago)
+    for (int i = 0; i < stats.length; i++) {
+      final count = (stats[i]['count'] as num?)?.toInt() ?? 0;
+      if (count > 0) {
+        final daysAgo = stats.length - 1 - i;
+        final date = DateTime(
+          today.year,
+          today.month,
+          today.day - daysAgo,
+        );
+        result[date] = count;
+      }
+    }
+    return result;
+  }
 
   Future<void> loadDashboard() async {
     _isLoading = true;

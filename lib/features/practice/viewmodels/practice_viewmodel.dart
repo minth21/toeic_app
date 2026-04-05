@@ -9,12 +9,22 @@ class PracticeViewModel extends ChangeNotifier {
   List<ExamModel> _tests = [];
   bool _isLoading = false;
   String? _selectedDifficulty;
+  String? _selectedSkill; // 'listening', 'reading', or null (all)
   String? _error;
   ExamModel? _currentTest;
 
-  List<ExamModel> get tests => _tests;
+  List<ExamModel> get tests {
+    if (_selectedSkill == null) return _tests;
+    return _tests.where((test) {
+      if (_selectedSkill == 'listening') return test.listeningQuestions > 0;
+      if (_selectedSkill == 'reading') return test.readingQuestions > 0;
+      return true;
+    }).toList();
+  }
+
   bool get isLoading => _isLoading;
   String? get selectedDifficulty => _selectedDifficulty;
+  String? get selectedSkill => _selectedSkill;
   String? get error => _error;
   ExamModel? get currentTest => _currentTest;
 
@@ -32,6 +42,25 @@ class PracticeViewModel extends ChangeNotifier {
     } catch (e) {
       _error = e.toString();
       _tests = [];
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  List<Map<String, dynamic>> _history = [];
+  List<Map<String, dynamic>> get history => _history;
+
+  Future<void> loadHistory() async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      _history = await _apiService.getUserHistory();
+    } catch (e) {
+      _error = e.toString();
+      _history = [];
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -110,6 +139,12 @@ class PracticeViewModel extends ChangeNotifier {
     loadTests();
   }
 
+  void setSkillFilter(String? skill) {
+    if (_selectedSkill == skill) return;
+    _selectedSkill = skill;
+    notifyListeners();
+  }
+
   Future<ExamModel?> getTestById(String testId) async {
     try {
       // Create a temporary/helper service call or use existing one if method exists
@@ -126,19 +161,57 @@ class PracticeViewModel extends ChangeNotifier {
   }
 
   Future<String?> pollAIAssessment(String attemptId) async {
-    int retries = 15; // 30 seconds max
-    while (retries > 0) {
-      await Future.delayed(const Duration(seconds: 2));
+    // Strategy: check immediately, then every 3s for first 60s,
+    // then every 5s up to 150s total — covers slow AI / retry cases.
+    const fastInterval = Duration(seconds: 3);
+    const slowInterval = Duration(seconds: 5);
+    const fastPhaseEnd = 20; // first 20 retries = 60s at 3s each
+    const totalRetries = 50; // up to ~150s total
+
+    for (int retries = 0; retries < totalRetries; retries++) {
+      // On first iteration, do a small delay to let the background job start
+      if (retries == 0) {
+        await Future.delayed(const Duration(seconds: 4));
+      } else {
+        await Future.delayed(retries < fastPhaseEnd ? fastInterval : slowInterval);
+      }
+
       try {
         final attempt = await _apiService.getAttemptDetail(attemptId);
-        if (attempt != null && attempt['aiAssessment'] != null) {
-          return attempt['aiAssessment'];
+        final aiData = attempt?['aiAnalysis'] ?? attempt?['aiAssessment'];
+        if (aiData != null && aiData.toString().isNotEmpty) {
+          debugPrint('[AI Poll] Got AI data after ${retries + 1} retries');
+          return aiData.toString();
         }
       } catch (e) {
-        // Ignore errors during polling
+        // Ignore errors during polling, keep retrying
+        debugPrint('[AI Poll] Error at retry $retries: $e');
       }
-      retries--;
     }
+
+    debugPrint('[AI Poll] Timeout after $totalRetries retries for attempt $attemptId');
     return null;
+  }
+
+  Future<bool> saveFlashcards(List<Map<String, dynamic>> flashcards, String partId) async {
+    return await _apiService.saveFlashcards(flashcards, partId);
+  }
+
+  Future<List<Map<String, dynamic>>> getDailyRecommendations() async {
+    return await _apiService.getDailyRecommendations();
+  }
+
+  Future<Map<String, dynamic>?> loadAttemptDetail(String attemptId) async {
+    _isLoading = true;
+    notifyListeners();
+    try {
+      return await _apiService.getAttemptDetail(attemptId);
+    } catch (e) {
+      _error = e.toString();
+      return null;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 }

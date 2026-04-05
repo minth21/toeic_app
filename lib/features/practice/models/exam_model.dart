@@ -36,7 +36,7 @@ class ExamModel {
     return ExamModel(
       id: json['id'] ?? '',
       title: json['title'] ?? 'Unknown Test',
-      difficulty: json['difficulty'] ?? 'MEDIUM',
+      difficulty: json['difficulty'] ?? 'B1_B2',
       duration: json['duration'] ?? 0,
       totalQuestions: json['totalQuestions'] ?? 0,
       listeningQuestions: json['listeningQuestions'] ?? 0,

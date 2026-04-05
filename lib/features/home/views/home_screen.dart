@@ -3,6 +3,18 @@ import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../constants/app_constants.dart';
 import '../viewmodels/dashboard_viewmodel.dart';
+import '../../navigation/viewmodels/navigation_viewmodel.dart';
+import '../../vocabulary/viewmodels/vocabulary_viewmodel.dart';
+import '../../progress/viewmodels/progress_viewmodel.dart';
+import '../../practice/viewmodels/ai_timeline_viewmodel.dart';
+import '../../practice/viewmodels/practice_viewmodel.dart';
+import '../../practice/models/part_model.dart';
+import '../../practice/views/practice_result_screen.dart';
+import '../widgets/activity_chart.dart';
+import '../widgets/activity_heatmap.dart';
+import '../../auth/viewmodels/auth_viewmodel.dart';
+import '../../auth/models/user_model.dart';
+import '../../class/views/class_materials_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -12,11 +24,23 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  String? _loadingActivityId;
+
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
       context.read<DashboardViewModel>().loadDashboard();
+      context.read<VocabularyViewModel>().loadFlashcards();
+      final progressVM = context.read<ProgressViewModel>();
+      await progressVM.loadUserStats();
+      if (!mounted) return;
+      
+      final userId = progressVM.userStats?['id'];
+      if (userId != null) {
+        context.read<AiTimelineViewModel>().loadTimeline(userId);
+      }
     });
   }
 
@@ -30,6 +54,13 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
+    // Prefer name from AuthViewModel (available immediately after login)
+    // Fallback to dashboard API response
+    final authUser = context.watch<AuthViewModel>().currentUser;
+    final displayName = authUser?.name.isNotEmpty == true
+        ? authUser!.name
+        : dashboardViewModel.userName;
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: RefreshIndicator(
@@ -37,31 +68,53 @@ class _HomeScreenState extends State<HomeScreen> {
         child: CustomScrollView(
           slivers: [
             // A. SliverAppBar (Welcome Banner & Streak)
-            _buildSliverAppBar(dashboardViewModel.userName, dashboardViewModel.streak),
+            _buildSliverAppBar(displayName, dashboardViewModel.streak),
 
             // B. Hero Card (Mục tiêu & Điểm số)
             SliverToBoxAdapter(
-              child: _buildHeroCard(
-                dashboardViewModel.predictedScore,
-                dashboardViewModel.listeningScore,
-                dashboardViewModel.readingScore,
+              child: Consumer<ProgressViewModel>(
+                builder: (context, progressVM, _) => _buildHeroCard(
+                  progressVM.averageScore,
+                  0, // Listening average not added yet but kept for UI
+                  0, // Reading average not added yet but kept for UI
+                ),
               ),
             ),
 
-            // C. Resume Learning Card
-            if (dashboardViewModel.resumeLearning != null)
-              SliverToBoxAdapter(
-                child: _buildResumeLearningCard(dashboardViewModel.resumeLearning!),
+            // B2. Lớp học của tôi (Supplementary Materials Entry)
+            SliverToBoxAdapter(
+              child: Consumer<AuthViewModel>(
+                builder: (context, authVM, _) {
+                  final user = authVM.currentUser;
+                  if (user?.classId == null) return const SizedBox.shrink();
+                  return _buildClassCard(context, user!);
+                },
               ),
+            ),
 
-            // D. Quick Categories (Menu Kỹ năng)
+            // C. Quick Categories (Menu Kỹ năng)
             SliverToBoxAdapter(
               child: _buildQuickCategories(context),
             ),
 
-            // E. AI Smart Recommendations / Recent Activity
-            _buildAIRecommendations(dashboardViewModel),
+            // D. Recent AI Wisdom (Tư vấn chiến thuật)
+            SliverToBoxAdapter(
+              child: _buildRecentAIAdvice(context),
+            ),
+
+            // E. Recent Activity
+            _buildRecentActivity(dashboardViewModel),
             
+            // F. Activity Frequency Chart (Bar)
+            SliverToBoxAdapter(
+              child: ActivityChart(stats: dashboardViewModel.activityStats),
+            ),
+
+            // G. Activity Heatmap (Monthly calendar)
+            SliverToBoxAdapter(
+              child: ActivityHeatmap(datasets: dashboardViewModel.heatmapData),
+            ),
+
             // Bottom Padding
             const SliverPadding(padding: EdgeInsets.only(bottom: 32)),
           ],
@@ -130,32 +183,6 @@ class _HomeScreenState extends State<HomeScreen> {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    // Streak indicator
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: AppColors.indigo50,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: AppColors.primary.withValues(alpha: 0.1)),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.local_fire_department,
-                              color: Colors.orange, size: 18),
-                          const SizedBox(width: 4),
-                          Text(
-                            '$streak ngày',
-                            style: GoogleFonts.inter(
-                              color: AppColors.primary,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
                   ],
                 ),
               ],
@@ -168,7 +195,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildHeroCard(int totalScore, int listeningScore, int readingScore) {
     return Container(
-      margin: const EdgeInsets.all(20),
+      margin: const EdgeInsets.fromLTRB(20, 10, 20, 20),
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
       decoration: BoxDecoration(
         gradient: AppColors.premiumGradient,
@@ -176,8 +203,24 @@ class _HomeScreenState extends State<HomeScreen> {
         boxShadow: AppShadows.premiumShadow,
       ),
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
         children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.analytics_rounded, color: Colors.amberAccent, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                'ĐIỂM TRUNG BÌNH',
+                style: GoogleFonts.inter(
+                  color: Colors.white.withValues(alpha: 0.9),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.5,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.end,
@@ -186,42 +229,21 @@ class _HomeScreenState extends State<HomeScreen> {
                 '$totalScore',
                 style: GoogleFonts.inter(
                   color: Colors.white,
-                  fontSize: 48,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8, left: 6),
-                child: Text(
-                  '/ 990',
-                  style: GoogleFonts.inter(
-                    color: Colors.white.withValues(alpha: 0.7),
-                    fontSize: 20,
-                    fontWeight: FontWeight.w500,
-                  ),
+                  fontSize: 72,
+                  fontWeight: FontWeight.w900,
+                  height: 1,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 24),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: LinearProgressIndicator(
-              value: totalScore / 990,
-              backgroundColor: Colors.white.withValues(alpha: 0.2),
-              valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
-              minHeight: 10,
-            ),
-          ),
-          const SizedBox(height: 24),
-          // Score Detail Section
+          const SizedBox(height: 32),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
               _buildSkillScore(Icons.headphones, 'Listening', listeningScore),
               Container(
-                width: 1.5,
-                height: 24,
+                width: 1,
+                height: 30,
                 color: Colors.white.withValues(alpha: 0.2),
               ),
               _buildSkillScore(Icons.menu_book, 'Reading', readingScore),
@@ -256,64 +278,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildResumeLearningCard(Map<String, dynamic> data) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: AppShadows.softShadow,
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: InkWell(
-          onTap: () {},
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: const BoxDecoration(
-                    color: AppColors.indigo50,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.play_arrow_rounded, color: AppColors.primary, size: 28),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Tiếp tục bài học',
-                        style: GoogleFonts.inter(
-                          fontSize: 12,
-                          color: AppColors.textSecondary,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      Text(
-                        '${data['title']} - ${data['subtitle']}',
-                        style: GoogleFonts.inter(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.textPrimary,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-                const Icon(Icons.chevron_right_rounded, color: AppColors.divider),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 
   Widget _buildQuickCategories(BuildContext context) {
     return Padding(
@@ -321,59 +285,64 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Luyện tập theo kỹ năng',
-            style: GoogleFonts.inter(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textPrimary,
-            ),
+          Row(
+            children: [
+              Expanded(
+                child: _buildCategoryCard(
+                  'Nghe',
+                  Icons.headphones_rounded,
+                  AppColors.indigo50,
+                  AppColors.primary,
+                  onTap: () {
+                    context.read<PracticeViewModel>().setSkillFilter('listening');
+                    context.read<NavigationViewModel>().setIndex(1);
+                  },
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _buildCategoryCard(
+                  'Đọc',
+                  Icons.menu_book_rounded,
+                  const Color(0xFFF0FDF4),
+                  AppColors.success,
+                  onTap: () {
+                    context.read<PracticeViewModel>().setSkillFilter('reading');
+                    context.read<NavigationViewModel>().setIndex(1);
+                  },
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 16),
-          Column(
+          Row(
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildCategoryCard(
-                      'Nghe',
-                      Icons.headphones_rounded,
-                      AppColors.indigo50,
-                      AppColors.primary,
-                      onTap: () {
-                        DefaultTabController.of(context).animateTo(1); // Go to Practice Tab
-                      },
-                    ),
+              Expanded(
+                child: Consumer<VocabularyViewModel>(
+                  builder: (context, vm, _) => _buildCategoryCard(
+                    'Từ Vựng',
+                    Icons.style_outlined,
+                    const Color(0xFFFEF9C3),
+                    AppColors.warning,
+                    subtitle: '${vm.flashcards.length} thẻ',
+                    onTap: () {
+                      context.read<NavigationViewModel>().setIndex(2); // Go to Vocabulary Tab
+                    },
                   ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: _buildCategoryCard(
-                      'Đọc',
-                      Icons.menu_book_rounded,
-                      const Color(0xFFF0FDF4),
-                      AppColors.success,
-                      onTap: () {
-                        DefaultTabController.of(context).animateTo(1); // Go to Practice Tab
-                      },
-                    ),
-                  ),
-                ],
+                ),
               ),
-              const SizedBox(height: 16),
-              _buildCategoryCard(
-                'Từ Vựng',
-                Icons.style_outlined,
-                const Color(0xFFFEF9C3),
-                AppColors.warning,
-                isFullWidth: true,
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Tính năng Từ vựng đang được phát triển'),
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  );
-                },
+              const SizedBox(width: 16),
+              Expanded(
+                child: _buildCategoryCard(
+                  'Tiến độ',
+                  Icons.bar_chart_rounded,
+                  const Color(0xFFFDF2F8),
+                  const Color(0xFFEC4899),
+                  subtitle: 'Xem phân tích',
+                  onTap: () {
+                    context.read<NavigationViewModel>().setIndex(3); // Go to Progress Tab
+                  },
+                ),
               ),
             ],
           ),
@@ -387,21 +356,14 @@ class _HomeScreenState extends State<HomeScreen> {
     IconData icon,
     Color bgColor,
     Color iconColor, {
-    bool isFullWidth = false,
+    String? subtitle,
     VoidCallback? onTap,
   }) {
     return Container(
-      width: isFullWidth ? double.infinity : null,
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: iconColor.withValues(alpha: 0.1),
-            blurRadius: 16,
-            offset: const Offset(0, 8),
-          ),
-        ],
+        boxShadow: AppShadows.softShadow,
       ),
       child: Material(
         color: bgColor,
@@ -410,34 +372,40 @@ class _HomeScreenState extends State<HomeScreen> {
           onTap: onTap,
           borderRadius: BorderRadius.circular(20),
           child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              crossAxisAlignment:
-                  isFullWidth ? CrossAxisAlignment.center : CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+            child: Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(14),
-                    boxShadow: [
-                      BoxShadow(
-                        color: iconColor.withValues(alpha: 0.1),
-                        blurRadius: 8,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Icon(icon, color: iconColor, size: 28),
+                  child: Icon(icon, color: iconColor, size: 24),
                 ),
-                const SizedBox(height: 16),
-                Text(
-                  title,
-                  style: GoogleFonts.inter(
-                    fontSize: 17,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: GoogleFonts.inter(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      if (subtitle != null)
+                        Text(
+                          subtitle,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: iconColor.withValues(alpha: 0.8),
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                    ],
                   ),
                 ),
               ],
@@ -448,49 +416,80 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildAIRecommendations(DashboardViewModel vm) {
+  Widget _buildRecentAIAdvice(BuildContext context) {
+    return Consumer<AiTimelineViewModel>(
+      builder: (context, vm, _) {
+        if (vm.assessments.isEmpty) return const SizedBox.shrink();
+        final latest = vm.assessments.first;
+
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.psychology_outlined, color: AppColors.primary, size: 22),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Chiến thuật AI mới nhất',
+                    style: GoogleFonts.inter(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: AppShadows.softShadow,
+                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.05)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      latest.title,
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      latest.summary.replaceAll(RegExp(r'<[^>]*>'), ''),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                    ),
+                    const SizedBox(height: 16),
+                    OutlinedButton(
+                      onPressed: () {
+                        DefaultTabController.of(context).animateTo(3);
+                      },
+                      style: OutlinedButton.styleFrom(
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: const Text('Xem chi tiết phân tích'),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildRecentActivity(DashboardViewModel vm) {
     return SliverPadding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       sliver: SliverList(
         delegate: SliverChildListDelegate([
-          if (vm.recommendations.isNotEmpty) ...[
-            Row(
-              children: [
-                Text(
-                  '💡 Gia sư AI Gợi ý',
-                  style: GoogleFonts.inter(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                const Spacer(),
-                TextButton(
-                  onPressed: () {},
-                  child: Text(
-                    'Xem tất cả',
-                    style: GoogleFonts.inter(
-                      fontSize: 13,
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            ...vm.recommendations.map((rec) => Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: _buildAIItem(
-                rec['title'],
-                rec['subtitle'],
-                rec['icon'] == 'warning' ? Icons.warning_amber_rounded : Icons.psychology_outlined,
-                rec['icon'] == 'warning' ? AppColors.warning : AppColors.primary,
-              ),
-            )),
-          ],
           if (vm.recentActivities.isNotEmpty) ...[
-            const SizedBox(height: 24),
             Text(
               'Hoạt động gần đây',
               style: GoogleFonts.inter(
@@ -501,111 +500,135 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             const SizedBox(height: 12),
             ...vm.recentActivities.map((act) => Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: _buildRecentActivityItem(
-                '${act['title']} - ${act['partName']}',
-                '${act['score']}/${act['totalQuestions']}',
-                _formatTimeDiff(act['createdAt']),
-              ),
-            )),
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: _buildRecentActivityItem(
+                    '${act['title']} - ${act['partName']}',
+                    '${act['score']}/${act['totalQuestions']}',
+                    _formatTimeDiff(act['createdAt']),
+                    isLoading: _loadingActivityId == act['id'],
+                    onTap: _loadingActivityId != null ? null : () async {
+                      setState(() => _loadingActivityId = act['id']);
+                      
+                      try {
+                        final practiceVM = context.read<PracticeViewModel>();
+                        final detail = await practiceVM.loadAttemptDetail(act['id']);
+                        
+                        if (detail != null && mounted) {
+                          // Construct PartModel from detail data
+                          final partData = detail['part'] as Map<String, dynamic>;
+                          final partModel = PartModel.fromJson(partData);
+                          
+                          // Consstruct result data
+                          final resultData = {
+                            'score': detail['correctCount'],
+                            'totalQuestions': detail['totalQuestions'],
+                            'toeicScore': detail['totalScore'] ?? detail['toeicScore'],
+                            'percentage': ((detail['correctCount'] / detail['totalQuestions']) * 100).toDouble(),
+                          };
+
+                          if (mounted) {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => PracticeResultScreen(
+                                  resultData: resultData,
+                                  part: partModel,
+                                  attemptId: act['id'],
+                                ),
+                              ),
+                            );
+                          }
+                        } else if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Không thể tải chi tiết bài làm. Vui lòng thử lại sau.'),
+                              backgroundColor: AppColors.error,
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Lỗi kết nối: ${e.toString()}'),
+                              backgroundColor: AppColors.error,
+                            ),
+                          );
+                        }
+                      } finally {
+                        if (mounted) {
+                          setState(() => _loadingActivityId = null);
+                        }
+                      }
+                    },
+                  ),
+                )),
           ],
         ]),
       ),
     );
   }
 
-  Widget _buildAIItem(String title, String subtitle, IconData icon, Color color) {
+  Widget _buildRecentActivityItem(String title, String score, String time, {VoidCallback? onTap, bool isLoading = false}) {
     return Container(
-      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
         boxShadow: AppShadows.softShadow,
       ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, color: color, size: 24),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(20),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
               children: [
-                Text(
-                  title,
-                  style: GoogleFonts.inter(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
+                isLoading 
+                  ? const SizedBox(
+                      width: 24, 
+                      height: 24, 
+                      child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary)
+                    )
+                  : const Icon(Icons.check_circle_rounded, color: AppColors.success, size: 24),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: GoogleFonts.inter(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textPrimary,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        time,
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 Text(
-                  subtitle,
+                  score,
                   style: GoogleFonts.inter(
-                    fontSize: 12,
-                    color: AppColors.textSecondary,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primary,
                   ),
                 ),
               ],
             ),
           ),
-          const Icon(Icons.keyboard_arrow_right_rounded, color: AppColors.divider),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRecentActivityItem(String title, String score, String time) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: AppShadows.softShadow,
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.check_circle_rounded, color: AppColors.success, size: 24),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: GoogleFonts.inter(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                Text(
-                  time,
-                  style: GoogleFonts.inter(
-                    fontSize: 12,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Text(
-            score,
-            style: GoogleFonts.inter(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: AppColors.primary,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -617,5 +640,83 @@ class _HomeScreenState extends State<HomeScreen> {
     if (diff.inHours > 0) return '${diff.inHours} giờ trước';
     if (diff.inMinutes > 0) return '${diff.inMinutes} phút trước';
     return 'Vừa xong';
+  }
+
+  Widget _buildClassCard(BuildContext context, UserModel user) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: AppShadows.softShadow,
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.05), width: 1),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const ClassMaterialsScreen()),
+            );
+          },
+          borderRadius: BorderRadius.circular(24),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: const Icon(Icons.school_rounded, color: AppColors.primary, size: 28),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Lớp: ${user.className ?? "Đang tải..."}',
+                        style: GoogleFonts.inter(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'GV: ${user.teacherName ?? "Trung tâm Antigravity"}',
+                        style: GoogleFonts.inter(
+                          fontSize: 13,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Text(
+                    'Tài liệu',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

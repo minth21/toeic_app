@@ -18,6 +18,11 @@ class ApiConfig {
   static const String authVerifyResetCode = '/auth/verify-reset-code';
   static const String authResetPassword = '/auth/reset-password';
   static const String authChangePassword = '/auth/change-password';
+  static const String authChangeFirstPassword = '/auth/change-first-password';
+  static const String aiTimeline = '/ai/timeline';
+  static const String flashcards = '/flashcards';
+  static const String feedbacks = '/feedbacks';
+  static const String classMaterials = '/classes';
 
   // Headers
   static Map<String, String> get headers => {

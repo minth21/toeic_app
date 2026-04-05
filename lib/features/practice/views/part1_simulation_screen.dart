@@ -11,13 +11,17 @@ import 'widgets/custom_audio_player.dart';
 import 'widgets/touchable_passage_widget.dart';
 import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
 import 'practice_result_screen.dart';
+import '../../auth/viewmodels/auth_viewmodel.dart';
+import 'class_feedback_screen.dart';
 
 class Part1SimulationScreen extends StatefulWidget {
   final ExamModel test;
   final String? partId;
   final bool isReviewMode;
   final Map<String, String>? initialUserAnswers;
+  final PartModel? part;
   final List<dynamic>? aiFeedbacks;
+  final String? overallFeedback;
 
   const Part1SimulationScreen({
     super.key,
@@ -25,7 +29,9 @@ class Part1SimulationScreen extends StatefulWidget {
     this.partId,
     this.isReviewMode = false,
     this.initialUserAnswers,
+    this.part,
     this.aiFeedbacks,
+    this.overallFeedback,
   });
 
   @override
@@ -39,6 +45,7 @@ class _Part1SimulationScreenState extends State<Part1SimulationScreen> {
   int _currentIndex = 0;
 
   final Map<String, String> _userAnswers = {};
+  final Set<String> _flaggedQuestions = {};
   bool _isSubmitted = false;
 
   Timer? _timer;
@@ -55,7 +62,7 @@ class _Part1SimulationScreenState extends State<Part1SimulationScreen> {
         _userAnswers.addAll(widget.initialUserAnswers!);
       }
     }
-    
+
     if (widget.partId != null) {
       try {
         _selectedPart = widget.test.parts.firstWhere(
@@ -99,9 +106,9 @@ class _Part1SimulationScreenState extends State<Part1SimulationScreen> {
         _timer?.cancel();
         _submitTest();
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Hết giờ làm bài!')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Hết giờ làm bài!')));
         }
       }
     });
@@ -121,21 +128,46 @@ class _Part1SimulationScreenState extends State<Part1SimulationScreen> {
     });
   }
 
-  void _submitTest() {
+  Future<void> _submitTest() async {
     _timer?.cancel();
     final viewModel = context.read<PracticeViewModel>();
     final questions = viewModel.currentQuestions;
-    
+
     int correctCount = 0;
     for (int i = 0; i < questions.length; i++) {
-        if (_userAnswers[questions[i].id] == questions[i].correctAnswer) {
-            correctCount++;
-        }
+      if (_userAnswers[questions[i].id] == questions[i].correctAnswer) {
+        correctCount++;
+      }
     }
 
     setState(() {
       _isSubmitted = true;
     });
+
+    // ── Gọi API submit để backend lưu kết quả + trigger AI assessment ──
+    String attemptId = '0';
+    try {
+      if (_selectedPart != null) {
+        final result = await viewModel.submitPart(
+          _selectedPart!.id,
+          Map<String, String>.from(_userAnswers),
+          timeTaken: _isTimed
+              ? (_selectedPart!.timeLimit ?? 0) - _remainingTime.inSeconds
+              : null,
+        );
+        if (result != null) {
+          attemptId =
+              result['attemptId']?.toString() ??
+              result['id']?.toString() ??
+              '0';
+          debugPrint('[Part1] Submit success, attemptId: $attemptId');
+        }
+      }
+    } catch (e) {
+      debugPrint('[Part1] Submit error: $e');
+    }
+
+    if (!mounted) return;
 
     // Navigate to Result Screen (Unified flow)
     Navigator.pushReplacement(
@@ -148,7 +180,7 @@ class _Part1SimulationScreenState extends State<Part1SimulationScreen> {
             'userAnswers': _userAnswers,
           },
           part: _selectedPart!,
-          attemptId: '0', 
+          attemptId: attemptId,
         ),
       ),
     );
@@ -181,55 +213,78 @@ class _Part1SimulationScreenState extends State<Part1SimulationScreen> {
     );
   }
 
+  void _toggleFlag(String qId) {
+    setState(() {
+      if (_flaggedQuestions.contains(qId)) {
+        _flaggedQuestions.remove(qId);
+      } else {
+        _flaggedQuestions.add(qId);
+      }
+    });
+  }
+
   // ── Palette Helpers ───────────────────────────────────────────────────────
 
   // Xác định màu palette cho từng ô câu hỏi.
   // Khi ở chế độ Review (_isSubmitted = true): phân biệt Đúng/Sai.
   // Khi đang thi: chỉ phân biệt Đang xem / Chưa trả lời.
-  Map<String, dynamic> _getPaletteColorInfo(int i, List<QuestionModel> questions) {
+  Map<String, dynamic> _getPaletteColorInfo(
+    int i,
+    List<QuestionModel> questions,
+  ) {
     final qId = questions[i].id;
-    final isActive = i == _currentIndex;
-    final userAnswer = _userAnswers[qId];
-    final isUnanswered = userAnswer == null || userAnswer.isEmpty;
-    final isCorrect = userAnswer == questions[i].correctAnswer;
+    final bool isActive = i == _currentIndex;
+    final bool isFlagged = _flaggedQuestions.contains(qId);
+    final String? userAnswer = _userAnswers[qId];
+    final bool isAnswered = userAnswer != null && userAnswer.isNotEmpty;
 
-    // Câu đang được xem (ưu tiên cao nhất)
-    if (isActive) {
-      return {
-        'bg': AppColors.primary,          // Xanh dương đậm (#2563EB)
-        'border': AppColors.primary,
-        'text': Colors.white,
-        'shadow': true,
-      };
-    }
-
-    // Câu chưa trả lời
-    if (isUnanswered) {
-      return {
-        'bg': Colors.white,
-        'border': AppColors.divider,      // Slate 200 (#E2E8F0)
-        'text': AppColors.textSecondary,  // Slate 500 (#64748B)
-        'shadow': false,
-      };
-    }
-
-    // Câu trả lời Đúng (xanh lá nhạt)
-    if (isCorrect) {
-      return {
-        'bg': const Color(0xFFECFDF5),    // Emerald 50
-        'border': AppColors.success,      // Emerald 500 (#10B981)
-        'text': AppColors.success,
-        'shadow': false,
-      };
-    }
-
-    // Câu trả lời Sai (đỏ nhạt)
-    return {
-      'bg': const Color(0xFFFEF2F2),      // Red 50
-      'border': AppColors.error,          // Red 500 (#EF4444)
-      'text': AppColors.error,
+    // Default
+    Map<String, dynamic> info = {
+      'bg': Colors.white,
+      'border': AppColors.divider,
+      'text': AppColors.textSecondary,
       'shadow': false,
+      'borderWidth': 1.5,
     };
+
+    // 1. Result mode - Prioritize Correct/Incorrect if submitted
+    if (_isSubmitted && isAnswered) {
+      final bool isCorrect = userAnswer == questions[i].correctAnswer;
+      if (isCorrect) {
+        info['bg'] = const Color(0xFF10B981);
+        info['border'] = const Color(0xFF059669);
+        info['text'] = Colors.white;
+      } else {
+        info['bg'] = const Color(0xFFEF4444);
+        info['border'] = const Color(0xFFDC2626);
+        info['text'] = Colors.white;
+      }
+    } else if (isAnswered && !_isSubmitted) {
+      // Only show "Answered" purple base if NOT submitted
+      info['bg'] = AppColors.primary;
+      info['border'] = const Color(0xFF1E3A8A);
+      info['text'] = Colors.white;
+    }
+
+    // 2. Flag override (Show flag color if not submitted OR overwrite if flagged)
+    if (isFlagged && !_isSubmitted) {
+      info['bg'] = const Color(0xFFF59E0B);
+      info['border'] = const Color(0xFFD97706);
+      info['text'] = Colors.white;
+    }
+
+    // 3. Current indicator
+    if (isActive) {
+      info['border'] = _isSubmitted ? (info['text'] == Colors.white ? Colors.white : AppColors.primary) : AppColors.primary;
+      info['borderWidth'] = 3.5;
+      info['shadow'] = true;
+      if (info['bg'] == Colors.white) {
+        info['bg'] = AppColors.indigo50;
+        info['text'] = AppColors.primary;
+      }
+    }
+
+    return info;
   }
 
   void _showQuestionGrid(BuildContext context, List<QuestionModel> questions) {
@@ -281,10 +336,28 @@ class _Part1SimulationScreenState extends State<Part1SimulationScreen> {
                 spacing: 16,
                 runSpacing: 8,
                 children: [
-                  _buildPaletteLegendItem(AppColors.primary, Colors.white, 'Đang xem'),
-                  _buildPaletteLegendItem(const Color(0xFFECFDF5), AppColors.success, 'Đúng'),
-                  _buildPaletteLegendItem(const Color(0xFFFEF2F2), AppColors.error, 'Sai'),
-                  _buildPaletteLegendItem(Colors.white, AppColors.divider, 'Chưa trả lời'),
+                  _buildPaletteLegendItem(
+                    const Color(0xFFF59E0B),
+                    const Color(0xFFD97706),
+                    'Cắm cờ',
+                  ),
+                  if (_isSubmitted) ...[
+                    _buildPaletteLegendItem(
+                      const Color(0xFF10B981),
+                      const Color(0xFF059669),
+                      'Đúng',
+                    ),
+                    _buildPaletteLegendItem(
+                      const Color(0xFFEF4444),
+                      const Color(0xFFDC2626),
+                      'Sai',
+                    ),
+                  ],
+                  _buildPaletteLegendItem(
+                    Colors.white,
+                    AppColors.divider,
+                    'Chưa trả lời',
+                  ),
                 ],
               ),
               const SizedBox(height: 20),
@@ -302,6 +375,8 @@ class _Part1SimulationScreenState extends State<Part1SimulationScreen> {
                   ),
                   itemBuilder: (context, i) {
                     final colorInfo = _getPaletteColorInfo(i, questions);
+                    final isFlagged = _flaggedQuestions.contains(questions[i].id);
+
                     return GestureDetector(
                       onTap: () {
                         Navigator.pop(ctx);
@@ -318,27 +393,49 @@ class _Part1SimulationScreenState extends State<Part1SimulationScreen> {
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
                             color: colorInfo['border'],
-                            width: colorInfo['shadow'] == true ? 2 : 1.5,
+                            width: colorInfo['borderWidth'] ?? 1.5,
                           ),
                           boxShadow: colorInfo['shadow'] == true
-                              ? AppShadows.softShadow
+                              ? [
+                                  BoxShadow(
+                                    color: AppColors.primary.withValues(alpha: 0.3),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 2),
+                                  )
+                                ]
                               : [],
                         ),
-                        child: Center(
-                          child: Text(
-                            '${i + 1}',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 15,
-                              color: colorInfo['text'],
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            Text(
+                              '${i + 1}',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
+                                color: colorInfo['text'],
+                              ),
                             ),
-                          ),
+                            if (isFlagged)
+                              Positioned(
+                                top: 3,
+                                right: 3,
+                                child: Icon(
+                                  Icons.flag_rounded,
+                                  size: 9,
+                                  color: colorInfo['text'] == Colors.white ? Colors.white : AppColors.warning,
+                                ),
+                              ),
+                          ],
                         ),
                       ),
                     );
                   },
                 ),
               ),
+              
+              // Teacher Feedback Button
+              _buildFeedbackButtonInGrid(context),
               const SizedBox(height: 16),
             ],
           ),
@@ -348,7 +445,11 @@ class _Part1SimulationScreenState extends State<Part1SimulationScreen> {
   }
 
   // Một mục Legend nhỏ: ô màu + nhãn chữ
-  Widget _buildPaletteLegendItem(Color bgColor, Color borderColor, String label) {
+  Widget _buildPaletteLegendItem(
+    Color bgColor,
+    Color borderColor,
+    String label,
+  ) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -374,6 +475,39 @@ class _Part1SimulationScreenState extends State<Part1SimulationScreen> {
     );
   }
 
+  Widget _buildFeedbackButtonInGrid(BuildContext context) {
+    final user = context.read<AuthViewModel>().currentUser;
+    if (user?.classId == null) return const SizedBox.shrink();
+
+    return Container(
+      width: double.infinity,
+      height: 54,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        color: AppColors.indigo50,
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+      ),
+      child: TextButton.icon(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const ClassFeedbackScreen()),
+          );
+        },
+        icon: const Icon(Icons.chat_bubble_outline_rounded, size: 20, color: AppColors.primary),
+        label: const Text(
+          'GỬI Ý KIẾN GIÁO VIÊN',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 14,
+            color: AppColors.primary,
+            letterSpacing: 0.5,
+          ),
+        ),
+      ),
+    );
+  }
+
   // Mở ảnh full screen với Hero animation + pinch zoom
   void _openFullscreenImage(BuildContext ctx, String imageUrl) {
     Navigator.of(ctx).push(
@@ -394,7 +528,10 @@ class _Part1SimulationScreenState extends State<Part1SimulationScreen> {
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Center(
-          child: Text('Hủy làm bài?', style: TextStyle(fontWeight: FontWeight.bold)),
+          child: Text(
+            'Hủy làm bài?',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
         ),
         content: const Text(
           'Nếu bạn thoát ngay bây giờ, toàn bộ tiến trình làm bài sẽ bị mất và không được lưu lại.',
@@ -406,10 +543,7 @@ class _Part1SimulationScreenState extends State<Part1SimulationScreen> {
               Expanded(
                 child: TextButton(
                   onPressed: () => Navigator.of(ctx).pop(false),
-                  child: const Text(
-                    'Tiếp tục',
-                    textAlign: TextAlign.center,
-                  ),
+                  child: const Text('Tiếp tục', textAlign: TextAlign.center),
                 ),
               ),
               const SizedBox(width: 12),
@@ -424,10 +558,7 @@ class _Part1SimulationScreenState extends State<Part1SimulationScreen> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: const Text(
-                    'Thoát',
-                    textAlign: TextAlign.center,
-                  ),
+                  child: const Text('Thoát', textAlign: TextAlign.center),
                 ),
               ),
             ],
@@ -449,7 +580,8 @@ class _Part1SimulationScreenState extends State<Part1SimulationScreen> {
           Navigator.of(context).pop();
         }
       },
-      child: _showInstruction &&
+      child:
+          _showInstruction &&
               _selectedPart != null &&
               (_selectedPart!.instructions != null ||
                   _selectedPart!.instructionImgUrl != null)
@@ -459,182 +591,253 @@ class _Part1SimulationScreenState extends State<Part1SimulationScreen> {
               appBar: AppBar(
                 title: Text(
                   widget.test.title,
-                  style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 18),
-                ),
-        backgroundColor: const Color(0xFF2563EB),
-        foregroundColor: Colors.white,
-        elevation: 0,
-        actions: [
-          Consumer<PracticeViewModel>(
-            builder: (context, viewModel, child) {
-              if (widget.isReviewMode) {
-                return IconButton(
-                  icon: const Icon(Icons.grid_view_rounded),
-                  onPressed: () => _showQuestionGrid(context, viewModel.currentQuestions),
-                );
-              }
-              return Center(
-                child: Padding(
-                  padding: const EdgeInsets.only(right: 16.0),
-                  child: Text(
-                    '${_currentIndex + 1}/${viewModel.currentQuestions.length}',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  style: GoogleFonts.inter(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
                   ),
                 ),
-              );
-            },
-          ),
-        ],
-      ),
-      body: Consumer<PracticeViewModel>(
-        builder: (context, viewModel, child) {
-          if (viewModel.isLoading) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          final questions = viewModel.currentQuestions;
-          if (questions.isEmpty) {
-            return const Center(child: Text("Không có câu hỏi."));
-          }
-
-          return Column(
-            children: [
-              _buildAudioPlayer(),
-              Expanded(
-                child: PageView.builder(
-                  controller: _pageController,
-                  physics: widget.isReviewMode ? const BouncingScrollPhysics() : const NeverScrollableScrollPhysics(),
-                  onPageChanged: _onPageChanged,
-                  itemCount: questions.length,
-                  itemBuilder: (context, index) {
-                    final question = questions[index];
-                    return SingleChildScrollView(
-                      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                backgroundColor: const Color(0xFF2563EB),
+                foregroundColor: Colors.white,
+                elevation: 0,
+                actions: [
+                  Consumer<PracticeViewModel>(
+                    builder: (context, viewModel, child) {
+                      final currentQId = viewModel.currentQuestions.isNotEmpty && _currentIndex < viewModel.currentQuestions.length 
+                          ? viewModel.currentQuestions[_currentIndex].id 
+                          : null;
+                      
+                      return Row(
                         children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'Câu ${index + 1}',
-                                style: GoogleFonts.inter(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: const Color(0xFF1E3A8A),
-                                ),
+                          if (currentQId != null && !widget.isReviewMode)
+                            IconButton(
+                              icon: Icon(
+                                _flaggedQuestions.contains(currentQId)
+                                    ? Icons.flag_rounded
+                                    : Icons.flag_outlined,
+                                color: _flaggedQuestions.contains(currentQId)
+                                    ? Colors.amber
+                                    : Colors.white70,
                               ),
-                              if (_isTimed && !_isSubmitted)
-                                Text(
-                                  _formatDuration(_remainingTime),
-                                  style: TextStyle(
-                                    color: _remainingTime.inMinutes < 5 ? Colors.red : Colors.grey[600],
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-
-                          if (question.imageUrl != null)
-                            GestureDetector(
-                              onTap: () => _openFullscreenImage(context, question.imageUrl!),
-                              child: Hero(
-                                tag: 'passage_img_${question.id}',
-                                child: Container(
-                                  height: 300,
-                                  width: double.infinity,
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(24),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black.withValues(alpha: 0.05),
-                                        blurRadius: 20,
-                                        offset: const Offset(0, 10),
-                                      ),
-                                    ],
-                                  ),
-                                  child: Stack(
-                                    children: [
-                                      ClipRRect(
-                                        borderRadius: BorderRadius.circular(24),
-                                        child: Image.network(
-                                          question.imageUrl!,
-                                          fit: BoxFit.contain,
-                                          width: double.infinity,
-                                          height: double.infinity,
-                                        ),
-                                      ),
-                                      // Hint icon để biết có thể tap
-                                      Positioned(
-                                        bottom: 10,
-                                        right: 10,
-                                        child: Container(
-                                          padding: const EdgeInsets.all(6),
-                                          decoration: BoxDecoration(
-                                            color: Colors.black.withValues(alpha: 0.5),
-                                            borderRadius: BorderRadius.circular(8),
-                                          ),
-                                          child: const Icon(
-                                            Icons.zoom_in_rounded,
-                                            color: Colors.white,
-                                            size: 18,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
+                              onPressed: () => _toggleFlag(currentQId),
+                            ),
+                          if (widget.isReviewMode || _isSubmitted)
+                            IconButton(
+                              icon: const Icon(Icons.grid_view_rounded),
+                              onPressed: () => _showQuestionGrid(
+                                context,
+                                viewModel.currentQuestions,
                               ),
                             ),
-                          
-                          const SizedBox(height: 24),
-
-                          _buildOption(question.id, 'A', question.optionA, question.correctAnswer),
-                          _buildOption(question.id, 'B', question.optionB, question.correctAnswer),
-                          _buildOption(question.id, 'C', question.optionC, question.correctAnswer),
-                          _buildOption(question.id, 'D', question.optionD, question.correctAnswer),
-
-                          if (widget.isReviewMode) 
-                            _buildAIFeedbackArea(question, index),
-
-                          const SizedBox(height: 12),
-                          if (_isSubmitted) ...[
-                            const SizedBox(height: 12),
-                            _buildTranscriptReview(question),
-                          ],
-                          const SizedBox(height: 40),
+                          Center(
+                            child: Padding(
+                              padding: const EdgeInsets.only(right: 16.0),
+                              child: Text(
+                                '${_currentIndex + 1}/${viewModel.currentQuestions.length}',
+                                style: const TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                          ),
                         ],
-                      ),
-                    );
-                  },
-                ),
+                      );
+                    },
+                  ),
+                ],
               ),
-              _buildBottomNavigation(questions),
-            ],
-          );
-        },
-        ),
-      ),
+              body: Consumer<PracticeViewModel>(
+                builder: (context, viewModel, child) {
+                  if (viewModel.isLoading) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+
+                  final questions = viewModel.currentQuestions;
+                  if (questions.isEmpty) {
+                    return const Center(child: Text("Không có câu hỏi."));
+                  }
+
+                  return Column(
+                    children: [
+                      _buildAudioPlayer(),
+                      Expanded(
+                        child: PageView.builder(
+                          controller: _pageController,
+                          physics: widget.isReviewMode
+                              ? const BouncingScrollPhysics()
+                              : const NeverScrollableScrollPhysics(),
+                          onPageChanged: _onPageChanged,
+                          itemCount: questions.length,
+                          itemBuilder: (context, index) {
+                            final question = questions[index];
+                            return SingleChildScrollView(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16.0,
+                                vertical: 16,
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  if (index == 0 && widget.overallFeedback != null && widget.overallFeedback!.isNotEmpty)
+                                    _buildOverallAssessmentCard(),
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        'Câu ${index + 1}',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                          color: const Color(0xFF1E3A8A),
+                                        ),
+                                      ),
+                                      if (_isTimed && !_isSubmitted)
+                                        Text(
+                                          _formatDuration(_remainingTime),
+                                          style: TextStyle(
+                                            color: _remainingTime.inMinutes < 5
+                                                ? Colors.red
+                                                : Colors.grey[600],
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 16),
+
+                                  if (question.imageUrl != null)
+                                    GestureDetector(
+                                      onTap: () => _openFullscreenImage(
+                                        context,
+                                        question.imageUrl!,
+                                      ),
+                                      child: Hero(
+                                        tag: 'passage_img_${question.id}',
+                                        child: Container(
+                                          height: 250,
+                                          width: double.infinity,
+                                          decoration: BoxDecoration(
+                                            color: Colors.white,
+                                            borderRadius: BorderRadius.circular(
+                                              24,
+                                            ),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: Colors.black.withValues(
+                                                  alpha: 0.05,
+                                                ),
+                                                blurRadius: 20,
+                                                offset: const Offset(0, 10),
+                                              ),
+                                            ],
+                                          ),
+                                          child: Stack(
+                                            children: [
+                                              ClipRRect(
+                                                borderRadius:
+                                                    BorderRadius.circular(24),
+                                                child: Image.network(
+                                                  question.imageUrl!,
+                                                  fit: BoxFit.contain,
+                                                  width: double.infinity,
+                                                  height: double.infinity,
+                                                ),
+                                              ),
+                                              // Hint icon để biết có thể tap
+                                              Positioned(
+                                                bottom: 10,
+                                                right: 10,
+                                                child: Container(
+                                                  padding: const EdgeInsets.all(
+                                                    6,
+                                                  ),
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.black
+                                                        .withValues(alpha: 0.5),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          8,
+                                                        ),
+                                                  ),
+                                                  child: const Icon(
+                                                    Icons.zoom_in_rounded,
+                                                    color: Colors.white,
+                                                    size: 18,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+
+                                  const SizedBox(height: 16),
+
+                                  _buildOption(
+                                    question.id,
+                                    'A',
+                                    question.optionA,
+                                    question.correctAnswer,
+                                  ),
+                                  _buildOption(
+                                    question.id,
+                                    'B',
+                                    question.optionB,
+                                    question.correctAnswer,
+                                  ),
+                                  _buildOption(
+                                    question.id,
+                                    'C',
+                                    question.optionC,
+                                    question.correctAnswer,
+                                  ),
+                                  _buildOption(
+                                    question.id,
+                                    'D',
+                                    question.optionD,
+                                    question.correctAnswer,
+                                  ),
+
+                                  if (widget.isReviewMode)
+                                    _buildAIFeedbackArea(question, index),
+
+                                  const SizedBox(height: 12),
+                                  if (_isSubmitted) ...[
+                                    const SizedBox(height: 12),
+                                    _buildTranscriptReview(question),
+                                  ],
+                                  const SizedBox(height: 12),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      _buildBottomNavigation(questions),
+                    ],
+                  );
+                },
+              ),
+            ),
     );
   }
 
   Widget _buildAIFeedbackArea(QuestionModel question, int index) {
     final userAnswer = _userAnswers[question.id];
     final isCorrect = userAnswer == question.correctAnswer;
-    
+
     // Logic: If incorrect and has AI feedback, show the orange tip card.
     // If it has explanation, show the blue explanation card.
-    
+
     final bool hasAIFeedback = widget.aiFeedbacks != null;
-    final bool hasExplanation = question.explanation != null && question.explanation!.isNotEmpty;
-    
+    final bool hasExplanation =
+        question.explanation != null && question.explanation!.isNotEmpty;
+
     if (!hasAIFeedback && !hasExplanation) return const SizedBox.shrink();
-    
+
     return Column(
       children: [
-        if (hasAIFeedback && !isCorrect) _buildAITipCard(question.questionNumber),
+        if (hasAIFeedback && !isCorrect)
+          _buildAITipCard(question.questionNumber),
         if (hasExplanation) ...[
           const SizedBox(height: 16),
           _buildExplanationCard(question),
@@ -652,7 +855,9 @@ class _Part1SimulationScreenState extends State<Part1SimulationScreen> {
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF2563EB).withValues(alpha: 0.2)),
+        border: Border.all(
+          color: const Color(0xFF2563EB).withValues(alpha: 0.2),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -664,7 +869,7 @@ class _Part1SimulationScreenState extends State<Part1SimulationScreen> {
                 const Icon(Icons.auto_awesome, color: Colors.orange, size: 20),
                 const SizedBox(width: 8),
                 Text(
-                  'Phân tích từ Gia sư AI',
+                  'Phân tích từ AI',
                   style: GoogleFonts.inter(
                     fontWeight: FontWeight.bold,
                     color: const Color(0xFF1E293B),
@@ -677,13 +882,54 @@ class _Part1SimulationScreenState extends State<Part1SimulationScreen> {
           const Divider(),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-            child: HtmlWidget(
-              question.explanation!,
-              textStyle: GoogleFonts.inter(
-                fontSize: 14,
-                height: 1.6,
-                color: const Color(0xFF475569),
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (question.questionTranslation != null &&
+                    question.questionTranslation!.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Text(
+                      'Dịch câu hỏi: ${question.questionTranslation}',
+                      style: GoogleFonts.inter(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF1E3A8A),
+                      ),
+                    ),
+                  ),
+                if (question.analysis != null && question.analysis!.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: HtmlWidget(
+                      '<b>Phân tích:</b><br/>${question.analysis}',
+                      textStyle: GoogleFonts.inter(fontSize: 14, height: 1.5),
+                    ),
+                  ),
+                if (question.evidence != null && question.evidence!.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: HtmlWidget(
+                      '<b>Bằng chứng:</b><br/>${question.evidence}',
+                      textStyle: GoogleFonts.inter(
+                        fontSize: 14,
+                        height: 1.5,
+                        color: Colors.green.shade800,
+                      ),
+                    ),
+                  ),
+                if (question.explanation != null &&
+                    question.explanation!.isNotEmpty &&
+                    (question.analysis == null || question.analysis!.isEmpty))
+                  HtmlWidget(
+                    question.explanation!,
+                    textStyle: GoogleFonts.inter(
+                      fontSize: 14,
+                      height: 1.6,
+                      color: const Color(0xFF475569),
+                    ),
+                  ),
+              ],
             ),
           ),
         ],
@@ -698,7 +944,8 @@ class _Part1SimulationScreenState extends State<Part1SimulationScreen> {
     );
 
     if (feedback == null) return const SizedBox.shrink();
-    final String tipText = feedback['tip'] ?? feedback['comment'] ?? feedback['feedback'] ?? '';
+    final String tipText =
+        feedback['tip'] ?? feedback['comment'] ?? feedback['feedback'] ?? '';
     if (tipText.isEmpty) return const SizedBox.shrink();
 
     return Container(
@@ -725,7 +972,7 @@ class _Part1SimulationScreenState extends State<Part1SimulationScreen> {
                     fontSize: 14,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 2),
                 Text(
                   tipText,
                   style: GoogleFonts.inter(
@@ -755,7 +1002,7 @@ class _Part1SimulationScreenState extends State<Part1SimulationScreen> {
 
   Widget _buildOption(String qId, String label, String? text, String? correct) {
     if (text == null) return const SizedBox.shrink();
-    
+
     bool isSelected = _userAnswers[qId] == label;
     bool isCorrect = correct == label;
 
@@ -782,24 +1029,30 @@ class _Part1SimulationScreenState extends State<Part1SimulationScreen> {
     return GestureDetector(
       onTap: () => _onOptionSelected(qId, label),
       child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(16),
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: color,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: borderColor, width: (isSelected || (_isSubmitted && isCorrect)) ? 2 : 1),
+          border: Border.all(
+            color: borderColor,
+            width: (isSelected || (_isSubmitted && isCorrect)) ? 2 : 1,
+          ),
         ),
         child: Row(
           children: [
             CircleAvatar(
-              radius: 14,
-              backgroundColor: (isSelected || (_isSubmitted && isCorrect)) 
-                  ? borderColor : Colors.grey[100],
+              radius: 12,
+              backgroundColor: (isSelected || (_isSubmitted && isCorrect))
+                  ? borderColor
+                  : Colors.grey[100],
               child: Text(
                 label,
                 style: TextStyle(
-                  color: (isSelected || (_isSubmitted && isCorrect)) ? Colors.white : Colors.black54,
-                  fontSize: 14,
+                  color: (isSelected || (_isSubmitted && isCorrect))
+                      ? Colors.white
+                      : Colors.black54,
+                  fontSize: 12,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -807,15 +1060,19 @@ class _Part1SimulationScreenState extends State<Part1SimulationScreen> {
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                _isSubmitted ? text : "Đáp án $label",
+                "Đáp án $label",
                 style: GoogleFonts.inter(
                   color: textColor,
-                  fontWeight: (isSelected || (_isSubmitted && isCorrect)) ? FontWeight.w600 : FontWeight.normal,
+                  fontWeight: (isSelected || (_isSubmitted && isCorrect))
+                      ? FontWeight.w600
+                      : FontWeight.normal,
                 ),
               ),
             ),
-            if (_isSubmitted && isCorrect) const Icon(Icons.check_circle, color: Color(0xFF10B981)),
-            if (_isSubmitted && isSelected && !isCorrect) const Icon(Icons.cancel, color: Color(0xFFEF4444)),
+            if (_isSubmitted && isCorrect)
+              const Icon(Icons.check_circle, color: Color(0xFF10B981), size: 18),
+            if (_isSubmitted && isSelected && !isCorrect)
+              const Icon(Icons.cancel, color: Color(0xFFEF4444), size: 18),
           ],
         ),
       ),
@@ -824,7 +1081,7 @@ class _Part1SimulationScreenState extends State<Part1SimulationScreen> {
 
   Widget _buildTranscriptReview(QuestionModel question) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -835,15 +1092,18 @@ class _Part1SimulationScreenState extends State<Part1SimulationScreen> {
         children: [
           Text(
             "Transcript:",
-            style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: Colors.blueGrey),
+            style: GoogleFonts.inter(
+              fontWeight: FontWeight.bold,
+              color: Colors.blueGrey,
+            ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           _buildTranscriptRow('A', question.optionA ?? ""),
-          const Divider(),
+          const Divider(height: 8),
           _buildTranscriptRow('B', question.optionB ?? ""),
-          const Divider(),
+          const Divider(height: 8),
           _buildTranscriptRow('C', question.optionC ?? ""),
-          const Divider(),
+          const Divider(height: 8),
           _buildTranscriptRow('D', question.optionD ?? ""),
         ],
       ),
@@ -852,12 +1112,20 @@ class _Part1SimulationScreenState extends State<Part1SimulationScreen> {
 
   Widget _buildTranscriptRow(String label, String text) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text("($label) ", style: const TextStyle(fontWeight: FontWeight.bold)),
-          Expanded(child: TouchablePassageWidget(htmlContent: text, translations: const [])),
+          Text(
+            "($label) ",
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+          Expanded(
+            child: TouchablePassageWidget(
+              htmlContent: text,
+              translations: const [],
+            ),
+          ),
         ],
       ),
     );
@@ -866,7 +1134,7 @@ class _Part1SimulationScreenState extends State<Part1SimulationScreen> {
   Widget _buildBottomNavigation(List<QuestionModel> questions) {
     if (widget.isReviewMode) {
       return Container(
-        padding: const EdgeInsets.symmetric(vertical: 16),
+        padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
           color: Colors.white,
           boxShadow: [
@@ -874,7 +1142,7 @@ class _Part1SimulationScreenState extends State<Part1SimulationScreen> {
               color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 10,
               offset: const Offset(0, -5),
-            )
+            ),
           ],
         ),
         child: Column(
@@ -882,7 +1150,7 @@ class _Part1SimulationScreenState extends State<Part1SimulationScreen> {
           children: [
             // Mini Palette
             SizedBox(
-              height: 44,
+              height: 40,
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
                 itemCount: questions.length,
@@ -898,7 +1166,7 @@ class _Part1SimulationScreenState extends State<Part1SimulationScreen> {
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 200),
                       margin: const EdgeInsets.symmetric(horizontal: 4),
-                      width: 44,
+                      width: 40,
                       decoration: BoxDecoration(
                         color: colorInfo['bg'],
                         borderRadius: BorderRadius.circular(10),
@@ -915,7 +1183,7 @@ class _Part1SimulationScreenState extends State<Part1SimulationScreen> {
                           '${i + 1}',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
-                            fontSize: 14,
+                            fontSize: 12,
                             color: colorInfo['text'],
                           ),
                         ),
@@ -925,14 +1193,14 @@ class _Part1SimulationScreenState extends State<Part1SimulationScreen> {
                 },
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 8),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
                   onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.close_rounded, size: 20),
+                  icon: const Icon(Icons.close_rounded, size: 18),
                   label: const Text(
                     "Đóng chế độ xem lại",
                     style: TextStyle(
@@ -941,10 +1209,10 @@ class _Part1SimulationScreenState extends State<Part1SimulationScreen> {
                     ),
                   ),
                   style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
                     side: const BorderSide(color: Color(0xFFE2E8F0), width: 2),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(12),
                     ),
                   ),
                 ),
@@ -956,7 +1224,7 @@ class _Part1SimulationScreenState extends State<Part1SimulationScreen> {
     }
 
     return Container(
-      padding: const EdgeInsets.all(16).copyWith(bottom: 32),
+      padding: const EdgeInsets.all(12).copyWith(bottom: 24),
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
@@ -964,7 +1232,7 @@ class _Part1SimulationScreenState extends State<Part1SimulationScreen> {
             color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, -5),
-          )
+          ),
         ],
       ),
       child: Row(
@@ -979,7 +1247,7 @@ class _Part1SimulationScreenState extends State<Part1SimulationScreen> {
                   style: TextStyle(color: Colors.black87),
                 ),
                 style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
                   side: const BorderSide(color: Color(0xFFE2E8F0)),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -1004,8 +1272,8 @@ class _Part1SimulationScreenState extends State<Part1SimulationScreen> {
                 _currentIndex < questions.length - 1
                     ? Icons.arrow_forward_rounded
                     : (_isSubmitted
-                        ? Icons.check_circle_rounded
-                        : Icons.send_rounded),
+                          ? Icons.check_circle_rounded
+                          : Icons.send_rounded),
                 size: 16,
               ),
               label: Text(
@@ -1017,7 +1285,7 @@ class _Part1SimulationScreenState extends State<Part1SimulationScreen> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF2563EB),
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 16),
+                padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -1030,43 +1298,222 @@ class _Part1SimulationScreenState extends State<Part1SimulationScreen> {
   }
 
   Widget _buildInstructionScreen(BuildContext context) {
+    const Color adminBlue = Color(0xFF2563EB);
+
     return Scaffold(
       backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.camera_alt_outlined, size: 80, color: Color(0xFF2563EB)),
-              const SizedBox(height: 32),
-              Text(
-                "Part 1: Photographs",
-                style: GoogleFonts.inter(fontSize: 24, fontWeight: FontWeight.bold, color: const Color(0xFF1E3A8A)),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                "Bạn sẽ thấy một bức ảnh cho mỗi câu hỏi. Hãy nghe 4 phương án mô tả và chọn đáp án đúng nhất. Lưu ý: Các phương án sẽ không được in trong đề thi.",
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 16, height: 1.5, color: Colors.black54),
-              ),
-              const Spacer(),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () => setState(() => _showInstruction = false),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF2563EB),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 18),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      appBar: AppBar(
+        title: Text(
+          _selectedPart?.partName ?? 'Part 1: Photographs',
+          style: GoogleFonts.inter(fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: adminBlue,
+        foregroundColor: Colors.white,
+        elevation: 0,
+      ),
+      body: Column(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16.0),
+              physics: const BouncingScrollPhysics(),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Directions Header
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: adminBlue.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.camera_alt_outlined,
+                          color: adminBlue,
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        "Directions",
+                        style: GoogleFonts.inter(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                          color: const Color(0xFF1E293B),
+                        ),
+                      ),
+                    ],
                   ),
-                  child: const Text("Bắt đầu làm bài", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 24),
+
+                  // Image (if any)
+                  if (_selectedPart?.instructionImgUrl != null)
+                    Container(
+                      width: double.infinity,
+                      margin: const EdgeInsets.only(bottom: 24),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.05),
+                            blurRadius: 15,
+                            offset: const Offset(0, 5),
+                          ),
+                        ],
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(20),
+                        child: Image.network(
+                          _selectedPart!.instructionImgUrl!,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    ),
+
+                  // Instructions Content (Supports HTML)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                    ),
+                    child: HtmlWidget(
+                      _selectedPart?.instructions ??
+                          "Bạn sẽ thấy một bức ảnh cho mỗi câu hỏi. Hãy nghe 4 phương án mô tả và chọn đáp án đúng nhất. Lưu ý: Các phương án sẽ không được in trong đề thi.",
+                      textStyle: GoogleFonts.inter(
+                        fontSize: 15,
+                        height: 1.7,
+                        color: const Color(0xFF475569),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+                ],
+              ),
+            ),
+          ),
+
+          // Bottom Button Area
+          Container(
+            padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 20,
+                  offset: const Offset(0, -5),
+                ),
+              ],
+            ),
+            child: SizedBox(
+              width: double.infinity,
+              height: 56,
+              child: ElevatedButton(
+                onPressed: () => setState(() => _showInstruction = false),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF2563EB),
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+                child: Text(
+                  "Bắt đầu làm bài",
+                  style: GoogleFonts.inter(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOverallAssessmentCard() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 24),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [const Color(0xFFF59E0B).withValues(alpha: 0.1), Colors.white],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.2)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFF59E0B).withValues(alpha: 0.05),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF59E0B).withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.psychology_alt_rounded, color: Color(0xFFF59E0B), size: 28),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'TỔNG KẾT TỪ AI COACH',
+                      style: GoogleFonts.inter(
+                        fontWeight: FontWeight.w900,
+                        color: const Color(0xFF92400E),
+                        fontSize: 16,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    Text(
+                      'Phân tích năng lực làm bài của bạn',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFFB45309),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
-        ),
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 16),
+            child: Divider(color: Color(0xFFF59E0B), thickness: 0.5),
+          ),
+          HtmlWidget(
+            widget.overallFeedback!,
+            textStyle: GoogleFonts.inter(
+              fontSize: 15,
+              height: 1.6,
+              color: const Color(0xFF92400E),
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1098,8 +1545,8 @@ class _FullscreenImageViewer extends StatelessWidget {
         child: InteractiveViewer(
           panEnabled: true,
           scaleEnabled: true, // Bật zoom
-          minScale: 0.5,      // Thu nhỏ tối đa 0.5x
-          maxScale: 5.0,      // Phóng to tối đa 5x
+          minScale: 0.5, // Thu nhỏ tối đa 0.5x
+          maxScale: 5.0, // Phóng to tối đa 5x
           boundaryMargin: const EdgeInsets.all(20), // Thêm vùng đệm khi kéo
           child: Image.network(
             imageUrl,
@@ -1110,7 +1557,7 @@ class _FullscreenImageViewer extends StatelessWidget {
                 child: CircularProgressIndicator(
                   value: progress.expectedTotalBytes != null
                       ? progress.cumulativeBytesLoaded /
-                          progress.expectedTotalBytes!
+                            progress.expectedTotalBytes!
                       : null,
                   color: Colors.white,
                 ),
