@@ -20,6 +20,9 @@ class UserModel {
   final String? classId;
   final String? className;
   final String? teacherName;
+  final int estimatedScore;
+  final int estimatedListening;
+  final int estimatedReading;
 
   UserModel({
     required this.id,
@@ -41,6 +44,9 @@ class UserModel {
     this.classId,
     this.className,
     this.teacherName,
+    this.estimatedScore = 0,
+    this.estimatedListening = 0,
+    this.estimatedReading = 0,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
@@ -66,6 +72,9 @@ class UserModel {
       classId: json['classId'] as String?,
       className: json['className'] as String?,
       teacherName: json['teacherName'] as String?,
+      estimatedScore: json['estimatedScore'] as int? ?? 0,
+      estimatedListening: json['estimatedListening'] as int? ?? 0,
+      estimatedReading: json['estimatedReading'] as int? ?? 0,
     );
   }
 
@@ -90,6 +99,9 @@ class UserModel {
       if (classId != null) 'classId': classId,
       if (className != null) 'className': className,
       if (teacherName != null) 'teacherName': teacherName,
+      'estimatedScore': estimatedScore,
+      'estimatedListening': estimatedListening,
+      'estimatedReading': estimatedReading,
     };
   }
 
@@ -113,6 +125,9 @@ class UserModel {
     String? classId,
     String? className,
     String? teacherName,
+    int? estimatedScore,
+    int? estimatedListening,
+    int? estimatedReading,
   }) {
     return UserModel(
       id: id ?? this.id,
@@ -134,6 +149,9 @@ class UserModel {
       classId: classId ?? this.classId,
       className: className ?? this.className,
       teacherName: teacherName ?? this.teacherName,
+      estimatedScore: estimatedScore ?? this.estimatedScore,
+      estimatedListening: estimatedListening ?? this.estimatedListening,
+      estimatedReading: estimatedReading ?? this.estimatedReading,
     );
   }
 

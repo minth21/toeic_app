@@ -13,18 +13,21 @@ import 'test_simulation_screen.dart';
 import '../models/question_model.dart';
 import 'widgets/vocab_flashcard_panel.dart';
 import '../../auth/viewmodels/auth_viewmodel.dart';
+import '../../home/viewmodels/dashboard_viewmodel.dart';
 import 'class_feedback_screen.dart';
 
 class PracticeResultScreen extends StatefulWidget {
   final Map<String, dynamic> resultData;
   final PartModel part;
   final String attemptId;
+  final bool fromSimulation;
 
   const PracticeResultScreen({
     super.key,
     required this.resultData,
     required this.part,
     required this.attemptId,
+    this.fromSimulation = false,
   });
 
   @override
@@ -37,6 +40,7 @@ class _PracticeResultScreenState extends State<PracticeResultScreen> {
   bool _isLoadingDetail = false;
   List<Map<String, dynamic>> _recommendations = [];
   Map<String, Map<String, int>> _topicStats = {}; // topic -> {correct, total}
+  Map<String, dynamic>? _attemptDetail;
   final ScrollController _aiScrollController = ScrollController();
   String _loadingMessage = 'AI đang tổng hợp kết quả...';
 
@@ -44,6 +48,7 @@ class _PracticeResultScreenState extends State<PracticeResultScreen> {
   void initState() {
     super.initState();
     _fetchAIData();
+    _fetchAttemptMetadata(); // 🔥 Fetch questions/vocab immediately
     _fetchRecommendations();
     _startLoadingTimer();
   }
@@ -81,6 +86,7 @@ class _PracticeResultScreenState extends State<PracticeResultScreen> {
   }
 
   Future<void> _fetchAIData() async {
+    // Keep internal analytics as is, but we'll complement with local metadata
     setState(() => _isAnalyzing = true);
     final viewModel = context.read<PracticeViewModel>();
     final data = await viewModel.pollAIAssessment(widget.attemptId);
@@ -89,7 +95,16 @@ class _PracticeResultScreenState extends State<PracticeResultScreen> {
       setState(() {
         if (data != null) {
           try {
-            _aiData = jsonDecode(data) as Map<String, dynamic>;
+            final decodedAi = jsonDecode(data) as Map<String, dynamic>;
+            // Merge AI data but preserve local vocab if it came in first
+            if (_aiData != null &&
+                _aiData!['vocabularyFlashcards'] != null &&
+                (decodedAi['vocabularyFlashcards'] == null ||
+                    (decodedAi['vocabularyFlashcards'] as List).isEmpty)) {
+              decodedAi['vocabularyFlashcards'] =
+                  _aiData!['vocabularyFlashcards'];
+            }
+            _aiData = decodedAi;
           } catch (e) {
             debugPrint('Error parsing AI data: $e');
           }
@@ -99,10 +114,133 @@ class _PracticeResultScreenState extends State<PracticeResultScreen> {
     }
   }
 
+  Future<void> _fetchAttemptMetadata() async {
+    try {
+      final viewModel = context.read<PracticeViewModel>();
+      final attempt = await viewModel.loadAttemptDetail(widget.attemptId);
+
+      if (attempt != null && mounted) {
+        _processAttemptDetails(attempt['details'] ?? []);
+      }
+    } catch (e) {
+      debugPrint('Error loading early metadata: $e');
+    }
+  }
+
+  void _processAttemptDetails(List<dynamic> details) {
+    if (!mounted) return;
+
+    final Map<String, Map<String, int>> stats = {};
+    final List<dynamic> aggregatedVocab = [];
+    final List<Map<String, dynamic>> wrongQuestions = [];
+    final Set<String> seenWords = {};
+
+    for (var d in details) {
+      final qMap = Map<String, dynamic>.from(d['question'] as Map);
+      qMap['id'] = d['questionId']?.toString() ?? '';
+
+      // 1. Parse topic stats
+      final tag = qMap['topic_tag'] ?? qMap['topicTag'] ?? 'Tổng quát';
+      final String correctAnswer = (qMap['correctAnswer'] ?? '')
+          .toString()
+          .trim()
+          .toUpperCase();
+      final String userAnswer = (d['userAnswer'] ?? '')
+          .toString()
+          .trim()
+          .toUpperCase();
+      final isCorrect = userAnswer == correctAnswer;
+
+      if (!isCorrect) {
+        wrongQuestions.add({'question': qMap, 'userAnswer': userAnswer});
+      }
+
+      if (!stats.containsKey(tag)) {
+        stats[tag] = {'correct': 0, 'total': 0};
+      }
+      stats[tag]!['total'] = stats[tag]!['total']! + 1;
+      if (isCorrect) {
+        stats[tag]!['correct'] = stats[tag]!['correct']! + 1;
+      }
+
+      // 2. Aggregate keyVocabulary
+      final rawKeyVocab = qMap['keyVocabulary'];
+      if (rawKeyVocab != null &&
+          rawKeyVocab.toString().isNotEmpty &&
+          rawKeyVocab.toString() != '[]') {
+        try {
+          final decoded = (rawKeyVocab is String)
+              ? jsonDecode(rawKeyVocab)
+              : rawKeyVocab;
+
+          List<dynamic> vocabItems = [];
+          if (decoded is List) {
+            vocabItems = decoded;
+          } else if (decoded is Map && decoded.containsKey('vocabulary')) {
+            vocabItems = decoded['vocabulary'] is List
+                ? decoded['vocabulary']
+                : [];
+          }
+
+          for (var v in vocabItems) {
+            if (v is! Map) continue;
+            final word = (v['word'] ?? v['text'] ?? '').toString();
+            if (word.isNotEmpty && !seenWords.contains(word.toLowerCase())) {
+              v['ipa'] = v['ipa'] ?? v['pronunciation'];
+              aggregatedVocab.add(v);
+              seenWords.add(word.toLowerCase());
+            }
+          }
+        } catch (e) {
+          debugPrint('Error parsing keyVocabulary: $e');
+        }
+      }
+    }
+
+    setState(() {
+      _topicStats = stats;
+      _attemptDetail = {'details': details}; // Store for review screen
+
+      // Seed _aiData with local vocab immediately so it shows up before AI finishes
+      if (_aiData == null) {
+        _aiData = {
+          'vocabularyFlashcards': aggregatedVocab,
+          'wrongQuestions': wrongQuestions,
+        };
+      } else {
+        _aiData!['wrongQuestions'] = wrongQuestions;
+        final List currentVocab =
+            (_aiData!['vocabularyFlashcards'] as List?) ?? [];
+        if (currentVocab.isEmpty && aggregatedVocab.isNotEmpty) {
+          _aiData!['vocabularyFlashcards'] = aggregatedVocab;
+        } else if (aggregatedVocab.isNotEmpty) {
+          _aiData!['vocabularyFlashcards'] = aggregatedVocab;
+        }
+      }
+    });
+  }
+
   @override
   void dispose() {
     _aiScrollController.dispose();
     super.dispose();
+  }
+
+  void _onBack() {
+    // Refresh dashboard to show new scores/progress
+    try {
+      context.read<DashboardViewModel>().loadDashboard();
+    } catch (e) {
+      debugPrint('Error refreshing dashboard: $e');
+    }
+
+    if (widget.fromSimulation) {
+      // Return to exercise list (Lùi 2 lần: Result -> Detail -> List)
+      Navigator.pop(context); // Bỏ qua trang này
+      Navigator.pop(context); // Quay về trang danh sách
+    } else {
+      Navigator.pop(context);
+    }
   }
 
   @override
@@ -126,7 +264,7 @@ class _PracticeResultScreenState extends State<PracticeResultScreen> {
                 Row(
                   children: [
                     IconButton(
-                      onPressed: () => Navigator.pop(context),
+                      onPressed: _onBack,
                       icon: const Icon(Icons.arrow_back_ios_new, size: 20),
                     ),
                     Text(
@@ -398,17 +536,13 @@ class _PracticeResultScreenState extends State<PracticeResultScreen> {
           ),
           const SizedBox(height: 16),
         ],
+
         if (_aiData?['strengths'] != null ||
             _aiData?['weaknesses'] != null) ...[
           _buildStrengthsWeaknesses(
             _aiData?['strengths'],
             _aiData?['weaknesses'],
           ),
-          const SizedBox(height: 16),
-        ],
-        if (_aiData?['vocabularyFlashcards'] != null &&
-            (_aiData?['vocabularyFlashcards'] as List).isNotEmpty) ...[
-          _buildVocabularySection(_aiData?['vocabularyFlashcards'] as List),
           const SizedBox(height: 16),
         ],
         _buildSectionTitle('Nhận xét từ AI'),
@@ -473,12 +607,23 @@ class _PracticeResultScreenState extends State<PracticeResultScreen> {
                                   const Icon(
                                     Icons.auto_awesome,
                                     color: AppColors.primary,
-                                    size: 24,
+                                    size: 22,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  const Icon(
+                                    Icons.verified_user_rounded,
+                                    color: Color(0xFF2563EB),
+                                    size: 18,
                                   ),
                                   const SizedBox(width: 12),
                                   Flexible(
                                     child: Text(
-                                      _aiData!['shortFeedback'].toString(),
+                                      (_aiData!['shortFeedback']?.toString() ??
+                                                  "")
+                                              .isEmpty
+                                          ? "AI đang tổng hợp đánh giá chi tiết cho bạn..."
+                                          : _aiData!['shortFeedback']
+                                                .toString(),
                                       softWrap: true,
                                       overflow: TextOverflow.visible,
                                       style: const TextStyle(
@@ -504,49 +649,22 @@ class _PracticeResultScreenState extends State<PracticeResultScreen> {
                             ),
                           ),
                           const SizedBox(height: 4),
+
                           // Quick Action: View Detailed Explanation
-                          Center(
-                            child: TextButton.icon(
-                              onPressed: _isLoadingDetail
-                                  ? null
-                                  : _handleReview,
-                              icon: _isLoadingDetail
-                                  ? const SizedBox(
-                                      width: 16,
-                                      height: 16,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                      ),
-                                    )
-                                  : const Icon(Icons.arrow_right_alt_rounded),
-                              label: const FittedBox(
-                                child: Text(
-                                  'XEM LỜI GIẢI',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w900,
-                                    fontSize: 13,
-                                    letterSpacing: 0.5,
-                                  ),
-                                ),
-                              ),
-                              style: TextButton.styleFrom(
-                                foregroundColor: AppColors.primary,
-                                backgroundColor: AppColors.primary.withValues(
-                                  alpha: 0.05,
-                                ),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 20,
-                                  vertical: 12,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                            ),
-                          ),
                         ],
                       ),
               ),
+        if (_aiData?['wrongQuestions'] != null &&
+            (_aiData?['wrongQuestions'] as List).isNotEmpty) ...[
+          const SizedBox(height: 24),
+          _buildQuickReviewPortal(_aiData?['wrongQuestions'] as List),
+        ],
+        if (_aiData?['vocabularyFlashcards'] != null &&
+            (_aiData?['vocabularyFlashcards'] as List).isNotEmpty) ...[
+          const SizedBox(height: 40),
+          _buildVocabularySection(_aiData?['vocabularyFlashcards'] as List),
+        ],
+
         if (_recommendations.isNotEmpty) ...[
           const SizedBox(height: 40),
           _buildRecommendationsSection(),
@@ -615,11 +733,8 @@ class _PracticeResultScreenState extends State<PracticeResultScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [Expanded(child: _buildSectionTitle('Làm chủ Từ vựng'))],
-        ),
-        const SizedBox(height: 12),
+        _buildSectionTitle('Từ vựng cần nhớ'),
+        const SizedBox(height: 16),
         VocabFlashcardPanel(
           vocabItems: vocabItems,
           partId: widget.part.id,
@@ -698,84 +813,54 @@ class _PracticeResultScreenState extends State<PracticeResultScreen> {
 
   Future<void> _handleReview({String? filterTopic}) async {
     if (_isLoadingDetail) return;
-    setState(() => _isLoadingDetail = true);
 
-    try {
-      final viewModel = context.read<PracticeViewModel>();
-      final attempt = await viewModel.loadAttemptDetail(widget.attemptId);
-
-      if (attempt != null && mounted) {
-        final List<dynamic> details = attempt['details'] ?? [];
-
-        final Map<String, Map<String, int>> stats = {};
-        final List<dynamic> aggregatedVocab = [];
-        final Set<String> seenWords = {};
-
-        for (var d in details) {
-          final qMap = d['question'] as Map<String, dynamic>;
-          
-          // 1. Parse topic stats
-          final tag = qMap['topic_tag'] ?? 'Tổng quát';
-          final isCorrect = d['selectedOption'] == (qMap['correctAnswer'] ?? '');
-
-          if (!stats.containsKey(tag)) {
-            stats[tag] = {'correct': 0, 'total': 0};
-          }
-          stats[tag]!['total'] = stats[tag]!['total']! + 1;
-          if (isCorrect) {
-            stats[tag]!['correct'] = stats[tag]!['correct']! + 1;
-          }
-
-          // 2. Aggregate keyVocabulary
-          final rawKeyVocab = qMap['keyVocabulary'];
-          if (rawKeyVocab != null && rawKeyVocab.toString().isNotEmpty) {
-            try {
-              final decoded = jsonDecode(rawKeyVocab.toString());
-              if (decoded is List) {
-                for (var v in decoded) {
-                  final word = (v['word'] ?? v['text'] ?? '').toString();
-                  if (word.isNotEmpty && !seenWords.contains(word.toLowerCase())) {
-                    aggregatedVocab.add(v);
-                    seenWords.add(word.toLowerCase());
-                  }
-                }
-              }
-            } catch (e) {
-              debugPrint('Error parsing keyVocabulary: $e');
-            }
-          }
+    // Check if we already have the details loaded early
+    List<dynamic> details;
+    if (_attemptDetail != null) {
+      details = _attemptDetail!['details'] ?? [];
+    } else {
+      setState(() => _isLoadingDetail = true);
+      try {
+        final viewModel = context.read<PracticeViewModel>();
+        final attempt = await viewModel.loadAttemptDetail(widget.attemptId);
+        if (attempt == null) {
+          if (mounted) setState(() => _isLoadingDetail = false);
+          return;
         }
+        details = attempt['details'] ?? [];
+        _processAttemptDetails(details); // Sync stats/vocab if not done
+      } catch (e) {
+        if (mounted) {
+          setState(() => _isLoadingDetail = false);
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Lỗi tải dữ liệu: $e')));
+        }
+        return;
+      }
+    }
 
-        setState(() {
-          _topicStats = stats;
-          // Update _aiData to include these vocab cards if not already present
-          if (_aiData == null) {
-            _aiData = {'vocabularyFlashcards': aggregatedVocab};
-          } else {
-            final List currentVocab = (_aiData!['vocabularyFlashcards'] as List?) ?? [];
-            if (currentVocab.isEmpty) {
-              _aiData!['vocabularyFlashcards'] = aggregatedVocab;
-            } else {
-              // Merge if needed, but usually aggregatedVocab is better
-              _aiData!['vocabularyFlashcards'] = aggregatedVocab;
-            }
-          }
-        });
-
-        final List<QuestionModel> questions = details.where((d) {
-          if (filterTopic == null) return true;
-          final qMap = d['question'] as Map<String, dynamic>;
-          final tag = qMap['topic_tag'] ?? 'Tổng quát';
-          return tag == filterTopic;
-        }).map((d) {
-          final qMap = d['question'] as Map<String, dynamic>;
-          return QuestionModel.fromJson(qMap);
-        }).toList();
+    if (details.isNotEmpty && mounted) {
+      final viewModel = context.read<PracticeViewModel>();
+      try {
+        final List<QuestionModel> questions = details
+            .where((d) {
+              if (filterTopic == null) return true;
+              final qMap = d['question'] as Map<String, dynamic>;
+              final tag = qMap['topic_tag'] ?? 'Tổng quát';
+              return tag == filterTopic;
+            })
+            .map((d) {
+              final qMap = Map<String, dynamic>.from(d['question'] as Map);
+              qMap['id'] = d['questionId']?.toString() ?? '';
+              return QuestionModel.fromJson(qMap);
+            })
+            .toList();
 
         final Map<String, String> userAnswers = {};
         for (var d in details) {
           final qId = d['questionId'].toString();
-          userAnswers[qId] = d['selectedOption'] ?? '';
+          userAnswers[qId] = d['userAnswer'] ?? '';
         }
 
         if (widget.part.partNumber == 1) {
@@ -808,15 +893,16 @@ class _PracticeResultScreenState extends State<PracticeResultScreen> {
             ),
           );
         }
+      } catch (e) {
+        debugPrint('Error navigating to review: $e');
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Không thể mở xem lại: $e')));
+        }
+      } finally {
+        if (mounted) setState(() => _isLoadingDetail = false);
       }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Lỗi tải dữ liệu: $e')));
-      }
-    } finally {
-      if (mounted) setState(() => _isLoadingDetail = false);
     }
   }
 
@@ -906,7 +992,10 @@ class _PracticeResultScreenState extends State<PracticeResultScreen> {
                   label: const FittedBox(
                     child: Text(
                       'LÀM LẠI',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
                     ),
                   ),
                   style: OutlinedButton.styleFrom(
@@ -930,16 +1019,24 @@ class _PracticeResultScreenState extends State<PracticeResultScreen> {
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
               color: Colors.white,
-              border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+              border: Border.all(
+                color: AppColors.primary.withValues(alpha: 0.2),
+              ),
             ),
             child: TextButton.icon(
               onPressed: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => const ClassFeedbackScreen()),
+                  MaterialPageRoute(
+                    builder: (context) => const ClassFeedbackScreen(),
+                  ),
                 );
               },
-              icon: const Icon(Icons.chat_bubble_outline_rounded, size: 20, color: AppColors.primary),
+              icon: const Icon(
+                Icons.chat_bubble_outline_rounded,
+                size: 20,
+                color: AppColors.primary,
+              ),
               label: const Text(
                 'Ý KIẾN GIÁO VIÊN',
                 style: TextStyle(
@@ -954,7 +1051,7 @@ class _PracticeResultScreenState extends State<PracticeResultScreen> {
         ],
         const SizedBox(height: 24),
         TextButton(
-          onPressed: () => Navigator.pop(context),
+          onPressed: _onBack,
           child: const Text(
             'Quay lại danh sách bài tập',
             style: TextStyle(
@@ -995,13 +1092,15 @@ class _PracticeResultScreenState extends State<PracticeResultScreen> {
         _buildSectionTitle('Điểm mạnh theo chủ đề'),
         const SizedBox(height: 16),
         ..._topicStats.entries.map((entry) {
-          final String topic = entry.key == 'Tổng quát' ? 'Kỹ năng tổng hợp' : entry.key;
+          final String topic = entry.key == 'Tổng quát'
+              ? 'Kỹ năng tổng hợp'
+              : entry.key;
           final int correct = entry.value['correct']!;
           final int total = entry.value['total']!;
           final double percent = total > 0 ? correct / total : 0;
-          
-          final Color themeColor = percent >= 0.7 
-              ? AppColors.success 
+
+          final Color themeColor = percent >= 0.7
+              ? AppColors.success
               : (percent >= 0.4 ? Colors.orange : AppColors.error);
 
           return Container(
@@ -1017,7 +1116,9 @@ class _PracticeResultScreenState extends State<PracticeResultScreen> {
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: themeColor.withValues(alpha: 0.1)),
+                    border: Border.all(
+                      color: themeColor.withValues(alpha: 0.1),
+                    ),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1051,7 +1152,10 @@ class _PracticeResultScreenState extends State<PracticeResultScreen> {
                             ],
                           ),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
                             decoration: BoxDecoration(
                               color: themeColor.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(20),
@@ -1082,14 +1186,22 @@ class _PracticeResultScreenState extends State<PracticeResultScreen> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            percent >= 0.7 ? 'Hoàn thành tốt' : (percent >= 0.4 ? 'Cần cố gắng' : 'Cần xem lại ngay'),
+                            percent >= 0.7
+                                ? 'Hoàn thành tốt'
+                                : (percent >= 0.4
+                                      ? 'Cần cố gắng'
+                                      : 'Cần xem lại ngay'),
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w500,
                               color: themeColor,
                             ),
                           ),
-                          const Icon(Icons.arrow_forward_ios, size: 12, color: AppColors.textSecondary),
+                          const Icon(
+                            Icons.arrow_forward_ios,
+                            size: 12,
+                            color: AppColors.textSecondary,
+                          ),
                         ],
                       ),
                     ],
@@ -1105,7 +1217,9 @@ class _PracticeResultScreenState extends State<PracticeResultScreen> {
 
   IconData _getTopicIcon(String topic) {
     String t = topic.toLowerCase();
-    if (t.contains('ngữ pháp') || t.contains('grammar')) return Icons.architecture;
+    if (t.contains('ngữ pháp') || t.contains('grammar')) {
+      return Icons.architecture;
+    }
     if (t.contains('từ vựng') || t.contains('vocab')) return Icons.translate;
     if (t.contains('suy luận')) return Icons.psychology;
     if (t.contains('ý chính')) return Icons.summarize;
@@ -1192,6 +1306,164 @@ class _PracticeResultScreenState extends State<PracticeResultScreen> {
         ),
       ),
     );
+  }
+
+  Widget _buildQuickReviewPortal(List<dynamic> wrongItems) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionTitle('Ôn tập câu sai'),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: AppShadows.softShadow,
+          ),
+          child: ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: wrongItems.length,
+            separatorBuilder: (context, index) =>
+                const Divider(height: 1, indent: 20, endIndent: 20),
+            itemBuilder: (context, index) {
+              final item = wrongItems[index];
+              final q = QuestionModel.fromJson(item['question']);
+              final userAnswer = item['userAnswer']?.toString() ?? '';
+
+              return ListTile(
+                onTap: () => _showQuickReviewModal(q, userAnswer),
+                leading: Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: AppColors.error.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Center(
+                    child: Text(
+                      '${q.questionNumber}',
+                      style: const TextStyle(
+                        color: AppColors.error,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+                title: Text(
+                  q.topicTag ?? 'Câu hỏi ${q.questionNumber}',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                ),
+                subtitle: Text(
+                  'Bạn chọn: $userAnswer - Đáp án: ${q.correctAnswer}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                trailing: const Icon(
+                  Icons.arrow_forward_ios,
+                  size: 14,
+                  color: AppColors.textSecondary,
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _showQuickReviewModal(QuestionModel q, String userAnswer) {
+    final aiData = _parseAiData(q);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.75,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        builder: (context, scrollController) => Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+          ),
+          child: Column(
+            children: [
+              const SizedBox(height: 12),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              Expanded(
+                child: SingleChildScrollView(
+                  controller: scrollController,
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Câu hỏi ${q.questionNumber}',
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          IconButton(
+                            onPressed: () => Navigator.pop(context),
+                            icon: const Icon(Icons.close),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      ReadingReviewScreen.buildStaticExplanationCard(
+                        context: context,
+                        question: q,
+                        aiData: aiData,
+                        userAnswer: userAnswer,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Helper method for generic explanation block (could be refactored into ReadingReviewScreen)
+  Map<String, dynamic>? _parseAiData(QuestionModel q) {
+    final result = <String, dynamic>{};
+    if (q.analysis != null && q.analysis!.isNotEmpty) {
+      result['analysis'] = q.analysis;
+    }
+    if (q.evidence != null && q.evidence!.isNotEmpty) {
+      result['evidence'] = q.evidence;
+    }
+    if (q.keyVocabulary != null && q.keyVocabulary!.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(q.keyVocabulary!);
+        result['vocabulary'] = decoded is List
+            ? decoded
+            : decoded['vocabulary'];
+      } catch (_) {}
+    }
+    return result;
   }
 
   Future<void> _handleRecommendationTap(Map<String, dynamic> rec) async {

@@ -181,6 +181,7 @@ class _Part1SimulationScreenState extends State<Part1SimulationScreen> {
           },
           part: _selectedPart!,
           attemptId: attemptId,
+          fromSimulation: true,
         ),
       ),
     );

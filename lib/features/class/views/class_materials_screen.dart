@@ -7,6 +7,7 @@ import '../../../constants/app_constants.dart';
 import '../../auth/viewmodels/auth_viewmodel.dart';
 import '../models/class_material.dart';
 import '../viewmodels/class_material_viewmodel.dart';
+import 'pdf_viewer_screen.dart';
 
 class ClassMaterialsScreen extends StatefulWidget {
   const ClassMaterialsScreen({super.key});
@@ -33,10 +34,7 @@ class _ClassMaterialsScreenState extends State<ClassMaterialsScreen> {
     return DefaultTabController(
       length: 2,
       child: Scaffold(
-        backgroundColor: AppColors.background,
         appBar: AppBar(
-          backgroundColor: Colors.white,
-          foregroundColor: AppColors.textPrimary,
           elevation: 0,
           leading: IconButton(
             icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
@@ -114,73 +112,176 @@ class _MaterialCard extends StatelessWidget {
   final ClassMaterial material;
   const _MaterialCard({required this.material});
 
+  String _formatDateString(DateTime date) {
+    return "${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}";
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: AppShadows.softShadow,
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            leading: _buildIcon(),
-            title: Text(material.title, 
-              style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.textPrimary)),
-            subtitle: material.description != null 
-              ? Text(material.description!, maxLines: 2, overflow: TextOverflow.ellipsis) 
-              : null,
-            onTap: () => _handleOpen(context),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(24),
+          onTap: () => _handleOpen(context),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildIcon(context),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            material.title, 
+                            style: GoogleFonts.inter(
+                              fontWeight: FontWeight.w800, 
+                              fontSize: 16, 
+                              letterSpacing: -0.3,
+                              color: Theme.of(context).textTheme.titleMedium?.color
+                            )
+                          ),
+                          const SizedBox(height: 4),
+                          if (material.description != null && material.description!.isNotEmpty) ...[
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).scaffoldBackgroundColor,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                material.description!, 
+                                maxLines: 2, 
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.inter(
+                                  fontSize: 13,
+                                  color: Theme.of(context).textTheme.bodyMedium?.color
+                                )
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                          ],
+                          Row(
+                            children: [
+                              Icon(Icons.access_time_rounded, size: 14, color: AppColors.textSecondary.withValues(alpha: 0.8)),
+                              const SizedBox(width: 4),
+                              Text(
+                                _formatDateString(material.createdAt),
+                                style: GoogleFonts.inter(
+                                  fontSize: 12, 
+                                  fontWeight: FontWeight.w500,
+                                  color: AppColors.textSecondary
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.primary),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
-          if (material.type == ClassMaterialType.video)
-            _VideoPreview(url: material.url),
-          const SizedBox(height: 8),
-        ],
+        ),
       ),
     );
   }
 
-  Widget _buildIcon() {
+  Widget _buildIcon(BuildContext context) {
     Color color;
+    Color bgColor;
     IconData icon;
     switch (material.type) {
       case ClassMaterialType.pdf:
-        color = Colors.red.shade400;
-        icon = Icons.picture_as_pdf;
+        color = Colors.redAccent;
+        bgColor = Colors.redAccent.withValues(alpha: 0.1);
+        icon = Icons.picture_as_pdf_rounded;
         break;
       case ClassMaterialType.video:
         color = Colors.red;
+        bgColor = Colors.red.withValues(alpha: 0.1);
         icon = Icons.play_circle_fill;
         break;
       case ClassMaterialType.link:
-        color = Colors.blue.shade400;
-        icon = Icons.link;
+        color = AppColors.primary;
+        bgColor = AppColors.primary.withValues(alpha: 0.1);
+        icon = Icons.link_rounded;
         break;
     }
     return Container(
-      padding: const EdgeInsets.all(10),
+      width: 52,
+      height: 52,
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        shape: BoxShape.circle,
+        color: bgColor,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.white.withValues(alpha: 0.1),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          )
+        ]
       ),
-      child: Icon(icon, color: color, size: 24),
+      child: Center(
+        child: Icon(icon, color: color, size: 28),
+      ),
     );
   }
 
   void _handleOpen(BuildContext context) async {
+    if (material.type == ClassMaterialType.video) {
+        final videoId = YoutubePlayer.convertUrlToId(material.url);
+        if (videoId != null) {
+            _showVideoDialog(context, videoId);
+            return;
+        }
+    }
+
     final uri = Uri.parse(material.url);
     if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (material.type == ClassMaterialType.pdf) {
+        if (context.mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => PdfViewerScreen(
+                title: material.title,
+                url: material.url,
+              ),
+            ),
+          );
+        }
+        return;
+      }
+      
+      // Use inAppBrowserView to keep user inside the app for Links
+      await launchUrl(
+        uri, 
+        mode: material.type == ClassMaterialType.video 
+            ? LaunchMode.externalApplication 
+            : LaunchMode.inAppBrowserView,
+      );
     } else {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -189,26 +290,35 @@ class _MaterialCard extends StatelessWidget {
       }
     }
   }
+
+  void _showVideoDialog(BuildContext context, String videoId) {
+    showDialog(
+      context: context,
+      builder: (context) => _YoutubePlayerDialog(videoId: videoId),
+    );
+  }
 }
 
-class _VideoPreview extends StatefulWidget {
-  final String url;
-  const _VideoPreview({required this.url});
+class _YoutubePlayerDialog extends StatefulWidget {
+  final String videoId;
+  const _YoutubePlayerDialog({required this.videoId});
 
   @override
-  State<_VideoPreview> createState() => _VideoPreviewState();
+  State<_YoutubePlayerDialog> createState() => _YoutubePlayerDialogState();
 }
 
-class _VideoPreviewState extends State<_VideoPreview> {
+class _YoutubePlayerDialogState extends State<_YoutubePlayerDialog> {
   late YoutubePlayerController _controller;
 
   @override
   void initState() {
     super.initState();
-    final videoId = YoutubePlayer.convertUrlToId(widget.url) ?? '';
     _controller = YoutubePlayerController(
-      initialVideoId: videoId,
-      flags: const YoutubePlayerFlags(autoPlay: false, mute: false),
+      initialVideoId: widget.videoId,
+      flags: const YoutubePlayerFlags(
+        autoPlay: true,
+        mute: false,
+      ),
     );
   }
 
@@ -220,16 +330,37 @@ class _VideoPreviewState extends State<_VideoPreview> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+    return Dialog(
+      backgroundColor: Colors.black,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(16),
-        child: YoutubePlayer(
-          controller: _controller,
-          showVideoProgressIndicator: true,
-          progressIndicatorColor: Colors.red,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            YoutubePlayer(
+              controller: _controller,
+              showVideoProgressIndicator: true,
+              progressIndicatorColor: Colors.red,
+              onReady: () {
+                // Ensure audio focus etc. if needed
+              },
+            ),
+            Container(
+              color: Theme.of(context).cardColor,
+              padding: const EdgeInsets.all(8),
+              width: double.infinity,
+              child: TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text('Đóng', style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.titleLarge?.color)),
+              ),
+            )
+          ],
         ),
       ),
     );
   }
 }
+
+// _VideoPreview class removed as it is replaced by _YoutubePlayerDialog

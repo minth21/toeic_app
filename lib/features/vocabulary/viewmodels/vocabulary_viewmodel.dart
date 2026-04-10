@@ -13,6 +13,17 @@ class VocabularyViewModel extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
 
+  /// Check if a word is already in the flashcard collection
+  bool isWordSaved(String word) {
+    if (word.isEmpty) return false;
+    final normalized = word.trim().toLowerCase();
+    return _flashcards.any((f) => f.word.trim().toLowerCase() == normalized);
+  }
+
+  VocabularyViewModel() {
+    loadFlashcards();
+  }
+
   /// Tải danh sách flashcards
   Future<void> loadFlashcards() async {
     _isLoading = true;

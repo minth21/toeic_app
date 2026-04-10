@@ -27,6 +27,108 @@ class ReadingReviewScreen extends StatefulWidget {
     this.overallFeedback,
   });
 
+  /// ✅ New: Static builder for reusability in PracticeResultScreen
+  static Widget buildStaticExplanationCard({
+    required BuildContext context,
+    required QuestionModel question,
+    required Map<String, dynamic>? aiData,
+    required String? userAnswer,
+  }) {
+    // Fallback logic for parts 6/7
+    final String? displayExplanation = (question.explanation != null && question.explanation!.isNotEmpty)
+        ? question.explanation
+        : question.fullPassageTranslation;
+    
+    // Determine if we should show the generic explanation block
+    final bool showExplanation = displayExplanation != null && displayExplanation.isNotEmpty;
+
+    final String? analysis = (question.analysis != null && question.analysis!.isNotEmpty)
+        ? question.analysis
+        : (aiData != null ? aiData['analysis'] : null);
+    
+    final String? evidence = (question.evidence != null && question.evidence!.isNotEmpty)
+        ? question.evidence
+        : (aiData != null ? aiData['evidence'] : null);
+
+    final dynamic vocabulary = (aiData != null && aiData['vocabulary'] != null)
+        ? aiData['vocabulary']
+        : null;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Translation of Question
+        if (question.questionTranslation != null && question.questionTranslation!.isNotEmpty) ...[
+          _staticSectionHeader('Dịch câu hỏi', Icons.translate, const Color(0xFF6366F1)),
+          Text(question.questionTranslation!, style: GoogleFonts.inter(fontSize: 14, color: AppColors.textPrimary, fontStyle: FontStyle.italic)),
+          const SizedBox(height: 16),
+        ],
+
+        // Analysis
+        if (analysis != null && analysis.isNotEmpty) ...[
+          _staticSectionHeader('Phân tích đáp án', Icons.psychology_outlined, AppColors.primary),
+          Text(analysis, style: GoogleFonts.inter(fontSize: 14, color: AppColors.textPrimary, height: 1.6)),
+          const SizedBox(height: 16),
+        ],
+
+        // Evidence
+        if (evidence != null && evidence.isNotEmpty) ...[
+          _staticSectionHeader('Bằng chứng', Icons.fact_check_outlined, AppColors.success),
+          Text(evidence, style: GoogleFonts.inter(fontSize: 14, color: AppColors.textPrimary, fontStyle: FontStyle.italic, height: 1.6)),
+          const SizedBox(height: 16),
+        ],
+
+        // Generic Explanation (if other fields are empty or as summary)
+        if (showExplanation && analysis == null) ...[
+          _staticSectionHeader('Giải thích chi tiết', Icons.info_outline, const Color(0xFF64748B)),
+          HtmlWidget(displayExplanation, textStyle: GoogleFonts.inter(fontSize: 14, color: AppColors.textPrimary, height: 1.6)),
+          const SizedBox(height: 16),
+        ],
+
+        // Vocabulary List (Simplified for modal)
+        if (vocabulary is List && vocabulary.isNotEmpty) ...[
+          _staticSectionHeader('Từ vựng quan trọng', Icons.auto_awesome_outlined, Colors.orange),
+          const SizedBox(height: 8),
+          VocabFlashcardPanel(
+            vocabItems: vocabulary,
+            partId: question.partId,
+          ),
+        ],
+
+        // Audio Script (For Listening parts)
+        if (question.transcript != null && question.transcript!.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          _staticSectionHeader('Audio Script', Icons.description_outlined, const Color(0xFF64748B)),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: HtmlWidget(
+              question.transcript!,
+              textStyle: GoogleFonts.inter(fontSize: 14, color: const Color(0xFF334155), height: 1.6),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  static Widget _staticSectionHeader(String title, IconData icon, Color color) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        children: [
+          Icon(icon, color: color, size: 18),
+          const SizedBox(width: 8),
+          Text(title, style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w800, color: color)),
+        ],
+      ),
+    );
+  }
+
   @override
   State<ReadingReviewScreen> createState() => _ReadingReviewScreenState();
 }
@@ -34,6 +136,23 @@ class ReadingReviewScreen extends StatefulWidget {
 class _ReadingReviewScreenState extends State<ReadingReviewScreen> {
   int _activeIndex = 0;
   bool _isTranslationMode = false;
+
+  Widget _buildDetailSubHeader(String title, IconData icon, Color color) {
+    return Row(
+      children: [
+        Icon(icon, color: color, size: 20),
+        const SizedBox(width: 8),
+        Text(
+          title,
+          style: GoogleFonts.inter(
+            fontWeight: FontWeight.bold,
+            color: color,
+            fontSize: 14,
+          ),
+        ),
+      ],
+    );
+  }
   bool _isSmartReader = false; // New: Smart Reader mode for Part 7 images
   late final PageController _pageController;
   final ScrollController _passageScrollController = ScrollController();
@@ -143,7 +262,12 @@ class _ReadingReviewScreenState extends State<ReadingReviewScreen> {
     // Key Vocabulary from dedicated field
     if (q.keyVocabulary != null && q.keyVocabulary!.isNotEmpty) {
       try {
-        result['vocabulary'] = jsonDecode(q.keyVocabulary!);
+        final decoded = jsonDecode(q.keyVocabulary!);
+        if (decoded is List) {
+          result['vocabulary'] = decoded;
+        } else if (decoded is Map && decoded.containsKey('vocabulary')) {
+          result['vocabulary'] = decoded['vocabulary'] is List ? decoded['vocabulary'] : [];
+        }
       } catch (e) {
         debugPrint('Error parsing keyVocabulary: $e');
       }
@@ -228,9 +352,10 @@ class _ReadingReviewScreenState extends State<ReadingReviewScreen> {
     final q = widget.questions[i];
     final userAnswer = widget.userAnswers[q.id];
     final isUnanswered = userAnswer == null || userAnswer.isEmpty;
-    final isCorrect = userAnswer == q.correctAnswer;
+    final isCorrect = !isUnanswered && userAnswer == q.correctAnswer;
     final isFlagged = widget.flaggedQuestions.contains(q.id);
 
+    // Default styles (Bỏ trống)
     Map<String, dynamic> info = {
       'bg': Colors.white,
       'border': const Color(0xFFE2E8F0),
@@ -240,28 +365,32 @@ class _ReadingReviewScreenState extends State<ReadingReviewScreen> {
       'shadow': false,
     };
 
-    if (isFlagged) {
-      info['bg'] = const Color(0xFFFFF7ED);
-      info['border'] = const Color(0xFFFB923C);
-      info['text'] = const Color(0xFFC2410C);
-    } else if (!isUnanswered) {
+    if (!isUnanswered) {
       if (isCorrect) {
-        info['bg'] = Colors.green.shade50;
-        info['border'] = _emerald;
-        info['text'] = _emerald;
+        // Đúng (Chuẩn Legend - Tinted for modern look)
+        info['bg'] = AppColors.success.withValues(alpha: 0.1);
+        info['border'] = AppColors.success;
+        info['text'] = AppColors.success;
       } else {
-        info['bg'] = Colors.red.shade50;
-        info['border'] = _rose;
-        info['text'] = _rose;
+        // Sai (Chuẩn Legend - Tinted for modern look)
+        info['bg'] = AppColors.error.withValues(alpha: 0.1);
+        info['border'] = AppColors.error;
+        info['text'] = AppColors.error;
       }
+    } else if (isFlagged) {
+      // Cắm cờ nhưng bỏ trống (Chuẩn Legend)
+      info['bg'] = Colors.orange.withValues(alpha: 0.1);
+      info['border'] = Colors.orange;
+      info['text'] = Colors.orange;
     }
 
+    // Highlight Current
     if (isActive) {
       info['activeBorder'] = _primaryBlue;
       info['borderWidth'] = 3.5;
       info['shadow'] = true;
       if (info['bg'] == Colors.white) {
-        info['bg'] = _primaryBlue.withValues(alpha: 0.05);
+        info['bg'] = _primaryBlue.withValues(alpha: 0.1);
         info['text'] = _primaryBlue;
       }
     }
@@ -289,7 +418,7 @@ class _ReadingReviewScreenState extends State<ReadingReviewScreen> {
                   const SizedBox(width: 12),
                   _buildLegendItem(AppColors.error.withValues(alpha: 0.1), AppColors.error, 'Sai'),
                   const SizedBox(width: 12),
-                  _buildLegendItem(Colors.orange.shade50, Colors.orange, 'Cắm cờ'),
+                  _buildLegendItem(Colors.orange.withValues(alpha: 0.1), Colors.orange, 'Cắm cờ'),
                   const SizedBox(width: 12),
                   _buildLegendItem(Colors.white, AppColors.divider, 'Bỏ trống'),
                 ],
@@ -413,61 +542,79 @@ class _ReadingReviewScreenState extends State<ReadingReviewScreen> {
                             ),
                             const Icon(Icons.article_outlined, color: _primaryBlue, size: 20),
                             const SizedBox(width: 8),
-                            Text(
-                              'Đoạn văn Reading',
-                              style: GoogleFonts.inter(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: _slateText,
+                            Expanded(
+                              child: Text(
+                                'Đoạn văn Reading',
+                                style: GoogleFonts.inter(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: _slateText,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
                               ),
                             ),
-                            const Spacer(),
-                            // Smart Reader Toggle
-                            if (questions.isNotEmpty && questions[_activeIndex].passageImageUrls.isNotEmpty)
-                              Padding(
-                                padding: const EdgeInsets.only(right: 8),
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    color: _isSmartReader ? Colors.purple.withValues(alpha: 0.1) : Colors.grey.withValues(alpha: 0.1),
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
+                            const SizedBox(width: 8),
+                            // View Mode Toggles (Image & Translation)
+                            if (questions.isNotEmpty)
+                              Container(
+                                margin: const EdgeInsets.only(right: 8),
+                                decoration: BoxDecoration(
+                                  color: (_isSmartReader || _isTranslationMode) 
+                                      ? Colors.purple.withValues(alpha: 0.1) 
+                                      : Colors.grey.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    // 1. Image Toggle (If images exist)
+                                    if (questions[_activeIndex].passageImageUrls.isNotEmpty)
                                       TextButton.icon(
                                         onPressed: () => setState(() => _isSmartReader = !_isSmartReader),
                                         icon: Icon(
-                                          _isSmartReader ? Icons.visibility_outlined : Icons.auto_awesome,
+                                          _isSmartReader ? Icons.image : Icons.image_outlined,
                                           size: 18,
-                                          color: _isSmartReader ? _primaryBlue : Colors.purple,
+                                          color: _isSmartReader ? Colors.purple : Colors.grey,
                                         ),
                                         label: Text(
-                                          _isSmartReader ? 'Xem ảnh' : 'AI Scan',
+                                          'Xem ảnh',
                                           style: GoogleFonts.inter(
                                             fontSize: 12,
                                             fontWeight: FontWeight.bold,
-                                            color: _isSmartReader ? _primaryBlue : Colors.purple,
+                                            color: _isSmartReader ? Colors.purple : Colors.grey,
                                           ),
                                         ),
                                         style: TextButton.styleFrom(
                                           padding: const EdgeInsets.symmetric(horizontal: 12),
                                         ),
                                       ),
-                                      if (_isSmartReader) ...[
-                                        Container(width: 1, height: 20, color: Colors.purple.withValues(alpha: 0.2)),
-                                        IconButton(
-                                          icon: Icon(
-                                            _isTranslationMode ? Icons.translate : Icons.translate_outlined,
-                                            size: 18,
+                                    
+                                    // 2. Translation Toggle (If passageTranslationData exists)
+                                    if (questions[_activeIndex].passageTranslations.isNotEmpty) ...[
+                                      if (questions[_activeIndex].passageImageUrls.isNotEmpty)
+                                         Container(width: 1, height: 20, color: Colors.purple.withValues(alpha: 0.2)),
+                                      TextButton.icon(
+                                        onPressed: () => setState(() => _isTranslationMode = !_isTranslationMode),
+                                        icon: Icon(
+                                          _isTranslationMode ? Icons.translate : Icons.translate_outlined,
+                                          size: 18,
+                                          color: _isTranslationMode ? Colors.purple : Colors.grey,
+                                        ),
+                                        label: Text(
+                                          'Xem dịch',
+                                          style: GoogleFonts.inter(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.bold,
                                             color: _isTranslationMode ? Colors.purple : Colors.grey,
                                           ),
-                                          onPressed: () => setState(() => _isTranslationMode = !_isTranslationMode),
-                                          tooltip: 'Hiện tất cả bản dịch',
-                                          constraints: const BoxConstraints(minWidth: 40),
                                         ),
-                                      ],
+                                        style: TextButton.styleFrom(
+                                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                                        ),
+                                      ),
                                     ],
-                                  ),
+                                  ],
                                 ),
                               ),
                              IconButton(
@@ -576,8 +723,8 @@ class _ReadingReviewScreenState extends State<ReadingReviewScreen> {
       margin: const EdgeInsets.fromLTRB(16, 4, 16, 16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: AppShadows.softShadow,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: AppShadows.premiumShadow,
       ),
       child: ListView(
         padding: const EdgeInsets.all(20),
@@ -672,12 +819,17 @@ class _ReadingReviewScreenState extends State<ReadingReviewScreen> {
     final bool hasAIFeedback = widget.aiFeedbacks != null && index < widget.aiFeedbacks!.length;
     
     // Check for ANY professional content from DB or AI data
-    final bool hasExpertContent = (question.explanation?.isNotEmpty ?? false) || 
-                                 (question.analysis?.isNotEmpty ?? false) || 
+    final bool hasExpertContent = (question.explanation?.isNotEmpty ?? false) ||
+                                 (question.analysis?.isNotEmpty ?? false) ||
                                  (question.evidence?.isNotEmpty ?? false) ||
                                  (question.questionTranslation?.isNotEmpty ?? false) ||
                                  (question.keyVocabulary?.isNotEmpty ?? false) ||
-                                 (aiData != null && (aiData.containsKey('analysis') || aiData.containsKey('evidence')));
+                                 (aiData != null && (
+                                   aiData.containsKey('analysis') ||
+                                   aiData.containsKey('evidence') ||
+                                   aiData.containsKey('vocabulary') ||
+                                   aiData.containsKey('questionTranslation')
+                                 ));
 
     if (!hasAIFeedback && !hasExpertContent) return const SizedBox.shrink();
 
@@ -713,8 +865,9 @@ class _ReadingReviewScreenState extends State<ReadingReviewScreen> {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: const Color(0xFFFFF7ED), // Light Orange
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(color: Colors.orange.shade200),
+        boxShadow: AppShadows.softShadow,
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -931,8 +1084,12 @@ class _ReadingReviewScreenState extends State<ReadingReviewScreen> {
   }
 
   Widget _buildAIExplanationCard(QuestionModel question, int index, Map<String, dynamic>? aiData) {
-    final String? explanation = question.explanation;
-    
+    // Logic to handle explanation fallback for Part 6/7.
+    // We use fullPassageTranslation if question.explanation is empty.
+    String? displayExplanation = (question.explanation != null && question.explanation!.isNotEmpty)
+        ? question.explanation
+        : (widget.partNumber == 6 || widget.partNumber == 7) ? question.fullPassageTranslation : null;
+
     // Priority: New DB field -> aiData fallback -> null
     final String? analysis = (question.analysis != null && question.analysis!.isNotEmpty)
         ? question.analysis
@@ -957,7 +1114,7 @@ class _ReadingReviewScreenState extends State<ReadingReviewScreen> {
       vocabulary = aiData?['vocabulary'] as List<dynamic>?;
     }
 
-    if (explanation == null && analysis == null && evidence == null && vocabulary == null && questionTranslation == null) {
+    if (displayExplanation == null && analysis == null && evidence == null && vocabulary == null && questionTranslation == null) {
       return const SizedBox.shrink();
     }
 
@@ -1088,13 +1245,15 @@ class _ReadingReviewScreenState extends State<ReadingReviewScreen> {
             ),
           ),
 
-        // 3. Vocabulary Flashcard Panel
-        if (vocabulary != null && vocabulary.isNotEmpty)
+        // 3. Vocabulary Flashcard Panel - Unified Header Style
+        if (vocabulary != null && vocabulary.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          _buildDetailSubHeader('Từ vựng quan trọng', Icons.auto_awesome_outlined, Colors.orange),
+          const SizedBox(height: 10),
           VocabFlashcardPanel(
             vocabItems: vocabulary,
             partId: question.partId,
             onAllSwiped: () {
-              // Auto-advance to next question when all cards are swiped
               final questions = widget.questions;
               if (index < questions.length - 1) {
                 _pageController.nextPage(
@@ -1104,88 +1263,58 @@ class _ReadingReviewScreenState extends State<ReadingReviewScreen> {
               }
             },
           ),
+          const SizedBox(height: 16),
+        ],
 
-        // 4. Translation Card (Hide if already in Translation Mode @ top)
-        if (!_isTranslationMode && (explanation != null && explanation.isNotEmpty))
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: AppColors.indigo50,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: _primaryBlue.withValues(alpha: 0.2)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const Icon(Icons.translate_rounded, color: Colors.indigo, size: 20),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Bản dịch đoạn văn',
-                      style: GoogleFonts.inter(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.indigo,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                HtmlWidget(
-                  explanation,
-                  textStyle: GoogleFonts.inter(
-                    fontSize: 14,
-                    height: 1.6,
-                    color: const Color(0xFF475569),
-                  ),
-                ),
-              ],
-            ),
-          ),
       ],
     );
   }
 
-  // ── Smart View Switcher ───────────────────────────────────────────────────
+  // ── Smart View Switcher ──────────────────────────────────────────────────
 
   Widget _buildPassageContentView(QuestionModel? q) {
     if (q == null) return const SizedBox.shrink();
 
-    // 1. Translation Mode (Bilingual List)
-    if (_isTranslationMode) {
-      return _buildBilingualPassage(q);
-    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Always show Images at the top for "Magic Scan" passages
+        // [REQ] Hide for Part 6 & 7 (Review Mode)
+        if (q.passageImageUrls.isNotEmpty && !_isSmartReader && widget.partNumber != 6 && widget.partNumber != 7) ...[
+          _buildPassageImages(q),
+          const SizedBox(height: 16),
+        ],
 
-    // 2. Smart Reader Mode (Interactive Text even if images exist)
-    if (_isSmartReader) {
-      return TouchablePassageWidget(
-        htmlContent: _buildPassageHtml(q.questionNumber),
-        translations: q.passageTranslations,
-        showAllTranslations: _isTranslationMode, // Pass the integrated toggle state
-        textStyle: GoogleFonts.tinos(
-          fontSize: 18,
-          height: 1.8,
-          color: const Color(0xFF334155),
-        ),
-      );
-    }
+        // 1. Title (if any)
+        if (q.passageTitle != null && q.passageTitle!.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text(
+              q.passageTitle!,
+              style: GoogleFonts.inter(
+                fontSize: 14,
+                fontWeight: FontWeight.w800,
+                color: _primaryBlue,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ),
 
-    // 3. Original Mode (Images)
-    if (q.passageImageUrls.isNotEmpty) {
-      return _buildPassageImages(q);
-    }
-
-    // Fallback to Interactive Text (Part 6 or Text-only Part 7)
-    return TouchablePassageWidget(
-      htmlContent: _buildPassageHtml(q.questionNumber),
-      translations: q.passageTranslations,
-      textStyle: GoogleFonts.tinos(
-        fontSize: 18,
-        height: 1.8,
-        color: const Color(0xFF334155),
-      ),
+        // 2. Content: Bilingual List OR Normal Text
+        if (_isTranslationMode)
+          _buildBilingualPassage(q)
+        else
+          TouchablePassageWidget(
+            htmlContent: _buildPassageHtml(q.questionNumber),
+            translations: q.passageTranslations,
+            showAllTranslations: _isTranslationMode,
+            textStyle: GoogleFonts.tinos(
+              fontSize: 18,
+              height: 1.8,
+              color: const Color(0xFF334155),
+            ),
+          ),
+      ],
     );
   }
 
@@ -1194,29 +1323,35 @@ class _ReadingReviewScreenState extends State<ReadingReviewScreen> {
       children: q.passageImageUrls.map((url) {
         return Padding(
           padding: const EdgeInsets.only(bottom: 12),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: Image.network(
-              url,
-              fit: BoxFit.contain,
-              width: double.infinity,
-              loadingBuilder: (context, child, loadingProgress) {
-                if (loadingProgress == null) return child;
-                return Container(
-                  height: 200,
-                  color: Colors.grey.shade100,
-                  child: const Center(child: CircularProgressIndicator()),
-                );
-              },
-              errorBuilder: (context, error, stackTrace) => Container(
-                padding: const EdgeInsets.all(20),
-                color: Colors.red.shade50,
-                child: const Column(
-                  children: [
-                    Icon(Icons.error_outline, color: Colors.red),
-                    SizedBox(height: 8),
-                    Text('Không thể tải ảnh đoạn văn', style: TextStyle(color: Colors.red, fontSize: 12)),
-                  ],
+          child: GestureDetector(
+            onTap: () => _openFullscreenImage(context, url),
+            child: Hero(
+              tag: 'review_passage_img_$url',
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.network(
+                  url,
+                  fit: BoxFit.contain,
+                  width: double.infinity,
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    return Container(
+                      height: 200,
+                      color: Colors.grey.shade100,
+                      child: const Center(child: CircularProgressIndicator()),
+                    );
+                  },
+                  errorBuilder: (context, error, stackTrace) => Container(
+                    padding: const EdgeInsets.all(20),
+                    color: Colors.red.shade50,
+                    child: const Column(
+                      children: [
+                        Icon(Icons.error_outline, color: Colors.red),
+                        SizedBox(height: 8),
+                        Text('Không thể tải ảnh đoạn văn', style: TextStyle(color: Colors.red, fontSize: 12)),
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -1369,8 +1504,10 @@ class _ReadingReviewScreenState extends State<ReadingReviewScreen> {
                       color: colorInfo['bg']!,
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
-                        color: colorInfo['border']!,
-                        width: 2,
+                        color: (colorInfo['activeBorder'] as Color) != Colors.transparent 
+                            ? (colorInfo['activeBorder'] as Color) 
+                            : (colorInfo['border'] as Color), 
+                        width: (colorInfo['borderWidth'] as num).toDouble(),
                       ),
                     ),
                     child: Center(
@@ -1411,6 +1548,72 @@ class _ReadingReviewScreenState extends State<ReadingReviewScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  // Mở ảnh full màn hình với pinch zoom
+  void _openFullscreenImage(BuildContext ctx, String imageUrl) {
+    Navigator.of(ctx).push(
+      PageRouteBuilder(
+        opaque: false,
+        pageBuilder: (_, __, ___) => _FullscreenImageViewer(imageUrl: imageUrl),
+        transitionsBuilder: (_, anim, __, child) =>
+            FadeTransition(opacity: anim, child: child),
+        transitionDuration: const Duration(milliseconds: 250),
+      ),
+    );
+  }
+
+
+}
+
+/// Fullscreen Image Viewer — pinch để zoom (tối đa 5x), nhấn X để đóng
+class _FullscreenImageViewer extends StatelessWidget {
+  final String imageUrl;
+  const _FullscreenImageViewer({required this.imageUrl});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.close_rounded),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: const Text(
+          'Ảnh đoạn văn',
+          style: TextStyle(color: Colors.white, fontSize: 16),
+        ),
+      ),
+      body: Center(
+        child: InteractiveViewer(
+          panEnabled: true,
+          scaleEnabled: true,
+          minScale: 0.5,
+          maxScale: 5.0,
+          boundaryMargin: const EdgeInsets.all(20),
+          child: Image.network(
+            imageUrl,
+            fit: BoxFit.contain,
+            loadingBuilder: (context, child, progress) {
+              if (progress == null) return child;
+              return Center(
+                child: CircularProgressIndicator(
+                  value: progress.expectedTotalBytes != null
+                      ? progress.cumulativeBytesLoaded /
+                          progress.expectedTotalBytes!
+                      : null,
+                  color: Colors.white,
+                ),
+              );
+            },
+          ),
+        ),
       ),
     );
   }

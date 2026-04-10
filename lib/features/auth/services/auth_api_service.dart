@@ -48,6 +48,7 @@ class AuthApiService {
     String? phoneNumber,
     DateTime? dateOfBirth,
     String? avatarUrl,
+    int? targetScore,
     String? token,
   }) async {
     try {
@@ -58,6 +59,7 @@ class AuthApiService {
         body['dateOfBirth'] = DateFormat('yyyy-MM-dd').format(dateOfBirth);
       }
       if (avatarUrl != null) body['avatarUrl'] = avatarUrl;
+      if (targetScore != null) body['targetScore'] = targetScore;
 
       final response = await _apiService.patch(
         ApiConfig.usersMe,

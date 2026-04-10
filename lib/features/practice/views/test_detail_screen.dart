@@ -911,7 +911,7 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
           onTap: () => _checkHistoryAndStart(part),
           borderRadius: BorderRadius.circular(20),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
             child: Row(
               children: [
                 Container(
@@ -1023,7 +1023,7 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
                         onTap: () => _directReview(part),
                         isPrimary: false,
                       ),
-                      const SizedBox(width: 6),
+                      const SizedBox(width: 4),
                       _buildPartActionButton(
                         icon: Icons.refresh_rounded,
                         label: 'Làm lại',
@@ -1066,7 +1066,7 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
       onTap: onTap,
       borderRadius: BorderRadius.circular(10),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 7),
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
         decoration: BoxDecoration(
           color: isPrimary ? AppColors.primary : AppColors.indigo50,
           borderRadius: BorderRadius.circular(10),
@@ -1081,12 +1081,17 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
               color: isPrimary ? Colors.white : AppColors.primary,
             ),
             const SizedBox(width: 4),
-            Text(
-              label,
-              style: GoogleFonts.inter(
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
-                color: isPrimary ? Colors.white : AppColors.primary,
+            Flexible(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  label,
+                  style: GoogleFonts.inter(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: isPrimary ? Colors.white : AppColors.primary,
+                  ),
+                ),
               ),
             ),
           ],

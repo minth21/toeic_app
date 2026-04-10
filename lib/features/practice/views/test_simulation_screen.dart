@@ -190,9 +190,14 @@ class _TestSimulationScreenState extends State<TestSimulationScreen> {
           context,
           MaterialPageRoute(
             builder: (context) => PracticeResultScreen(
-              resultData: {...result, 'userAnswers': _userAnswers},
+              resultData: {
+                ...result, 
+                'userAnswers': _userAnswers,
+                'flaggedQuestions': _flaggedQuestions.toList(),
+              },
               part: _selectedPart!,
               attemptId: (result['attemptId'] ?? result['id']).toString(),
+              fromSimulation: true,
             ),
           ),
         );
@@ -655,6 +660,8 @@ class _TestSimulationScreenState extends State<TestSimulationScreen> {
     String passage,
     List<Map<String, dynamic>> translations,
     int activeQuestionNumber,
+    List<String> passageImageUrls,
+    String? passageTitle,
   ) {
     const Color adminBlue = Color(0xFF3B82F6);
 
@@ -701,6 +708,18 @@ class _TestSimulationScreenState extends State<TestSimulationScreen> {
             ],
           ),
           const SizedBox(height: 16),
+          if (passageTitle != null && passageTitle.isNotEmpty) ...[
+            Text(
+              passageTitle,
+              style: GoogleFonts.inter(
+                fontSize: 14,
+                fontWeight: FontWeight.w800,
+                color: adminBlue,
+                letterSpacing: 0.5,
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
           Flexible(
             child: SingleChildScrollView(
               physics: const BouncingScrollPhysics(),
@@ -716,6 +735,38 @@ class _TestSimulationScreenState extends State<TestSimulationScreen> {
               ),
             ),
           ),
+          // Passage Images moved BELOW the text/title
+          // [REQ] Hide for Part 6 & 7 to focus on Touch-to-Translate
+          if (passageImageUrls.isNotEmpty && _selectedPart?.partNumber != 6 && _selectedPart?.partNumber != 7) ...[
+            const SizedBox(height: 16),
+            Column(
+              children: passageImageUrls.map((url) => Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: GestureDetector(
+                  onTap: () => _openFullscreenImage(context, url),
+                  child: Hero(
+                    tag: 'passage_img_$url',
+                    child: Container(
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: AppShadows.softShadow,
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: Image.network(
+                          url,
+                          fit: BoxFit.contain,
+                          loadingBuilder: (ctx, child, prog) =>
+                              prog == null ? child : const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator())),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              )).toList(),
+            ),
+          ],
         ],
       ),
     );
@@ -911,7 +962,7 @@ class _TestSimulationScreenState extends State<TestSimulationScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 const SizedBox(height: 16),
-                                _buildPassageHeader(currentPassage, currentQuestion.passageTranslations, currentQuestion.questionNumber),
+                                _buildPassageHeader(currentPassage, currentQuestion.passageTranslations, currentQuestion.questionNumber, currentQuestion.passageImageUrls, currentQuestion.passageTitle),
                                 // Nếu câu hỏi có ảnh (Magic Scan image) — hiển thị tapable
                                 if (currentQuestion.imageUrl != null) ...[
                                   const SizedBox(height: 16),
@@ -1130,6 +1181,35 @@ class _TestSimulationScreenState extends State<TestSimulationScreen> {
                     fontWeight: FontWeight.w500,
                   ),
                 ),
+              const SizedBox(height: 16),
+              // NEW: Question Image (e.g. for Part 5 or specific Magic Scan)
+              if (question.imageUrl != null) ...[
+                GestureDetector(
+                  onTap: () => _openFullscreenImage(context, question.imageUrl!),
+                  child: Hero(
+                    tag: 'q_img_${question.id}',
+                    child: Container(
+                      width: double.infinity,
+                      constraints: const BoxConstraints(maxHeight: 260),
+                      margin: const EdgeInsets.only(bottom: 16),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: AppShadows.softShadow,
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: Image.network(
+                          question.imageUrl!,
+                          fit: BoxFit.contain,
+                          loadingBuilder: (ctx, child, prog) =>
+                              prog == null ? child : const Center(child: CircularProgressIndicator()),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
               const SizedBox(height: 24),
               _buildOption(
                 context,

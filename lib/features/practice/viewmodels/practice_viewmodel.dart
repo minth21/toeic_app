@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import '../models/question_model.dart';
 import '../models/exam_model.dart';
 import '../services/practice_api_service.dart';
+import '../../../core/services/storage_service.dart';
 
 class PracticeViewModel extends ChangeNotifier {
   final PracticeApiService _apiService = PracticeApiService();
@@ -29,13 +31,21 @@ class PracticeViewModel extends ChangeNotifier {
   ExamModel? get currentTest => _currentTest;
 
   PracticeViewModel() {
+    _initPreferences();
+  }
+
+  Future<void> _initPreferences() async {
+    final storage = StorageService();
+    _selectedDifficulty = await storage.getDifficulty();
+    _selectedSkill = await storage.getSkill();
     loadTests();
+    loadHistory();
   }
 
   Future<void> loadTests() async {
     _isLoading = true;
     _error = null;
-    notifyListeners();
+    _safeNotifyListeners();
 
     try {
       _tests = await _apiService.getTests(difficulty: _selectedDifficulty);
@@ -44,7 +54,7 @@ class PracticeViewModel extends ChangeNotifier {
       _tests = [];
     } finally {
       _isLoading = false;
-      notifyListeners();
+      _safeNotifyListeners();
     }
   }
 
@@ -54,7 +64,7 @@ class PracticeViewModel extends ChangeNotifier {
   Future<void> loadHistory() async {
     _isLoading = true;
     _error = null;
-    notifyListeners();
+    _safeNotifyListeners();
 
     try {
       _history = await _apiService.getUserHistory();
@@ -63,7 +73,7 @@ class PracticeViewModel extends ChangeNotifier {
       _history = [];
     } finally {
       _isLoading = false;
-      notifyListeners();
+      _safeNotifyListeners();
     }
   }
 
@@ -74,7 +84,7 @@ class PracticeViewModel extends ChangeNotifier {
     _isLoading = true;
     _error = null;
     _currentQuestions = [];
-    notifyListeners();
+    _safeNotifyListeners();
 
     try {
       _currentQuestions = await _apiService.getQuestionsByPartId(partId);
@@ -89,7 +99,7 @@ class PracticeViewModel extends ChangeNotifier {
       _error = e.toString();
     } finally {
       _isLoading = false;
-      notifyListeners();
+      _safeNotifyListeners();
     }
   }
 
@@ -99,7 +109,7 @@ class PracticeViewModel extends ChangeNotifier {
     int? timeTaken,
   }) async {
     _isLoading = true;
-    notifyListeners();
+    _safeNotifyListeners();
 
     try {
       final List<Map<String, dynamic>> formattedAnswers = [];
@@ -121,7 +131,7 @@ class PracticeViewModel extends ChangeNotifier {
       return null;
     } finally {
       _isLoading = false;
-      notifyListeners();
+      _safeNotifyListeners();
     }
   }
 
@@ -136,12 +146,14 @@ class PracticeViewModel extends ChangeNotifier {
   void setDifficulty(String? difficulty) {
     if (_selectedDifficulty == difficulty) return;
     _selectedDifficulty = difficulty;
+    StorageService().saveDifficulty(difficulty);
     loadTests();
   }
 
   void setSkillFilter(String? skill) {
     if (_selectedSkill == skill) return;
     _selectedSkill = skill;
+    StorageService().saveSkill(skill);
     notifyListeners();
   }
 
@@ -203,7 +215,7 @@ class PracticeViewModel extends ChangeNotifier {
 
   Future<Map<String, dynamic>?> loadAttemptDetail(String attemptId) async {
     _isLoading = true;
-    notifyListeners();
+    _safeNotifyListeners();
     try {
       return await _apiService.getAttemptDetail(attemptId);
     } catch (e) {
@@ -211,6 +223,16 @@ class PracticeViewModel extends ChangeNotifier {
       return null;
     } finally {
       _isLoading = false;
+      _safeNotifyListeners();
+    }
+  }
+
+  void _safeNotifyListeners() {
+    if (WidgetsBinding.instance.schedulerPhase == SchedulerPhase.persistentCallbacks) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (hasListeners) notifyListeners();
+      });
+    } else {
       notifyListeners();
     }
   }

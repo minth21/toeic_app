@@ -4,6 +4,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../../../constants/app_constants.dart';
 import '../../auth/viewmodels/auth_viewmodel.dart';
+import '../../home/viewmodels/dashboard_viewmodel.dart';
+import '../../progress/viewmodels/progress_viewmodel.dart';
 
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
@@ -91,13 +93,19 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     setState(() => _isLoading = false);
 
     if (success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Cập nhật thành công!', style: GoogleFonts.inter()),
-          backgroundColor: AppColors.success,
-        ),
-      );
-      Navigator.pop(context);
+      if (mounted) {
+        // Trigger refreshes for other tabs
+        context.read<DashboardViewModel>().loadDashboard();
+        context.read<ProgressViewModel>().loadUserStats();
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Cập nhật thành công!', style: GoogleFonts.inter()),
+            backgroundColor: AppColors.success,
+          ),
+        );
+        Navigator.pop(context);
+      }
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -166,7 +174,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   ),
                   style: GoogleFonts.inter(),
                 ),
-                const SizedBox(height: 20),
                 const SizedBox(height: 40),
                 SizedBox(
                   width: double.infinity,

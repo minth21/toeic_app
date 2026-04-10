@@ -5,7 +5,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:toeic_practice_app/l10n/app_localizations.dart';
 import '../../../constants/app_constants.dart';
 import '../../settings/viewmodels/theme_viewmodel.dart';
-import '../../settings/viewmodels/language_viewmodel.dart';
 import '../../auth/viewmodels/auth_viewmodel.dart';
 import 'edit_profile_screen.dart';
 import 'change_password_screen.dart';
@@ -268,8 +267,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 children: [
                   // Settings Section
                   Text(
-                    AppLocalizations.of(context)?.translate('settings') ??
-                        'Cài đặt',
+                    context.tr('settings'),
                     style: GoogleFonts.inter(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -281,11 +279,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   // Settings Items
                   _buildSettingItem(
                     icon: Icons.person_outline_rounded,
-                    title:
-                        AppLocalizations.of(
-                          context,
-                        )?.translate('personal_information') ??
-                        'Thông tin cá nhân',
+                    title: context.tr('personal_information'),
                     onTap: () {
                       Navigator.push(
                         context,
@@ -328,70 +322,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   _buildSwitchItem(
                     icon: Icons.dark_mode_outlined,
                     title:
-                        AppLocalizations.of(context)?.translate('dark_mode') ??
-                        'Chế độ tối',
+                        context.tr('dark_mode'),
                     value: context.watch<ThemeViewModel>().isDarkMode,
                     onChanged: (value) {
                       context.read<ThemeViewModel>().toggleTheme(value);
                     },
-                  ),
-                  // Language Switcher Custom Design
-                  Container(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).cardColor,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: ListTile(
-                      leading: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: AppColors.primary.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Icon(
-                          Icons.language,
-                          color: AppColors.primary,
-                          size: 20,
-                        ),
-                      ),
-                      title: Text(
-                        AppLocalizations.of(context)?.translate('language') ??
-                            'Ngôn ngữ',
-                        style: GoogleFonts.inter(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w500,
-                          color: Theme.of(context).textTheme.bodyLarge?.color,
-                        ),
-                      ),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            context.watch<LanguageViewModel>().isVietnamese
-                                ? 'VI'
-                                : 'EN',
-                            style: GoogleFonts.inter(
-                              fontSize: 15,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.primary,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Switch(
-                            value: context
-                                .watch<LanguageViewModel>()
-                                .isVietnamese,
-                            onChanged: (value) {
-                              context.read<LanguageViewModel>().toggleLanguage(
-                                value,
-                              );
-                            },
-                            activeTrackColor: AppColors.primary,
-                          ),
-                        ],
-                      ),
-                    ),
                   ),
 
                   const SizedBox(height: 24),
@@ -431,10 +366,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               ),
                               const SizedBox(width: 8),
                               Text(
-                                AppLocalizations.of(
-                                      context,
-                                    )?.translate('logout') ??
-                                    'Đăng xuất',
+                                    context.tr('logout'),
                                 style: GoogleFonts.inter(
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
@@ -580,8 +512,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               const SizedBox(height: 12),
               Text(
-                AppLocalizations.of(context)?.translate('logout_message') ??
-                    'Bạn có chắc chắn muốn đăng xuất tài khoản này không?',
+                context.tr('logout_message'),
                 textAlign: TextAlign.center,
                 style: GoogleFonts.inter(
                   fontSize: 15,
@@ -602,7 +533,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                       ),
                       child: Text(
-                        AppLocalizations.of(context)?.translate('cancel') ?? 'Hủy',
+                        context.tr('cancel'),
                         style: GoogleFonts.inter(
                           color: AppColors.textSecondary,
                           fontWeight: FontWeight.w700,
@@ -633,7 +564,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                       ),
                       child: Text(
-                        AppLocalizations.of(context)?.translate('logout') ?? 'Đăng xuất',
+                        context.tr('logout'),
                         style: GoogleFonts.inter(
                           fontWeight: FontWeight.w800,
                           fontSize: 15,

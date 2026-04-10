@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../viewmodels/vocabulary_viewmodel.dart';
 import 'widgets/flashcard_widget.dart';
 import '../../../constants/app_constants.dart';
+import '../../../l10n/app_localizations.dart';
 
 class VocabularyScreen extends StatefulWidget {
   const VocabularyScreen({super.key});
@@ -33,7 +34,7 @@ class _VocabularyScreenState extends State<VocabularyScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Column(
         children: [
           _buildHeader(),
@@ -66,12 +67,12 @@ class _VocabularyScreenState extends State<VocabularyScreen> {
                 }
 
                 return ListView.builder(
-                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+                  padding: const EdgeInsets.fromLTRB(20, 24, 20, 40),
                   itemCount: filteredCards.length,
                   itemBuilder: (context, index) {
                     final card = filteredCards[index];
                     return Padding(
-                      padding: const EdgeInsets.only(bottom: 20),
+                      padding: const EdgeInsets.only(bottom: 28),
                       child: FlashcardWidget(
                         flashcard: card,
                         onDelete: () =>
@@ -117,7 +118,7 @@ class _VocabularyScreenState extends State<VocabularyScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'TỪ VỰNG',
+                              context.tr('vocabulary_caps'),
                               style: GoogleFonts.inter(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w800,
@@ -127,11 +128,12 @@ class _VocabularyScreenState extends State<VocabularyScreen> {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              'Kho từ vựng của bạn',
-                              style: GoogleFonts.inter(
-                                fontSize: 22,
-                                fontWeight: FontWeight.bold,
+                              context.tr('your_vocabulary_store'),
+                              style: GoogleFonts.outfit(
+                                fontSize: 24,
+                                fontWeight: FontWeight.w900,
                                 color: Colors.white,
+                                letterSpacing: -0.5,
                               ),
                             ),
                           ],
@@ -154,12 +156,15 @@ class _VocabularyScreenState extends State<VocabularyScreen> {
                             const Icon(Icons.style_rounded,
                                 color: Colors.white, size: 16),
                             const SizedBox(width: 6),
-                            Text(
-                              '$count thẻ',
-                              style: GoogleFonts.inter(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 13,
+                            Flexible(
+                              child: Text(
+                                '$count ${context.tr('cards')}',
+                                style: GoogleFonts.inter(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                ),
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
                           ],
@@ -179,7 +184,7 @@ class _VocabularyScreenState extends State<VocabularyScreen> {
                       fontSize: 14,
                     ),
                     decoration: InputDecoration(
-                      hintText: 'Tìm từ vựng...',
+                      hintText: context.tr('search_vocabulary_hint'),
                       hintStyle: GoogleFonts.inter(
                         color: AppColors.textHint,
                         fontSize: 14,
@@ -200,7 +205,7 @@ class _VocabularyScreenState extends State<VocabularyScreen> {
                             )
                           : null,
                       filled: true,
-                      fillColor: Colors.white,
+                      fillColor: Theme.of(context).cardColor,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16),
                         borderSide: BorderSide.none,
@@ -240,8 +245,8 @@ class _VocabularyScreenState extends State<VocabularyScreen> {
             const SizedBox(height: 20),
             Text(
               _searchQuery.isEmpty
-                  ? 'Kho từ vựng trống'
-                  : 'Không tìm thấy kết quả',
+                  ? context.tr('empty_vocabulary_title')
+                  : context.tr('no_results_found'),
               style: GoogleFonts.inter(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
@@ -251,8 +256,8 @@ class _VocabularyScreenState extends State<VocabularyScreen> {
             const SizedBox(height: 8),
             Text(
               _searchQuery.isEmpty
-                  ? 'Lưu từ vựng từ các bài tập để bắt đầu ôn tập nhé!'
-                  : 'Thử tìm kiếm với từ khóa khác.',
+                  ? context.tr('empty_vocabulary_desc')
+                  : context.tr('try_another_search'),
               style: GoogleFonts.inter(
                 color: AppColors.textSecondary,
                 fontSize: 14,
@@ -287,7 +292,7 @@ class _VocabularyScreenState extends State<VocabularyScreen> {
             ),
             const SizedBox(height: 16),
             Text(
-              'Có lỗi xảy ra',
+              context.tr('error_occurred'),
               style: GoogleFonts.inter(
                 fontWeight: FontWeight.bold,
                 fontSize: 18,
@@ -304,7 +309,7 @@ class _VocabularyScreenState extends State<VocabularyScreen> {
             ElevatedButton.icon(
               onPressed: () => viewModel.loadFlashcards(),
               icon: const Icon(Icons.refresh_rounded, size: 18),
-              label: const Text('Thử lại'),
+              label: Text(context.tr('retry')),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 foregroundColor: Colors.white,
@@ -333,20 +338,20 @@ class _VocabularyScreenState extends State<VocabularyScreen> {
                 color: AppColors.error, size: 22),
             const SizedBox(width: 8),
             Text(
-              'Xóa từ vựng?',
+              context.tr('delete_vocabulary_title'),
               style: GoogleFonts.inter(fontWeight: FontWeight.bold),
             ),
           ],
         ),
         content: Text(
-          'Bạn có chắc chắn muốn xóa thẻ này khỏi kho từ vựng không?',
+          context.tr('delete_vocabulary_confirm'),
           style: GoogleFonts.inter(color: AppColors.textSecondary),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: Text(
-              'Hủy',
+              context.tr('cancel'),
               style: GoogleFonts.inter(color: AppColors.textSecondary),
             ),
           ),
@@ -363,7 +368,7 @@ class _VocabularyScreenState extends State<VocabularyScreen> {
               ),
             ),
             child: Text(
-              'Xóa',
+              context.tr('delete'),
               style: GoogleFonts.inter(fontWeight: FontWeight.w600),
             ),
           ),

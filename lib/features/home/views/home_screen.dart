@@ -15,6 +15,7 @@ import '../widgets/activity_heatmap.dart';
 import '../../auth/viewmodels/auth_viewmodel.dart';
 import '../../auth/models/user_model.dart';
 import '../../class/views/class_materials_screen.dart';
+import '../../../l10n/app_localizations.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -62,7 +63,7 @@ class _HomeScreenState extends State<HomeScreen> {
         : dashboardViewModel.userName;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: RefreshIndicator(
         onRefresh: () => dashboardViewModel.loadDashboard(),
         child: CustomScrollView(
@@ -72,12 +73,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
             // B. Hero Card (Mục tiêu & Điểm số)
             SliverToBoxAdapter(
-              child: Consumer<ProgressViewModel>(
-                builder: (context, progressVM, _) => _buildHeroCard(
-                  progressVM.averageScore,
-                  0, // Listening average not added yet but kept for UI
-                  0, // Reading average not added yet but kept for UI
-                ),
+              child: _buildHeroCard(
+                dashboardViewModel.predictedScore > 0 ? dashboardViewModel.predictedScore : context.watch<ProgressViewModel>().averageScore,
+                dashboardViewModel.listeningScore,
+                dashboardViewModel.readingScore,
               ),
             ),
 
@@ -131,7 +130,7 @@ class _HomeScreenState extends State<HomeScreen> {
       elevation: 0,
       scrolledUnderElevation: 0,
       automaticallyImplyLeading: false,
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       flexibleSpace: FlexibleSpaceBar(
         background: Container(
           padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
@@ -146,22 +145,22 @@ class _HomeScreenState extends State<HomeScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'Chào $userName! 👋',
+                      '${context.tr('welcome')} $userName! 👋',
                       style: GoogleFonts.inter(
                         fontSize: 22,
                         fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
+                        color: Theme.of(context).textTheme.displayLarge?.color,
                       ),
                     ),
                     Container(
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: Theme.of(context).cardColor,
                         shape: BoxShape.circle,
                         boxShadow: AppShadows.softShadow,
                       ),
                       child: IconButton(
-                        icon: const Icon(Icons.notifications_none_rounded,
-                            color: AppColors.textPrimary),
+                        icon: Icon(Icons.notifications_none_rounded,
+                            color: Theme.of(context).textTheme.bodyLarge?.color),
                         onPressed: () {},
                       ),
                     ),
@@ -174,10 +173,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   children: [
                     Expanded(
                       child: Text(
-                        'Hôm nay bạn muốn học gì?',
+                        context.tr('today_plan'), // Need to add this key or use a fallback
                         style: GoogleFonts.inter(
                           fontSize: 14,
-                          color: AppColors.textSecondary,
+                          color: Theme.of(context).textTheme.bodyMedium?.color,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -210,7 +209,7 @@ class _HomeScreenState extends State<HomeScreen> {
               const Icon(Icons.analytics_rounded, color: Colors.amberAccent, size: 20),
               const SizedBox(width: 8),
               Text(
-                'ĐIỂM TRUNG BÌNH',
+                context.tr('average_score').toUpperCase(),
                 style: GoogleFonts.inter(
                   color: Colors.white.withValues(alpha: 0.9),
                   fontSize: 12,
@@ -240,13 +239,13 @@ class _HomeScreenState extends State<HomeScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              _buildSkillScore(Icons.headphones, 'Listening', listeningScore),
+              _buildSkillScore(Icons.headphones, context.tr('listening'), listeningScore),
               Container(
                 width: 1,
                 height: 30,
                 color: Colors.white.withValues(alpha: 0.2),
               ),
-              _buildSkillScore(Icons.menu_book, 'Reading', readingScore),
+              _buildSkillScore(Icons.menu_book, context.tr('reading'), readingScore),
             ],
           ),
         ],
@@ -289,9 +288,9 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               Expanded(
                 child: _buildCategoryCard(
-                  'Nghe',
+                  context.tr('listening'),
                   Icons.headphones_rounded,
-                  AppColors.indigo50,
+                  AppColors.primary.withValues(alpha: 0.1),
                   AppColors.primary,
                   onTap: () {
                     context.read<PracticeViewModel>().setSkillFilter('listening');
@@ -302,9 +301,9 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(width: 16),
               Expanded(
                 child: _buildCategoryCard(
-                  'Đọc',
+                  context.tr('reading'),
                   Icons.menu_book_rounded,
-                  const Color(0xFFF0FDF4),
+                  AppColors.success.withValues(alpha: 0.1),
                   AppColors.success,
                   onTap: () {
                     context.read<PracticeViewModel>().setSkillFilter('reading');
@@ -320,13 +319,13 @@ class _HomeScreenState extends State<HomeScreen> {
               Expanded(
                 child: Consumer<VocabularyViewModel>(
                   builder: (context, vm, _) => _buildCategoryCard(
-                    'Từ Vựng',
+                    context.tr('vocabulary'),
                     Icons.style_outlined,
-                    const Color(0xFFFEF9C3),
+                    AppColors.warning.withValues(alpha: 0.1),
                     AppColors.warning,
-                    subtitle: '${vm.flashcards.length} thẻ',
+                    subtitle: '${vm.flashcards.length} ${context.tr('cards')}',
                     onTap: () {
-                      context.read<NavigationViewModel>().setIndex(2); // Go to Vocabulary Tab
+                      context.read<NavigationViewModel>().setIndex(2);
                     },
                   ),
                 ),
@@ -334,13 +333,13 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(width: 16),
               Expanded(
                 child: _buildCategoryCard(
-                  'Tiến độ',
+                  context.tr('progress'),
                   Icons.bar_chart_rounded,
-                  const Color(0xFFFDF2F8),
+                  const Color(0xFFEC4899).withValues(alpha: 0.1),
                   const Color(0xFFEC4899),
-                  subtitle: 'Xem phân tích',
+                  subtitle: context.tr('view_analytics'),
                   onTap: () {
-                    context.read<NavigationViewModel>().setIndex(3); // Go to Progress Tab
+                    context.read<NavigationViewModel>().setIndex(3);
                   },
                 ),
               ),
@@ -361,7 +360,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(20),
         boxShadow: AppShadows.softShadow,
       ),
@@ -378,7 +377,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: Theme.of(context).scaffoldBackgroundColor,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(icon, color: iconColor, size: 24),
@@ -393,7 +392,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         style: GoogleFonts.inter(
                           fontSize: 14,
                           fontWeight: FontWeight.bold,
-                          color: AppColors.textPrimary,
+                          color: Theme.of(context).textTheme.titleMedium?.color,
                         ),
                       ),
                       if (subtitle != null)
@@ -432,11 +431,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   const Icon(Icons.psychology_outlined, color: AppColors.primary, size: 22),
                   const SizedBox(width: 8),
                   Text(
-                    'Chiến thuật AI mới nhất',
+                    context.tr('latest_ai_advice'),
                     style: GoogleFonts.inter(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary,
+                      color: Theme.of(context).textTheme.titleLarge?.color,
                     ),
                   ),
                 ],
@@ -445,7 +444,7 @@ class _HomeScreenState extends State<HomeScreen> {
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: Theme.of(context).cardColor,
                   borderRadius: BorderRadius.circular(24),
                   boxShadow: AppShadows.softShadow,
                   border: Border.all(color: AppColors.primary.withValues(alpha: 0.05)),
@@ -462,17 +461,17 @@ class _HomeScreenState extends State<HomeScreen> {
                       latest.summary.replaceAll(RegExp(r'<[^>]*>'), ''),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                      style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color, fontSize: 13),
                     ),
                     const SizedBox(height: 16),
                     OutlinedButton(
-                      onPressed: () {
-                        DefaultTabController.of(context).animateTo(3);
-                      },
+                      onPressed: () => _handleActivityClick(latest.testAttemptId),
                       style: OutlinedButton.styleFrom(
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        foregroundColor: AppColors.primary,
+                        side: const BorderSide(color: AppColors.primary),
                       ),
-                      child: const Text('Xem chi tiết phân tích'),
+                      child: Text(context.tr('view_detail_analysis')),
                     ),
                   ],
                 ),
@@ -491,11 +490,11 @@ class _HomeScreenState extends State<HomeScreen> {
         delegate: SliverChildListDelegate([
           if (vm.recentActivities.isNotEmpty) ...[
             Text(
-              'Hoạt động gần đây',
+              context.tr('recent_activity'),
               style: GoogleFonts.inter(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
+                color: Theme.of(context).textTheme.titleLarge?.color,
               ),
             ),
             const SizedBox(height: 12),
@@ -506,61 +505,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     '${act['score']}/${act['totalQuestions']}',
                     _formatTimeDiff(act['createdAt']),
                     isLoading: _loadingActivityId == act['id'],
-                    onTap: _loadingActivityId != null ? null : () async {
-                      setState(() => _loadingActivityId = act['id']);
-                      
-                      try {
-                        final practiceVM = context.read<PracticeViewModel>();
-                        final detail = await practiceVM.loadAttemptDetail(act['id']);
-                        
-                        if (detail != null && mounted) {
-                          // Construct PartModel from detail data
-                          final partData = detail['part'] as Map<String, dynamic>;
-                          final partModel = PartModel.fromJson(partData);
-                          
-                          // Consstruct result data
-                          final resultData = {
-                            'score': detail['correctCount'],
-                            'totalQuestions': detail['totalQuestions'],
-                            'toeicScore': detail['totalScore'] ?? detail['toeicScore'],
-                            'percentage': ((detail['correctCount'] / detail['totalQuestions']) * 100).toDouble(),
-                          };
-
-                          if (mounted) {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => PracticeResultScreen(
-                                  resultData: resultData,
-                                  part: partModel,
-                                  attemptId: act['id'],
-                                ),
-                              ),
-                            );
-                          }
-                        } else if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Không thể tải chi tiết bài làm. Vui lòng thử lại sau.'),
-                              backgroundColor: AppColors.error,
-                            ),
-                          );
-                        }
-                      } catch (e) {
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Lỗi kết nối: ${e.toString()}'),
-                              backgroundColor: AppColors.error,
-                            ),
-                          );
-                        }
-                      } finally {
-                        if (mounted) {
-                          setState(() => _loadingActivityId = null);
-                        }
-                      }
-                    },
+                    onTap: _loadingActivityId != null ? null : () => _handleActivityClick(act['id']),
                   ),
                 )),
           ],
@@ -569,10 +514,74 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Future<void> _handleActivityClick(String? id) async {
+    if (id == null) {
+      // Fallback if no specific ID linked
+      DefaultTabController.of(context).animateTo(3);
+      return;
+    }
+
+    if (_loadingActivityId != null) return;
+    
+    setState(() => _loadingActivityId = id);
+    
+    try {
+      final practiceVM = context.read<PracticeViewModel>();
+      final detail = await practiceVM.loadAttemptDetail(id);
+      
+      if (detail != null && mounted) {
+        // Construct PartModel from detail data
+        final partData = detail['part'] as Map<String, dynamic>;
+        final partModel = PartModel.fromJson(partData);
+        
+        // Construct result data
+        final resultData = {
+          'score': detail['correctCount'],
+          'totalQuestions': detail['totalQuestions'],
+          'toeicScore': detail['totalScore'] ?? detail['toeicScore'],
+          'percentage': ((detail['correctCount'] / detail['totalQuestions']) * 100).toDouble(),
+        };
+
+        if (mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => PracticeResultScreen(
+                resultData: resultData,
+                part: partModel,
+                attemptId: id,
+              ),
+            ),
+          );
+        }
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Không thể tải chi tiết bài làm. Vui lòng thử lại sau.'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lỗi kết nối: ${e.toString()}'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _loadingActivityId = null);
+      }
+    }
+  }
+
   Widget _buildRecentActivityItem(String title, String score, String time, {VoidCallback? onTap, bool isLoading = false}) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(20),
         boxShadow: AppShadows.softShadow,
       ),
@@ -602,7 +611,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         style: GoogleFonts.inter(
                           fontSize: 15,
                           fontWeight: FontWeight.bold,
-                          color: AppColors.textPrimary,
+                          color: Theme.of(context).textTheme.titleMedium?.color,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -611,7 +620,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         time,
                         style: GoogleFonts.inter(
                           fontSize: 12,
-                          color: AppColors.textSecondary,
+                          color: Theme.of(context).textTheme.bodyMedium?.color,
                         ),
                       ),
                     ],
@@ -636,17 +645,17 @@ class _HomeScreenState extends State<HomeScreen> {
   String _formatTimeDiff(String createdAt) {
     final date = DateTime.parse(createdAt);
     final diff = DateTime.now().difference(date);
-    if (diff.inDays > 0) return '${diff.inDays} ngày trước';
-    if (diff.inHours > 0) return '${diff.inHours} giờ trước';
-    if (diff.inMinutes > 0) return '${diff.inMinutes} phút trước';
-    return 'Vừa xong';
+    if (diff.inDays > 0) return '${diff.inDays} ${context.tr('days_ago')}';
+    if (diff.inHours > 0) return '${diff.inHours} ${context.tr('hours_ago')}';
+    if (diff.inMinutes > 0) return '${diff.inMinutes} ${context.tr('minutes_ago')}';
+    return context.tr('just_now');
   }
 
   Widget _buildClassCard(BuildContext context, UserModel user) {
     return Container(
       margin: const EdgeInsets.fromLTRB(20, 0, 20, 24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(24),
         boxShadow: AppShadows.softShadow,
         border: Border.all(color: AppColors.primary.withValues(alpha: 0.05), width: 1),
@@ -679,19 +688,19 @@ class _HomeScreenState extends State<HomeScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Lớp: ${user.className ?? "Đang tải..."}',
+                        '${context.tr('class')}: ${user.className ?? context.tr('loading')}',
                         style: GoogleFonts.inter(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
-                          color: AppColors.textPrimary,
+                          color: Theme.of(context).textTheme.titleMedium?.color,
                         ),
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'GV: ${user.teacherName ?? "Trung tâm Antigravity"}',
+                        '${context.tr('teacher')}: ${user.teacherName ?? "Antigravity Center"}',
                         style: GoogleFonts.inter(
                           fontSize: 13,
-                          color: AppColors.textSecondary,
+                          color: Theme.of(context).textTheme.bodyMedium?.color,
                         ),
                       ),
                     ],
@@ -703,8 +712,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     color: AppColors.primary,
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Text(
-                    'Tài liệu',
+                  child: Text(
+                    context.tr('materials'),
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 12,

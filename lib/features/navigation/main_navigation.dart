@@ -8,6 +8,7 @@ import '../progress/views/progress_screen.dart';
 import '../profile/views/profile_screen.dart';
 import 'viewmodels/navigation_viewmodel.dart';
 import 'package:provider/provider.dart';
+import '../../l10n/app_localizations.dart';
 
 /// Main Navigation - Bottom navigation wrapper cho toàn bộ app
 class MainNavigation extends StatefulWidget {
@@ -24,31 +25,31 @@ class _MainNavigationState extends State<MainNavigation> {
     NavigationItem(
       icon: Icons.home_outlined,
       activeIcon: Icons.home,
-      label: 'Trang chủ',
+      labelKey: 'home',
       color: AppColors.primary,
     ),
     NavigationItem(
       icon: Icons.menu_book_outlined,
       activeIcon: Icons.menu_book,
-      label: 'Luyện tập',
+      labelKey: 'practice',
       color: Color(0xFF2196F3),
     ),
     NavigationItem(
       icon: Icons.style_outlined,
       activeIcon: Icons.style,
-      label: 'Từ vựng',
+      labelKey: 'vocabulary',
       color: Color(0xFFE91E63),
     ),
     NavigationItem(
       icon: Icons.bar_chart_outlined,
       activeIcon: Icons.bar_chart,
-      label: 'Tiến độ',
+      labelKey: 'progress',
       color: Color(0xFFFF9800),
     ),
     NavigationItem(
       icon: Icons.person_outline,
       activeIcon: Icons.person,
-      label: 'Cá nhân',
+      labelKey: 'profile_tab',
       color: Color(0xFF9C27B0),
     ),
   ];
@@ -115,7 +116,7 @@ class _MainNavigationState extends State<MainNavigation> {
             final isSelected = _navItems.indexOf(item) == currentIndex;
             return BottomNavigationBarItem(
               icon: Icon(isSelected ? item.activeIcon : item.icon, size: 24),
-              label: item.label,
+              label: context.tr(item.labelKey),
             );
           }).toList(),
         ),
@@ -128,13 +129,13 @@ class _MainNavigationState extends State<MainNavigation> {
 class NavigationItem {
   final IconData icon;
   final IconData activeIcon;
-  final String label;
+  final String labelKey;
   final Color color;
 
   const NavigationItem({
     required this.icon,
     required this.activeIcon,
-    required this.label,
+    required this.labelKey,
     required this.color,
   });
 }

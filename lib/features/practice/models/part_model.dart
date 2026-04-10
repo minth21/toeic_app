@@ -31,6 +31,7 @@ class PartModel {
       totalQuestions: json['totalQuestions'] ?? 0,
       completedQuestions: json['_count']?['questions'] ?? 0,
       instructionImgUrl: json['instructionImgUrl'],
+      instructions: json['instructions'],
       audioUrl: json['audioUrl'],
       timeLimit: json['timeLimit'],
       userProgress: json['userProgress'],

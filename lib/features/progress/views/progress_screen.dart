@@ -8,6 +8,12 @@ import '../viewmodels/progress_viewmodel.dart';
 import '../../practice/viewmodels/ai_timeline_viewmodel.dart';
 import '../../practice/models/ai_assessment.dart';
 import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
+import '../../auth/viewmodels/auth_viewmodel.dart';
+import '../../home/viewmodels/dashboard_viewmodel.dart';
+import '../../../l10n/app_localizations.dart';
+import '../../practice/viewmodels/practice_viewmodel.dart';
+import '../../practice/views/practice_result_screen.dart';
+import '../../practice/models/part_model.dart';
 
 class ProgressScreen extends StatefulWidget {
   const ProgressScreen({super.key});
@@ -17,6 +23,94 @@ class ProgressScreen extends StatefulWidget {
 }
 
 class _ProgressScreenState extends State<ProgressScreen> {
+  String? _loadingActivityId;
+
+  void _showTargetScoreDialog(BuildContext context, int currentScore) {
+    final controller = TextEditingController(text: currentScore > 0 ? currentScore.toString() : '');
+    final authViewModel = context.read<AuthViewModel>();
+    final dashboardViewModel = context.read<DashboardViewModel>();
+    final progressViewModel = context.read<ProgressViewModel>();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          context.tr('target_score_dialog_title'),
+          style: GoogleFonts.outfit(fontWeight: FontWeight.bold),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              context.tr('target_score_dialog_desc'),
+              style: GoogleFonts.outfit(fontSize: 14, color: AppColors.textSecondary),
+            ),
+            const SizedBox(height: 20),
+            TextField(
+              controller: controller,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                labelText: context.tr('target_score_label'),
+                hintText: context.tr('target_score_hint'),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              autofocus: true,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(context.tr('cancel'), style: GoogleFonts.outfit(color: AppColors.textSecondary)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final newScore = int.tryParse(controller.text);
+              if (newScore == null || newScore < 0 || newScore > 990) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(context.tr('invalid_score_msg'))),
+                );
+                return;
+              }
+
+              Navigator.pop(context); // Close dialog
+
+              final success = await authViewModel.updateProfile(targetScore: newScore);
+              if (success) {
+                // Refresh all related data
+                await dashboardViewModel.loadDashboard();
+                await progressViewModel.loadUserStats();
+                
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                    content: Text(context.tr('update_success')),
+                      backgroundColor: AppColors.success,
+                    ),
+                  );
+                }
+              } else {
+                if (context.mounted) {
+                   ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(authViewModel.errorMessage ?? 'Cập nhật thất bại'),
+                      backgroundColor: AppColors.error,
+                    ),
+                  );
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: Text(context.tr('update'), style: GoogleFonts.outfit(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -36,11 +130,11 @@ class _ProgressScreenState extends State<ProgressScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: Text(
-          'Thành tích cá nhân',
-          style: GoogleFonts.inter(fontWeight: FontWeight.bold),
+          context.tr('personal_achievement'),
+          style: GoogleFonts.outfit(fontWeight: FontWeight.bold),
         ),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
@@ -68,13 +162,19 @@ class _ProgressScreenState extends State<ProgressScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildSectionTitle('Lịch sử phong độ', Icons.trending_up),
+                  _buildSectionTitle(context, 'LỘ TRÌNH MỤC TIÊU', Icons.auto_graph),
+                  const SizedBox(height: 16),
+                  _buildBurnDownCard(),
+                  const SizedBox(height: 32),
+                  _buildSectionTitle(context, 'KỶ LỤC TỪNG PHẦN', Icons.grid_view_rounded),
+                  const SizedBox(height: 16),
+                  _buildPartsGrid(context),
+                  const SizedBox(height: 32),
+                  _buildSectionTitle(context, context.tr('performance_history'), Icons.trending_up),
                   const SizedBox(height: 16),
                   _buildPerformanceChart(),
                   const SizedBox(height: 32),
-                  _buildBurnDownCard(),
-                  const SizedBox(height: 32),
-                  _buildSectionTitle('Tư vấn chiến thuật AI', Icons.auto_awesome),
+                  _buildSectionTitle(context, context.tr('learning_journey'), Icons.auto_awesome),
                   const SizedBox(height: 16),
                   _buildAITimeline(),
                 ],
@@ -90,59 +190,63 @@ class _ProgressScreenState extends State<ProgressScreen> {
     return Consumer<ProgressViewModel>(
       builder: (context, viewModel, child) {
         return Container(
-          padding: const EdgeInsets.fromLTRB(20, 10, 20, 30),
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
           decoration: const BoxDecoration(
-            color: AppColors.primary,
+            gradient: AppColors.premiumGradient,
             borderRadius: BorderRadius.only(
-              bottomLeft: Radius.circular(32),
-              bottomRight: Radius.circular(32),
+              bottomLeft: Radius.circular(40),
+              bottomRight: Radius.circular(40),
             ),
           ),
           child: Column(
             children: [
               Text(
-                'ĐIỂM TRUNG BÌNH HIỆN TẠI',
-                style: GoogleFonts.inter(
-                  color: Colors.white70,
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 1.2,
+                'KỶ LỤC HIỆN TẠI',
+                style: GoogleFonts.outfit(
+                  color: Colors.white.withValues(alpha: 0.8),
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 2.0,
                 ),
               ),
-              const SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.end,
+              const SizedBox(height: 12),
+              Stack(
+                alignment: Alignment.center,
                 children: [
-                   Text(
-                    '${viewModel.averageScore}',
-                    style: const TextStyle(
-                      fontSize: 64,
-                      fontWeight: FontWeight.bold,
+                  Text(
+                    '${viewModel.estimatedScore}',
+                    style: GoogleFonts.outfit(
+                      fontSize: 84,
+                      fontWeight: FontWeight.w800,
                       color: Colors.white,
+                      height: 1,
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 24),
+              Text(
+                'trên 990 điểm',
+                style: GoogleFonts.outfit(
+                  color: Colors.white.withValues(alpha: 0.7),
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 32),
               Row(
                 children: [
-                  Expanded(
-                    child: _buildSkillCard(
-                      'Số bài đã làm',
-                      viewModel.totalAttempts,
-                      Icons.history_edu_rounded,
-                      Colors.blue.shade100,
-                    ),
+                   _buildMasteryMiniCard(
+                    'NGHE',
+                    viewModel.estimatedListening,
+                    495,
+                    Icons.headphones,
                   ),
                   const SizedBox(width: 16),
-                  Expanded(
-                    child: _buildSkillCard(
-                      'Mục tiêu',
-                      viewModel.targetScore,
-                      Icons.flag_rounded,
-                      Colors.green.shade100,
-                    ),
+                  _buildMasteryMiniCard(
+                    'ĐỌC',
+                    viewModel.estimatedReading,
+                    495,
+                    Icons.menu_book,
                   ),
                 ],
               ),
@@ -150,6 +254,59 @@ class _ProgressScreenState extends State<ProgressScreen> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildMasteryMiniCard(String label, int score, int max, IconData icon) {
+    final progress = (score / max).clamp(0.0, 1.0);
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, color: Colors.white, size: 16),
+                const SizedBox(width: 8),
+                Text(
+                  label,
+                  style: GoogleFonts.outfit(
+                    color: Colors.white70,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 1,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '$score',
+              style: GoogleFonts.outfit(
+                color: Colors.white,
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: progress,
+                backgroundColor: Colors.white12,
+                valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                minHeight: 4,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -185,30 +342,36 @@ class _ProgressScreenState extends State<ProgressScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'TOEIC BURN DOWN',
-                        style: GoogleFonts.inter(
-                          color: Colors.white70,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 1.2,
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'TOEIC BURN DOWN',
+                          style: GoogleFonts.outfit(
+                            color: Colors.white70,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1.2,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Mục tiêu: $target điểm',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
+                        const SizedBox(height: 4),
+                        Text(
+                          '${context.tr('target_score')}: $target ${context.tr('achievement_points_label').toLowerCase()}',
+                          style: GoogleFonts.outfit(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                  const Icon(Icons.local_fire_department, color: Colors.orangeAccent, size: 32),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    onPressed: () => _showTargetScoreDialog(context, target),
+                    icon: const Icon(Icons.edit_note_rounded, color: Colors.orangeAccent, size: 28),
+                  ),
                 ],
               ),
               const SizedBox(height: 24),
@@ -225,12 +388,15 @@ class _ProgressScreenState extends State<ProgressScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    '${(progress * 100).toInt()}% Hoàn thành',
-                    style: const TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w500),
+                  Expanded(
+                    child: Text(
+                      '${(progress * 100).toInt()}% ${context.tr('completed')}',
+                      style: const TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w500),
+                    ),
                   ),
+                  const SizedBox(width: 8),
                   Text(
-                    gap > 0 ? '$gap điểm nữa!' : 'Đã đạt mục tiêu! 🎉',
+                    gap > 0 ? '$gap ${context.tr('points_to_go')}' : context.tr('target_achieved'),
                     style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
                   ),
                 ],
@@ -239,39 +405,6 @@ class _ProgressScreenState extends State<ProgressScreen> {
           ),
         );
       },
-    );
-  }
-
-  Widget _buildSkillCard(String skill, int score, IconData icon, Color bg) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: Colors.white70, size: 24),
-          const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                skill,
-                style: const TextStyle(color: Colors.white70, fontSize: 11),
-              ),
-              Text(
-                '$score',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
     );
   }
 
@@ -287,7 +420,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
 
         final assessments = timelineVM.assessments.reversed.toList();
         if (assessments.isEmpty) {
-          return _buildChartPlaceholder('Hãy thi thử để bắt đầu ghi lại thành tích');
+          return _buildChartPlaceholder(context, context.tr('no_performance_data_msg'));
         }
 
         final points = assessments.asMap().entries.map((e) {
@@ -343,8 +476,8 @@ class _ProgressScreenState extends State<ProgressScreen> {
         }
 
         if (viewModel.assessments.isEmpty) {
-          return const Center(
-            child: Text('Chưa có nhận xét AI nào.'),
+          return Center(
+            child: Text(context.tr('no_ai_assessments_msg')),
           );
         }
 
@@ -366,9 +499,9 @@ class _ProgressScreenState extends State<ProgressScreen> {
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.divider.withValues(alpha: 0.5)),
+        border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.1)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -394,9 +527,9 @@ class _ProgressScreenState extends State<ProgressScreen> {
               if (assessment.score != null)
                 Text(
                   '${assessment.score}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
+                    color: Theme.of(context).textTheme.titleSmall?.color,
                   ),
                 ),
             ],
@@ -407,30 +540,219 @@ class _ProgressScreenState extends State<ProgressScreen> {
             style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
+              color: AppColors.primary,
             ),
           ),
+          const SizedBox(height: 4),
+          if (assessment.score != null)
+             Text(
+              '${context.tr('achievement_points_label')}: ${assessment.score} ${context.tr('achievement_points_label').toLowerCase()}',
+              style: GoogleFonts.outfit(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: Theme.of(context).textTheme.titleLarge?.color,
+              ),
+            ),
           const SizedBox(height: 8),
           HtmlWidget(
             assessment.summary,
-            textStyle: const TextStyle(
+            textStyle: TextStyle(
               fontSize: 14,
-              color: AppColors.textSecondary,
+              color: Theme.of(context).textTheme.bodyMedium?.color,
               height: 1.5,
             ),
           ),
+          if (assessment.testAttemptId != null) ...[
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: _loadingActivityId != null 
+                    ? null 
+                    : () => _handleActivityClick(assessment.testAttemptId),
+                icon: _loadingActivityId == assessment.testAttemptId
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+                      )
+                    : const Icon(Icons.analytics_outlined, size: 18),
+                label: Text(context.tr('view_detail_analysis')),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  foregroundColor: AppColors.primary,
+                  side: const BorderSide(color: AppColors.primary, width: 1.5),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
   }
 
-  Widget _buildSectionTitle(String title, IconData icon) {
+  Future<void> _handleActivityClick(String? id) async {
+    if (id == null || !mounted) return;
+
+    if (_loadingActivityId != null) return;
+    
+    setState(() => _loadingActivityId = id);
+    
+    try {
+      // Use PracticeViewModel from context
+      final practiceVM = context.read<PracticeViewModel>();
+      final detail = await practiceVM.loadAttemptDetail(id);
+      
+      if (detail != null && mounted) {
+        // Construct PartModel from detail data
+        final partData = detail['part'] as Map<String, dynamic>;
+        final partModel = PartModel.fromJson(partData);
+        
+        // Construct result data
+        final resultData = {
+          'score': detail['correctCount'] ?? 0,
+          'totalQuestions': detail['totalQuestions'] ?? 0,
+          'toeicScore': detail['totalScore'] ?? detail['toeicScore'] ?? 0,
+          'percentage': detail['totalQuestions'] != null && detail['totalQuestions'] > 0
+              ? ((detail['correctCount'] / detail['totalQuestions']) * 100).toDouble()
+              : 0.0,
+        };
+
+        if (mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => PracticeResultScreen(
+                resultData: resultData,
+                part: partModel,
+                attemptId: id,
+              ),
+            ),
+          );
+        }
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Không thể tải chi tiết bài làm. Vui lòng thử lại sau.'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lỗi kết nối: ${e.toString()}'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _loadingActivityId = null);
+      }
+    }
+  }
+
+  Widget _buildPartsGrid(BuildContext context) {
+    return Consumer<ProgressViewModel>(
+      builder: (context, viewModel, child) {
+        final List<Map<String, dynamic>> parts = [
+          {'name': 'Part 1', 'score': viewModel.userStats?['max_p1'] ?? 0, 'total': 6, 'icon': Icons.image_outlined},
+          {'name': 'Part 2', 'score': viewModel.userStats?['max_p2'] ?? 0, 'total': 31, 'icon': Icons.record_voice_over_outlined},
+          {'name': 'Part 3', 'score': viewModel.userStats?['max_p3'] ?? 0, 'total': 39, 'icon': Icons.forum_outlined},
+          {'name': 'Part 4', 'score': viewModel.userStats?['max_p4'] ?? 0, 'total': 30, 'icon': Icons.campaign_outlined},
+          {'name': 'Part 5', 'score': viewModel.userStats?['max_p5'] ?? 0, 'total': 30, 'icon': Icons.text_fields_outlined},
+          {'name': 'Part 6', 'score': viewModel.userStats?['max_p6'] ?? 0, 'total': 16, 'icon': Icons.edit_note_outlined},
+          {'name': 'Part 7', 'score': viewModel.userStats?['max_p7'] ?? 0, 'total': 54, 'icon': Icons.article_outlined},
+        ];
+
+        return GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            childAspectRatio: 2.2,
+          ),
+          itemCount: parts.length,
+          itemBuilder: (context, index) {
+            final part = parts[index];
+            final p = (part['score'] / part['total']).toDouble();
+            
+            return Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: AppShadows.softShadow,
+                border: Border.all(color: AppColors.divider.withValues(alpha: 0.5)),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                   Row(
+                    children: [
+                      Icon(part['icon'], size: 14, color: AppColors.primary),
+                      const SizedBox(width: 8),
+                      Text(
+                        part['name'],
+                        style: GoogleFonts.outfit(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                      const Spacer(),
+                      Text(
+                        '${part['score']}/${part['total']}',
+                        style: GoogleFonts.outfit(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: LinearProgressIndicator(
+                      value: p,
+                      backgroundColor: AppColors.indigo50,
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        p >= 0.8 ? AppColors.success : (p >= 0.4 ? AppColors.primary : AppColors.warning)
+                      ),
+                      minHeight: 6,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildSectionTitle(BuildContext context, String title, IconData icon) {
     return Row(
       children: [
-        Icon(icon, color: AppColors.primary, size: 20),
-        const SizedBox(width: 8),
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: AppColors.indigo50,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, color: AppColors.primary, size: 20),
+        ),
+        const SizedBox(width: 12),
         Text(
           title,
-          style: GoogleFonts.inter(
+          style: GoogleFonts.outfit(
             fontSize: 18,
             fontWeight: FontWeight.bold,
             color: AppColors.textPrimary,
@@ -440,16 +762,17 @@ class _ProgressScreenState extends State<ProgressScreen> {
     );
   }
 
-  Widget _buildChartPlaceholder(String message) {
+  Widget _buildChartPlaceholder(BuildContext context, String message) {
     return Container(
       height: 200,
       width: double.infinity,
       decoration: BoxDecoration(
-        color: Colors.grey.shade100,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(24),
+        boxShadow: AppShadows.softShadow,
       ),
       child: Center(
-        child: Text(message, style: TextStyle(color: Colors.grey.shade500)),
+        child: Text(message, style: GoogleFonts.outfit(color: Colors.grey.shade500)),
       ),
     );
   }

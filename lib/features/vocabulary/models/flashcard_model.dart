@@ -37,7 +37,7 @@ class Flashcard {
       userId: json['userId'] ?? '',
       word: json['word'] ?? '',
       meaning: json['meaning'] ?? '',
-      ipa: json['ipa'],
+      ipa: json['ipa'] ?? json['pronunciation'],
       exampleEn: json['exampleEn'],
       exampleVi: json['exampleVi'],
       status: _parseStatus(json['status']),

@@ -66,9 +66,11 @@ class _VocabFlashcardPanelState extends State<VocabFlashcardPanel> {
             children: [
               const Icon(Icons.check_circle, color: Colors.white, size: 18),
               const SizedBox(width: 8),
-              Text(
-                'Đã lưu "${item['word'] ?? item['text']}" vào Từ vựng',
-                style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+              Expanded(
+                child: Text(
+                  'Đã lưu "${item['word'] ?? item['text']}" vào Từ vựng',
+                  style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+                ),
               ),
             ],
           ),
@@ -157,7 +159,7 @@ class _VocabFlashcardPanelState extends State<VocabFlashcardPanel> {
 
           // ── Cards ──────────────────────────────────────────────
           SizedBox(
-            height: 130,
+            height: 160,
             child: PageView.builder(
               controller: _pageController,
               itemCount: count,
@@ -166,8 +168,11 @@ class _VocabFlashcardPanelState extends State<VocabFlashcardPanel> {
                 final item = widget.vocabItems[index] as Map<String, dynamic>;
                 final word = item['word'] ?? item['text'] ?? '';
                 final meaning = item['meaning'] ?? '';
-                final ipa = item['ipa'] ?? '';
-                final isSaved = _savedIndices.contains(index);
+                final ipa = item['ipa'] ?? item['pronunciation'] ?? '';
+                
+                // Persistent check
+                final vocabVM = context.watch<VocabularyViewModel>();
+                final isSaved = vocabVM.isWordSaved(word) || _savedIndices.contains(index);
 
                 return Padding(
                   padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
@@ -188,6 +193,8 @@ class _VocabFlashcardPanelState extends State<VocabFlashcardPanel> {
                                 color: const Color(0xFF78350F),
                                 letterSpacing: 0.3,
                               ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                             if (ipa.isNotEmpty) ...[
                               const SizedBox(height: 2),
@@ -263,23 +270,28 @@ class _VocabFlashcardPanelState extends State<VocabFlashcardPanel> {
             child: Column(
               children: [
                 // Dots
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(count, (i) {
-                    final active = i == _currentIndex;
-                    return AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      margin: const EdgeInsets.symmetric(horizontal: 3),
-                      width: active ? 20 : 6,
-                      height: 6,
-                      decoration: BoxDecoration(
-                        color: active
-                            ? const Color(0xFFF59E0B)
-                            : const Color(0xFFFDE68A),
-                        borderRadius: BorderRadius.circular(3),
-                      ),
-                    );
-                  }),
+                // Dots - Use Wrap to prevent overflow for many items (e.g. 37+)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Wrap(
+                    alignment: WrapAlignment.center,
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: List.generate(count, (i) {
+                      final active = i == _currentIndex;
+                      return AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        width: active ? 18 : 6,
+                        height: 6,
+                        decoration: BoxDecoration(
+                          color: active
+                              ? const Color(0xFFF59E0B)
+                              : const Color(0xFFFDE68A),
+                          borderRadius: BorderRadius.circular(3),
+                        ),
+                      );
+                    }),
+                  ),
                 ),
                 if (count > 1) ...[
                   const SizedBox(height: 6),

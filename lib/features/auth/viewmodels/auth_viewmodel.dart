@@ -186,6 +186,7 @@ class AuthViewModel extends ChangeNotifier {
     String? phoneNumber,
     DateTime? dateOfBirth,
     String? avatarUrl,
+    int? targetScore,
   }) async {
     if (_token == null) return false;
 
@@ -199,6 +200,7 @@ class AuthViewModel extends ChangeNotifier {
         phoneNumber: phoneNumber,
         dateOfBirth: dateOfBirth,
         avatarUrl: avatarUrl,
+        targetScore: targetScore,
         token: _token,
       );
 

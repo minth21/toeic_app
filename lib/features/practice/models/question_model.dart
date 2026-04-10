@@ -24,6 +24,7 @@ class QuestionModel {
   final String? evidence;
   final String? audioUrl;
   final String? transcript;
+  final String? topicTag;
 
   QuestionModel({
     required this.id,
@@ -48,12 +49,13 @@ class QuestionModel {
     this.evidence,
     this.audioUrl,
     this.transcript,
+    this.topicTag,
   });
 
   factory QuestionModel.fromJson(Map<String, dynamic> json) {
     return QuestionModel(
-      id: json['id'] ?? '',
-      partId: json['partId'] ?? '',
+      id: json['id']?.toString() ?? '',
+      partId: json['partId']?.toString() ?? '',
       questionNumber: json['questionNumber'] ?? 0,
       passage: json['passage'],
       passageTitle: json['passageTitle'],
@@ -74,6 +76,7 @@ class QuestionModel {
       evidence: json['evidence'],
       audioUrl: json['audioUrl'],
       transcript: json['transcript'],
+      topicTag: json['topic_tag'] ?? json['topicTag'],
     );
   }
 
@@ -110,9 +113,12 @@ class QuestionModel {
 
         try {
           // Standard Format: {label, sentences: [{en, vi, vocab: []}]}
-          if (item.containsKey('sentences') && item['sentences'] is List) {
+          // Supports both 'items' (Project Contract) and 'sentences' (Legacy)
+          final dynamic sData = item['items'] ?? item['sentences'] ?? item['translation'] ?? item['passage'] ?? [];
+
+          if (sData is List && sData.isNotEmpty) {
             final List<Map<String, dynamic>> sentencesList = [];
-            for (var s in (item['sentences'] as List)) {
+            for (var s in sData) {
               if (s is! Map) continue;
 
               final List<Map<String, String>> vocabList = [];
@@ -128,8 +134,8 @@ class QuestionModel {
               }
 
               sentencesList.add({
-                'en': s['en']?.toString() ?? '',
-                'vi': s['vi']?.toString() ?? '',
+                'en': s['en']?.toString() ?? s['text']?.toString() ?? '',
+                'vi': s['vi']?.toString() ?? s['meaning']?.toString() ?? '',
                 'vocab': vocabList,
               });
             }

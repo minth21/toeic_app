@@ -33,7 +33,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: Text(
-          AppLocalizations.of(context)?.translate('practice') ?? 'Luyện tập',
+          context.tr('practice'),
           style: GoogleFonts.inter(fontWeight: FontWeight.bold),
         ),
         backgroundColor: AppColors.primary,
@@ -80,11 +80,11 @@ class _PracticeScreenState extends State<PracticeScreen> {
                           vm.setDifficulty(null);
                           vm.setSkillFilter(null);
                         },
-                        label: const Text('Tất cả'),
+                        label: Text(context.tr('all')),
                         avatar: isNoFilter 
                           ? const Icon(Icons.done_all, size: 16, color: Colors.white) 
                           : const Icon(Icons.clear_all, size: 16, color: AppColors.primary),
-                        backgroundColor: isNoFilter ? AppColors.primary : Colors.white,
+                        backgroundColor: isNoFilter ? AppColors.primary : Theme.of(context).cardColor,
                         labelStyle: GoogleFonts.inter(
                           color: isNoFilter ? Colors.white : AppColors.primary,
                           fontWeight: FontWeight.bold,
@@ -101,19 +101,19 @@ class _PracticeScreenState extends State<PracticeScreen> {
 
                       // 2. SKILL GROUP
                       Text(
-                        'Kỹ năng:',
+                        '${context.tr('skills')}:',
                         style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.textSecondary),
                       ),
                       const SizedBox(width: 8),
-                      _buildSkillChip(context, 'Nghe', 'listening'),
+                      _buildSkillChip(context, context.tr('listening'), 'listening'),
                       const SizedBox(width: 6),
-                      _buildSkillChip(context, 'Đọc', 'reading'),
+                      _buildSkillChip(context, context.tr('reading'), 'reading'),
 
                       const VerticalDivider(width: 24, thickness: 1, indent: 8, endIndent: 8),
 
                       // 3. LEVEL GROUP
                       Text(
-                        'Cấp độ:',
+                        '${context.tr('difficulty_level')}:',
                         style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.textSecondary),
                       ),
                       const SizedBox(width: 8),
@@ -149,10 +149,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
                         ),
                         const SizedBox(height: 16),
                         Text(
-                          AppLocalizations.of(
-                                context,
-                              )?.translate('error_occurred') ??
-                              'Có lỗi xảy ra',
+                               context.tr('error_occurred'),
                           style: GoogleFonts.inter(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
@@ -169,8 +166,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
                         ElevatedButton(
                           onPressed: viewModel.loadTests,
                           child: Text(
-                            AppLocalizations.of(context)?.translate('retry') ??
-                                'Thử lại',
+                               context.tr('retry'),
                           ),
                         ),
                       ],
@@ -190,10 +186,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
                         ),
                         const SizedBox(height: 16),
                         Text(
-                          AppLocalizations.of(
-                                context,
-                              )?.translate('no_tests_found') ??
-                              'Không tìm thấy đề thi nào',
+                               context.tr('no_tests_found'),
                           style: GoogleFonts.inter(
                             fontSize: 16,
                             color: AppColors.textSecondary,
@@ -341,7 +334,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      '${test.duration} ${AppLocalizations.of(context)?.translate('minutes')}',
+                      '${test.duration} ${context.tr('minutes')}',
                       style: GoogleFonts.inter(
                         fontSize: 12,
                         color: AppColors.textSecondary,
@@ -367,7 +360,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
                       child: _buildInfoChip(
                         context,
                         Icons.format_list_numbered,
-                        '${test.totalQuestions} ${AppLocalizations.of(context)?.translate('questions')}',
+                        '${test.totalQuestions} ${context.tr('questions')}',
                       ),
                     ),
                     Expanded(
@@ -409,8 +402,8 @@ class _PracticeScreenState extends State<PracticeScreen> {
                     ),
                     child: Text(
                       test.progress == 0
-                          ? (AppLocalizations.of(context)?.translate('start_now') ?? 'Làm bài ngay')
-                          : (test.progress < 100 ? 'Tiếp tục' : 'Luyện tập lại'),
+                          ? context.tr('start_now')
+                          : (test.progress < 100 ? context.tr('continue') : context.tr('practice_again')),
                       style: GoogleFonts.inter(fontWeight: FontWeight.bold),
                     ),
                   ),
@@ -430,16 +423,15 @@ class _PracticeScreenState extends State<PracticeScreen> {
     switch (difficulty) {
       case 'A1_A2':
         color = const Color(0xFF4CAF50);
-        text = AppLocalizations.of(context)?.translate('a1_a2') ?? 'A1-A2';
+        text = context.tr('a1_a2');
         break;
       case 'B1_B2':
         color = const Color(0xFFFF9800);
-        text =
-            AppLocalizations.of(context)?.translate('b1_b2') ?? 'B1-B2';
+        text = context.tr('b1_b2');
         break;
       case 'C1':
         color = const Color(0xFFF44336);
-        text = AppLocalizations.of(context)?.translate('c1') ?? 'C1';
+        text = context.tr('c1');
         break;
       default:
         color = Colors.grey;
