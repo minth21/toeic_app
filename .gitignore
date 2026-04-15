@@ -1,4 +1,4 @@
-# Root .gitignore for Project Antigravity
+# Merged .gitignore for Project Antigravity
 
 # --- General ---
 .DS_Store
@@ -6,8 +6,15 @@
 *.tmp
 *.bak
 .history
+*.class
+*.pyc
+*.swp
+.atom/
+.svn/
+.swiftpm/
+migrate_working_dir/
 
-# --- Build Folders (Recrusive) ---
+# --- Build Folders (Recursive & Specific) ---
 **/build/
 **/.dart_tool/
 **/node_modules/
@@ -15,6 +22,10 @@
 **/out/
 **/.next/
 **/.turbo/
+.build/
+.buildlog/
+/build/
+/coverage/
 
 # --- Environment & Sensitive ---
 .env
@@ -37,6 +48,8 @@
 .packages
 .pub-cache/
 .pub/
+**/doc/api/
+**/ios/Flutter/.last_build_id
 
 # --- Android specifics ---
 **/android/.gradle/
@@ -44,6 +57,13 @@
 **/android/app/debug/
 **/android/app/profile/
 **/android/app/release/
+/android/app/debug
+/android/app/profile
+/android/app/release
+
+# --- Symbolication & Obfuscation ---
+app.*.symbols
+app.*.map.json
 
 # --- OS generated files ---
 Thumbs.db
