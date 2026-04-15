@@ -18,9 +18,8 @@ allprojects {
 
 // Custom build directory to match Flutter's expected location
 val newBuildDir: Directory =
-    rootProject.layout.buildDirectory
-        .dir("../../build")
-        .get()
+    rootProject.layout.projectDirectory
+        .dir("../build")
 rootProject.layout.buildDirectory.value(newBuildDir)
 
 subprojects {

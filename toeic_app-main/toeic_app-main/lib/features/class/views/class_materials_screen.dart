@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
@@ -316,8 +317,9 @@ class _YoutubePlayerDialogState extends State<_YoutubePlayerDialog> {
     _controller = YoutubePlayerController(
       initialVideoId: widget.videoId,
       flags: const YoutubePlayerFlags(
-        autoPlay: true,
+        autoPlay: false, // Disabled autoplay to bypass WebView mute policies
         mute: false,
+        enableCaption: true,
       ),
     );
   }
@@ -325,6 +327,11 @@ class _YoutubePlayerDialogState extends State<_YoutubePlayerDialog> {
   @override
   void dispose() {
     _controller.dispose();
+    // Ép app quay trở lại màn hình dọc sau khi đóng video
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+    ]);
     super.dispose();
   }
 
@@ -344,7 +351,9 @@ class _YoutubePlayerDialogState extends State<_YoutubePlayerDialog> {
               showVideoProgressIndicator: true,
               progressIndicatorColor: Colors.red,
               onReady: () {
-                // Ensure audio focus etc. if needed
+                // Ensure audio focus and force unmute
+                _controller.unMute();
+                _controller.setVolume(100);
               },
             ),
             Container(

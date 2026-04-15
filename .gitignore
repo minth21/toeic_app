@@ -1,0 +1,51 @@
+# Root .gitignore for Project Antigravity
+
+# --- General ---
+.DS_Store
+*.log
+*.tmp
+*.bak
+.history
+
+# --- Build Folders (Recrusive) ---
+**/build/
+**/.dart_tool/
+**/node_modules/
+**/dist/
+**/out/
+**/.next/
+**/.turbo/
+
+# --- Environment & Sensitive ---
+.env
+.env.*
+!.env.example
+
+# --- IDEs ---
+.idea/
+.vscode/
+*.iml
+*.iws
+*.ipr
+.project
+.classpath
+.settings/
+
+# --- Flutter/Dart ---
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+
+# --- Android specifics ---
+**/android/.gradle/
+**/android/local.properties
+**/android/app/debug/
+**/android/app/profile/
+**/android/app/release/
+
+# --- OS generated files ---
+Thumbs.db
+ehthumbs.db
+Desktop.ini
