@@ -27,8 +27,8 @@ export const getPartsByTestId = async (
             }
             // Nếu không truyền status hoặc status === 'ALL', admin được xem tất cả (không filter status)
         } else {
-            // Students only see ACTIVE
-            where.status = 'ACTIVE';
+            // Students see ACTIVE and PENDING (to see part structure but locked)
+            where.status = { in: ['ACTIVE', 'PENDING'] };
         }
 
         const parts = await prisma.part.findMany({

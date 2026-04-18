@@ -181,7 +181,7 @@ const NotificationCenter: React.FC = () => {
             open={open}
             onOpenChange={setOpen}
             placement="bottomRight"
-            overlayInnerStyle={{ padding: 0, borderRadius: 16, overflow: 'hidden' }}
+            styles={{ content: { padding: 0, borderRadius: 16, overflow: 'hidden' } }}
         >
             <Badge count={unreadCount} overflowCount={99} offset={[-2, 6]}>
                 <Button

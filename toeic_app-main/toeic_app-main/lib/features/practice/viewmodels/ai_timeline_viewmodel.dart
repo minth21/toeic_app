@@ -36,7 +36,9 @@ class AiTimelineViewModel extends ChangeNotifier {
       );
 
       if (result['success']) {
-        _assessments = result['assessments'];
+        final allAssessments = result['assessments'] as List<AiAssessment>;
+        // CHỈNH SỬA: Không được lọc bỏ ROADMAP ở đây nữa vì HV cần xem lộ trình đã được duyệt
+        _assessments = allAssessments;
         _hasMore = _currentPage < (result['meta']['totalPages'] ?? 1);
         _groupAssessments();
       }
@@ -64,6 +66,7 @@ class AiTimelineViewModel extends ChangeNotifier {
 
       if (result['success']) {
         final newItems = result['assessments'] as List<AiAssessment>;
+        // CHỈNH SỬA: Không được lọc bỏ ROADMAP
         _assessments.addAll(newItems);
         _hasMore = _currentPage < (result['meta']['totalPages'] ?? 1);
         _groupAssessments();
@@ -96,5 +99,16 @@ class AiTimelineViewModel extends ChangeNotifier {
     }
     
     _groupedAssessments = groups;
+  }
+
+  /// Xuất PDF
+  Future<dynamic> exportPdf(String id) async {
+    try {
+      return await _service.exportRoadmapPdf(id);
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+      return null;
+    }
   }
 }

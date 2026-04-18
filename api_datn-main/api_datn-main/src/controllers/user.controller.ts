@@ -326,6 +326,70 @@ export const updateProfile = async (
 };
 
 /**
+ * Get current user profile
+ * GET /api/users/me
+ */
+export const getProfile = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+): Promise<void> => {
+    try {
+        const userId = req.user?.id;
+
+        if (!userId) {
+            res.status(401).json({
+                success: false,
+                message: 'Unauthorized',
+            });
+            return;
+        }
+
+        const user = await p.user.findUnique({
+            where: { id: userId },
+            select: {
+                id: true,
+                username: true,
+                name: true,
+                email: true,
+                phoneNumber: true,
+                dateOfBirth: true,
+                gender: true,
+                avatarUrl: true,
+                role: true,
+                progress: true,
+                targetScore: true,
+                estimatedListening: true,
+                estimatedReading: true,
+                estimatedScore: true,
+                totalAttempts: true,
+                averageScore: true,
+                highestScore: true,
+                authProvider: true,
+                status: true,
+                createdAt: true,
+                updatedAt: true,
+            },
+        });
+
+        if (!user) {
+            res.status(404).json({
+                success: false,
+                message: 'User not found',
+            });
+            return;
+        }
+
+        res.status(200).json({
+            success: true,
+            user,
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
  * Update user by ID
  * PATCH /api/users/:id
  */

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { ConfigProvider } from 'antd';
+import { ConfigProvider, App as AntdApp } from 'antd';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Overview from './pages/Overview';
@@ -13,6 +13,7 @@ import TeacherMaterials from './pages/TeacherMaterials';
 import ClassManagement from './pages/ClassManagement';
 import Profile from './pages/Profile';
 import ComplaintManagement from './pages/ComplaintManagement';
+import RoadmapAudit from './pages/RoadmapAudit';
 import ClassFeedbackManagement from './pages/ClassFeedbackManagement';
 import LoadingScreen from './components/LoadingScreen';
 import { ThemeProvider, useTheme } from './hooks/useThemeContext';
@@ -27,6 +28,7 @@ const AppContent = ({ loading, isExiting }: { loading: boolean, isExiting: boole
     <ConfigProvider
       theme={{
         algorithm: isDark ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm,
+        // ... (giữ nguyên các token cũ)
         token: {
           colorPrimary: '#3B82F6', 
           colorPrimaryHover: '#2563EB',
@@ -55,7 +57,7 @@ const AppContent = ({ loading, isExiting }: { loading: boolean, isExiting: boole
           },
           Table: {
             colorBgContainer: isDark ? '#1E293B' : '#FFFFFF',
-            colorHeaderBg: isDark ? '#334155' : '#F8FAFC',
+            headerBg: isDark ? '#334155' : '#F8FAFC',
           },
           Layout: {
             headerBg: isDark ? '#1E293B' : 'rgba(255, 255, 255, 0.8)',
@@ -72,39 +74,42 @@ const AppContent = ({ loading, isExiting }: { loading: boolean, isExiting: boole
         }
       }}
     >
-      {loading && <LoadingScreen isExiting={isExiting} />}
+      <AntdApp>
+        {loading && <LoadingScreen isExiting={isExiting} />}
 
-      <div style={{
-        opacity: loading ? 0 : 1,
-        transition: 'opacity 1s ease-in-out',
-        visibility: loading ? 'hidden' : 'visible',
-        background: isDark ? '#0F172A' : '#F8FAFC',
-        minHeight: '100vh'
-      }}>
-        <BrowserRouter>
-          <Routes>
-            <Route path="/login" element={<Login />} />
+        <div style={{
+          opacity: loading ? 0 : 1,
+          transition: 'opacity 1s ease-in-out',
+          visibility: loading ? 'hidden' : 'visible',
+          background: isDark ? '#0F172A' : '#F8FAFC',
+          minHeight: '100vh'
+        }}>
+          <BrowserRouter>
+            <Routes>
+              <Route path="/login" element={<Login />} />
 
-            {/* Dashboard Layout Routes */}
-            <Route element={<Dashboard />}>
-              {/* Redirect / to /dashboard */}
-              <Route path="/" element={<Navigate to="/dashboard" replace />} />
+              {/* Dashboard Layout Routes */}
+              <Route element={<Dashboard />}>
+                {/* Redirect / to /dashboard */}
+                <Route path="/" element={<Navigate to="/dashboard" replace />} />
 
-              <Route path="/dashboard" element={<Overview />} />
-              <Route path="/users" element={<UserManagement />} />
-              <Route path="/classes" element={<ClassManagement />} />
-              <Route path="/teacher/classes" element={<TeacherClasses />} />
-              <Route path="/teacher/materials" element={<TeacherMaterials />} />
-              <Route path="/exam-bank" element={<ExamBank />} />
-              <Route path="/exam-bank/:testId" element={<TestDetail />} />
-              <Route path="/exam-bank/:testId/parts/:partId" element={<PartDetail />} />
-              <Route path="/complaints" element={<ComplaintManagement />} />
-              <Route path="/class-feedback" element={<ClassFeedbackManagement />} />
-              <Route path="/profile" element={<Profile />} />
-            </Route>
-          </Routes>
-        </BrowserRouter>
-      </div>
+                <Route path="/dashboard" element={<Overview />} />
+                <Route path="/users" element={<UserManagement />} />
+                <Route path="/classes" element={<ClassManagement />} />
+                <Route path="/teacher/classes" element={<TeacherClasses />} />
+                <Route path="/teacher/materials" element={<TeacherMaterials />} />
+                <Route path="/exam-bank" element={<ExamBank />} />
+                <Route path="/exam-bank/:testId" element={<TestDetail />} />
+                <Route path="/exam-bank/:testId/parts/:partId" element={<PartDetail />} />
+                <Route path="/complaints" element={<ComplaintManagement />} />
+                <Route path="/roadmap-audit" element={<RoadmapAudit />} />
+                <Route path="/class-feedback" element={<ClassFeedbackManagement />} />
+                <Route path="/profile" element={<Profile />} />
+              </Route>
+            </Routes>
+          </BrowserRouter>
+        </div>
+      </AntdApp>
     </ConfigProvider>
   );
 };

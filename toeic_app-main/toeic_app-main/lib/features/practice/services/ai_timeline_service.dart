@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import '../../../core/services/api_service.dart';
 import '../../../core/config/api_config.dart';
 import '../../../core/services/storage_service.dart';
@@ -39,6 +40,23 @@ class AiTimelineService {
       } else {
         throw Exception(response['message'] ?? 'Failed to fetch timeline');
       }
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Xuất PDF lộ trình
+  Future<Uint8List> exportRoadmapPdf(String id) async {
+    try {
+      final token = await _storageService.getToken();
+      if (token == null) throw Exception('Unauthorized');
+
+      final endpoint = '/ai/export-roadmap-pdf/$id';
+      
+      return await _apiService.getBytes(
+        endpoint,
+        headers: ApiConfig.headersWithAuth(token),
+      );
     } catch (e) {
       rethrow;
     }

@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../viewmodels/practice_viewmodel.dart';
-import '../models/part_model.dart'; 
+import '../models/part_model.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
 import '../../../constants/app_constants.dart';
@@ -95,20 +95,29 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
       try {
         final rawAssessment = latest['aiAssessment'];
         if (rawAssessment != null && rawAssessment.isNotEmpty) {
-          final dynamic parsed = rawAssessment is String ? jsonDecode(rawAssessment) : rawAssessment;
+          final dynamic parsed = rawAssessment is String
+              ? jsonDecode(rawAssessment)
+              : rawAssessment;
           if (parsed is Map<String, dynamic>) {
-            final aiFeedback = parsed['shortFeedback'] ?? parsed['recommendationText'] ?? parsed['assessment'];
+            final aiFeedback =
+                parsed['shortFeedback'] ??
+                parsed['recommendationText'] ??
+                parsed['assessment'];
             shortFeedback = (parsed['shortFeedback'] ?? '').toString();
-            
+
             if (aiFeedback != null) {
               assessment = aiFeedback.toString();
             }
 
             if (parsed['strengths'] is List) {
-              strengths = (parsed['strengths'] as List).map((e) => e.toString()).toList();
+              strengths = (parsed['strengths'] as List)
+                  .map((e) => e.toString())
+                  .toList();
             }
             if (parsed['weaknesses'] is List) {
-              weaknesses = (parsed['weaknesses'] as List).map((e) => e.toString()).toList();
+              weaknesses = (parsed['weaknesses'] as List)
+                  .map((e) => e.toString())
+                  .toList();
             }
           }
         }
@@ -160,15 +169,23 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
                             width: 100,
                             height: 100,
                             child: CircularProgressIndicator(
-                              value: (total != null && total > 0) ? (score as num).toDouble() / (total as num).toDouble() : 0.0,
+                              value: (total != null && total > 0)
+                                  ? (score as num).toDouble() /
+                                        (total as num).toDouble()
+                                  : 0.0,
                               strokeWidth: 10,
                               backgroundColor: Colors.grey[200],
                               valueColor: AlwaysStoppedAnimation<Color>(
-                                (total != null && total > 0 && (score as num) / (total as num) >= 0.8)
+                                (total != null &&
+                                        total > 0 &&
+                                        (score as num) / (total as num) >= 0.8)
                                     ? const Color(0xFF4CAF50)
-                                    : ((total != null && total > 0 && (score as num) / (total as num) >= 0.5)
-                                        ? const Color(0xFFFF9800)
-                                        : const Color(0xFFF44336)),
+                                    : ((total != null &&
+                                              total > 0 &&
+                                              (score as num) / (total as num) >=
+                                                  0.5)
+                                          ? const Color(0xFFFF9800)
+                                          : const Color(0xFFF44336)),
                               ),
                             ),
                           ),
@@ -198,7 +215,7 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
                     ],
                   ),
                   const SizedBox(height: 24),
-                  
+
                   // NEW: Strengths and Weaknesses
                   if (strengths.isNotEmpty || weaknesses.isNotEmpty) ...[
                     Row(
@@ -211,19 +228,50 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
                               children: [
                                 Text(
                                   'ĐIỂM MẠNH',
-                                  style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w900, color: Colors.green[700], letterSpacing: 0.5),
+                                  style: GoogleFonts.inter(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w900,
+                                    color: Colors.green[700],
+                                    letterSpacing: 0.5,
+                                  ),
                                 ),
                                 const SizedBox(height: 8),
-                                ...strengths.take(2).map((s) => Container(
-                                  margin: const EdgeInsets.only(bottom: 4),
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                  decoration: BoxDecoration(color: Colors.green[50], borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.green[100]!)),
-                                  child: Text(s, style: GoogleFonts.inter(fontSize: 11, color: Colors.green[800], fontWeight: FontWeight.w500), overflow: TextOverflow.ellipsis),
-                                )),
+                                ...strengths
+                                    .take(2)
+                                    .map(
+                                      (s) => Container(
+                                        margin: const EdgeInsets.only(
+                                          bottom: 4,
+                                        ),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 4,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Colors.green[50],
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                          border: Border.all(
+                                            color: Colors.green[100]!,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          s,
+                                          style: GoogleFonts.inter(
+                                            fontSize: 11,
+                                            color: Colors.green[800],
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ),
                               ],
                             ),
                           ),
-                        if (strengths.isNotEmpty && weaknesses.isNotEmpty) const SizedBox(width: 12),
+                        if (strengths.isNotEmpty && weaknesses.isNotEmpty)
+                          const SizedBox(width: 12),
                         if (weaknesses.isNotEmpty)
                           Expanded(
                             child: Column(
@@ -231,15 +279,45 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
                               children: [
                                 Text(
                                   'CẦN CẢI THIỆN',
-                                  style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w900, color: Colors.orange[700], letterSpacing: 0.5),
+                                  style: GoogleFonts.inter(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w900,
+                                    color: Colors.orange[700],
+                                    letterSpacing: 0.5,
+                                  ),
                                 ),
                                 const SizedBox(height: 8),
-                                ...weaknesses.take(2).map((w) => Container(
-                                  margin: const EdgeInsets.only(bottom: 4),
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                  decoration: BoxDecoration(color: Colors.orange[50], borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.orange[100]!)),
-                                  child: Text(w, style: GoogleFonts.inter(fontSize: 11, color: Colors.orange[800], fontWeight: FontWeight.w500), overflow: TextOverflow.ellipsis),
-                                )),
+                                ...weaknesses
+                                    .take(2)
+                                    .map(
+                                      (w) => Container(
+                                        margin: const EdgeInsets.only(
+                                          bottom: 4,
+                                        ),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 4,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Colors.orange[50],
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                          border: Border.all(
+                                            color: Colors.orange[100]!,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          w,
+                                          style: GoogleFonts.inter(
+                                            fontSize: 11,
+                                            color: Colors.orange[800],
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ),
                               ],
                             ),
                           ),
@@ -251,7 +329,12 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
                   // NEW: Styled AI Assessment Card
                   Text(
                     'NHẬN XÉT TỪ AI',
-                    style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w900, color: adminBlue, letterSpacing: 0.5),
+                    style: GoogleFonts.inter(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w900,
+                      color: adminBlue,
+                      letterSpacing: 0.5,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   Container(
@@ -259,7 +342,9 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
                     decoration: BoxDecoration(
                       color: const Color(0xFFF0F7FF),
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: adminBlue.withValues(alpha: 0.1)),
+                      border: Border.all(
+                        color: adminBlue.withValues(alpha: 0.1),
+                      ),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -267,7 +352,11 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
                         if (shortFeedback.isNotEmpty) ...[
                           Row(
                             children: [
-                              const Icon(Icons.auto_awesome, color: Color(0xFF4F46E5), size: 18),
+                              const Icon(
+                                Icons.auto_awesome,
+                                color: Color(0xFF4F46E5),
+                                size: 18,
+                              ),
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
@@ -284,7 +373,10 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
                           ),
                           const Padding(
                             padding: EdgeInsets.symmetric(vertical: 12),
-                            child: Divider(color: Color(0xFFE0E7FF), thickness: 1),
+                            child: Divider(
+                              color: Color(0xFFE0E7FF),
+                              thickness: 1,
+                            ),
                           ),
                         ],
                         Container(
@@ -344,39 +436,56 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
                             showDialog(
                               context: context,
                               barrierDismissible: false,
-                              builder: (c) => const Center(child: CircularProgressIndicator()),
+                              builder: (c) => const Center(
+                                child: CircularProgressIndicator(),
+                              ),
                             );
 
                             try {
-                              final viewModel = Provider.of<PracticeViewModel>(context, listen: false);
+                              final viewModel = Provider.of<PracticeViewModel>(
+                                context,
+                                listen: false,
+                              );
                               await viewModel.loadQuestions(part.id);
                               if (!mounted) return;
 
                               Map<String, String> parsedUserAnswers = {};
                               try {
                                 if (latest['answers'] != null) {
-                                  final Map answersRaw = latest['answers'] is String 
-                                      ? jsonDecode(latest['answers']) 
+                                  final Map answersRaw =
+                                      latest['answers'] is String
+                                      ? jsonDecode(latest['answers'])
                                       : latest['answers'];
                                   answersRaw.forEach((k, v) {
-                                    parsedUserAnswers[k.toString()] = v.toString();
+                                    parsedUserAnswers[k.toString()] = v
+                                        .toString();
                                   });
                                 }
                               } catch (e) {
-                                debugPrint("Error parsing historical answers: $e");
+                                debugPrint(
+                                  "Error parsing historical answers: $e",
+                                );
                               }
 
                               List<dynamic>? parsedAIFeedbacks;
                               try {
                                 final rawAi = latest['aiAssessment'];
                                 if (rawAi != null && rawAi.isNotEmpty) {
-                                  final decoded = rawAi is String ? jsonDecode(rawAi) : rawAi;
-                                  if (decoded is Map && decoded.containsKey('questionFeedbacks')) {
-                                    parsedAIFeedbacks = decoded['questionFeedbacks'];
+                                  final decoded = rawAi is String
+                                      ? jsonDecode(rawAi)
+                                      : rawAi;
+                                  if (decoded is Map &&
+                                      decoded.containsKey(
+                                        'questionFeedbacks',
+                                      )) {
+                                    parsedAIFeedbacks =
+                                        decoded['questionFeedbacks'];
                                   }
                                 }
                               } catch (e) {
-                                debugPrint("Error parsing historical AI feedbacks: $e");
+                                debugPrint(
+                                  "Error parsing historical AI feedbacks: $e",
+                                );
                               }
 
                               if (mounted) Navigator.of(context).pop();
@@ -392,7 +501,10 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
                                       isReviewMode: true,
                                       userAnswers: parsedUserAnswers,
                                       aiFeedbacks: parsedAIFeedbacks,
-                                      overallFeedback: latest['assessment'] ?? latest['aiAnalysis'] ?? latest['aiAssessment'],
+                                      overallFeedback:
+                                          latest['assessment'] ??
+                                          latest['aiAnalysis'] ??
+                                          latest['aiAssessment'],
                                     ),
                                   ),
                                 );
@@ -406,7 +518,10 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
                                       isReviewMode: true,
                                       initialUserAnswers: parsedUserAnswers,
                                       aiFeedbacks: parsedAIFeedbacks,
-                                      overallFeedback: latest['assessment'] ?? latest['aiAnalysis'] ?? latest['aiAssessment'],
+                                      overallFeedback:
+                                          latest['assessment'] ??
+                                          latest['aiAnalysis'] ??
+                                          latest['aiAssessment'],
                                     ),
                                   ),
                                 );
@@ -419,7 +534,10 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
                                       userAnswers: parsedUserAnswers,
                                       partNumber: part.partNumber,
                                       aiFeedbacks: parsedAIFeedbacks,
-                                      overallFeedback: latest['assessment'] ?? latest['aiAnalysis'] ?? latest['aiAssessment'],
+                                      overallFeedback:
+                                          latest['assessment'] ??
+                                          latest['aiAnalysis'] ??
+                                          latest['aiAssessment'],
                                     ),
                                   ),
                                 );
@@ -456,7 +574,7 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
                             shadowColor: adminBlue.withValues(alpha: 0.4),
                           ),
                           child: const Text(
-                            'Làm lại',
+                            'Làm bài',
                             style: TextStyle(fontWeight: FontWeight.bold),
                           ),
                         ),
@@ -583,7 +701,7 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
                     constraints: const BoxConstraints(maxHeight: 120),
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.grey[50], 
+                      color: Colors.grey[50],
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Scrollbar(
@@ -695,7 +813,11 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
                   )
                 : null,
             leading: IconButton(
-              icon: const Icon(Icons.arrow_back_ios_new, size: 20, color: Colors.white),
+              icon: const Icon(
+                Icons.arrow_back_ios_new,
+                size: 20,
+                color: Colors.white,
+              ),
               onPressed: () => Navigator.pop(context),
             ),
             flexibleSpace: FlexibleSpaceBar(
@@ -737,7 +859,9 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
                           color: Colors.white.withValues(alpha: 0.2),
                           shape: BoxShape.circle,
                           border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.3), width: 2),
+                            color: Colors.white.withValues(alpha: 0.3),
+                            width: 2,
+                          ),
                         ),
                         child: const Icon(
                           Icons.menu_book_rounded,
@@ -786,7 +910,8 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
                 children: [
                   _buildSummaryItem(
                     icon: Icons.speed,
-                    label: AppLocalizations.of(context)?.translate('difficulty') ??
+                    label:
+                        AppLocalizations.of(context)?.translate('difficulty') ??
                         'Độ khó',
                     value: _getDifficultyText(context, _test.difficulty),
                     color: _getDifficultyColor(_test.difficulty),
@@ -795,14 +920,18 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
                   _buildSummaryItem(
                     icon: Icons.timer_outlined,
                     label:
-                        AppLocalizations.of(context)?.translate('duration') ?? 'Thời gian',
+                        AppLocalizations.of(context)?.translate('duration') ??
+                        'Thời gian',
                     value: '${_test.duration}ph',
                     color: AppColors.primary,
                   ),
                   _buildVerticalDivider(),
                   _buildSummaryItem(
                     icon: Icons.format_list_numbered,
-                    label: AppLocalizations.of(context)?.translate('total_questions') ??
+                    label:
+                        AppLocalizations.of(
+                          context,
+                        )?.translate('total_questions') ??
                         'Tổng câu',
                     value: '${_test.totalQuestions}',
                     color: AppColors.success,
@@ -817,7 +946,7 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
               padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
               child: Row(
                 children: [
-                   Container(
+                  Container(
                     width: 4,
                     height: 18,
                     decoration: BoxDecoration(
@@ -842,13 +971,10 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
           SliverPadding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             sliver: SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (context, index) {
-                  final part = _test.parts[index];
-                  return _buildPartCard(part);
-                },
-                childCount: _test.parts.length,
-              ),
+              delegate: SliverChildBuilderDelegate((context, index) {
+                final part = _test.parts[index];
+                return _buildPartCard(part);
+              }, childCount: _test.parts.length),
             ),
           ),
 
@@ -950,7 +1076,8 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                          if (part.instructions != null && part.instructions!.isNotEmpty) ...[
+                          if (part.instructions != null &&
+                              part.instructions!.isNotEmpty) ...[
                             const SizedBox(width: 4),
                             GestureDetector(
                               onTap: () => _showInstructionsDialog(part),
@@ -966,7 +1093,11 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
                       const SizedBox(height: 4),
                       Row(
                         children: [
-                          Icon(Icons.help_outline, size: 14, color: AppColors.textHint),
+                          Icon(
+                            Icons.help_outline,
+                            size: 14,
+                            color: AppColors.textHint,
+                          ),
                           const SizedBox(width: 4),
                           Text(
                             '${part.totalQuestions} câu hỏi',
@@ -996,8 +1127,8 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
                               part.userProgress! >= 80
                                   ? AppColors.success
                                   : (part.userProgress! >= 50
-                                      ? AppColors.warning
-                                      : AppColors.error),
+                                        ? AppColors.warning
+                                        : AppColors.error),
                             ),
                             strokeWidth: 4,
                           ),
@@ -1026,15 +1157,18 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
                       const SizedBox(width: 4),
                       _buildPartActionButton(
                         icon: Icons.refresh_rounded,
-                        label: 'Làm lại',
+                        label: 'Làm bài',
                         onTap: () => _directRetake(part),
                         isPrimary: true,
                       ),
                     ],
                   )
                 else
-                  const Icon(Icons.play_circle_filled_rounded,
-                      color: AppColors.primary, size: 32),
+                  const Icon(
+                    Icons.play_circle_filled_rounded,
+                    color: AppColors.primary,
+                    size: 32,
+                  ),
               ],
             ),
           ),
@@ -1070,7 +1204,9 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
         decoration: BoxDecoration(
           color: isPrimary ? AppColors.primary : AppColors.indigo50,
           borderRadius: BorderRadius.circular(10),
-          border: isPrimary ? null : Border.all(color: AppColors.primary.withValues(alpha: 0.1)),
+          border: isPrimary
+              ? null
+              : Border.all(color: AppColors.primary.withValues(alpha: 0.1)),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -1102,7 +1238,7 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
 
   void _showInstructionsDialog(PartModel part) {
     if (part.instructions == null) return;
-    
+
     showDialog(
       context: context,
       builder: (context) => Dialog(
@@ -1115,7 +1251,10 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
             children: [
               Row(
                 children: [
-                  const Icon(Icons.info_outline_rounded, color: AppColors.primary),
+                  const Icon(
+                    Icons.info_outline_rounded,
+                    color: AppColors.primary,
+                  ),
                   const SizedBox(width: 10),
                   Text(
                     'Hướng dẫn: ${part.partName}',
@@ -1147,10 +1286,18 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
                   onPressed: () => Navigator.pop(context),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                     padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
-                  child: const Text('Đã hiểu', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  child: const Text(
+                    'Đã hiểu',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -1169,19 +1316,23 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
 
     final viewModel = Provider.of<PracticeViewModel>(context, listen: false);
     final history = await viewModel.getPartHistory(part.id);
-    
+
     if (mounted) Navigator.pop(context); // Close loading
     if (history.isEmpty) return;
 
     final latest = history.first;
     await viewModel.loadQuestions(part.id);
-    
+
     if (!mounted) return;
 
     Map<String, String> parsedUserAnswers = {};
     if (latest['answers'] != null) {
-      final Map answersRaw = latest['answers'] is String ? jsonDecode(latest['answers']) : latest['answers'];
-      answersRaw.forEach((k, v) => parsedUserAnswers[k.toString()] = v.toString());
+      final Map answersRaw = latest['answers'] is String
+          ? jsonDecode(latest['answers'])
+          : latest['answers'];
+      answersRaw.forEach(
+        (k, v) => parsedUserAnswers[k.toString()] = v.toString(),
+      );
     }
 
     List<dynamic>? parsedAIFeedbacks;
@@ -1194,32 +1345,50 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
     }
 
     if (part.partNumber <= 4) {
-      Navigator.push(context, MaterialPageRoute(
-        builder: (context) => Part1SimulationScreen(
-          test: _test,
-          partId: part.id,
-          isReviewMode: true,
-          initialUserAnswers: parsedUserAnswers,
-          aiFeedbacks: parsedAIFeedbacks,
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => Part1SimulationScreen(
+            test: _test,
+            partId: part.id,
+            isReviewMode: true,
+            initialUserAnswers: parsedUserAnswers,
+            aiFeedbacks: parsedAIFeedbacks,
+          ),
         ),
-      ));
+      );
     } else {
-      Navigator.push(context, MaterialPageRoute(
-        builder: (context) => ReadingReviewScreen(
-          questions: viewModel.currentQuestions,
-          userAnswers: parsedUserAnswers,
-          partNumber: part.partNumber,
-          aiFeedbacks: parsedAIFeedbacks,
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ReadingReviewScreen(
+            questions: viewModel.currentQuestions,
+            userAnswers: parsedUserAnswers,
+            partNumber: part.partNumber,
+            aiFeedbacks: parsedAIFeedbacks,
+          ),
         ),
-      ));
+      );
     }
   }
 
   void _directRetake(PartModel part) {
     if (part.partNumber == 1) {
-      Navigator.push(context, MaterialPageRoute(builder: (context) => Part1SimulationScreen(test: _test, partId: part.id)));
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) =>
+              Part1SimulationScreen(test: _test, partId: part.id),
+        ),
+      );
     } else {
-      Navigator.push(context, MaterialPageRoute(builder: (context) => TestSimulationScreen(test: _test, partId: part.id)));
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) =>
+              TestSimulationScreen(test: _test, partId: part.id),
+        ),
+      );
     }
   }
 

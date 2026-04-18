@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'package:mime/mime.dart';
@@ -20,6 +21,28 @@ class ApiService {
       );
 
       return _handleResponse(response);
+    } catch (e) {
+      throw Exception('Network error: $e');
+    }
+  }
+
+  /// GET request for bytes (PDF, Excel, etc.)
+  Future<Uint8List> getBytes(
+    String endpoint, {
+    Map<String, String>? headers,
+  }) async {
+    try {
+      final url = Uri.parse('${ApiConfig.baseUrl}$endpoint');
+      final response = await http.get(
+        url,
+        headers: headers ?? ApiConfig.headers,
+      );
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        return response.bodyBytes;
+      } else {
+        throw Exception('Download failed with status: ${response.statusCode}');
+      }
     } catch (e) {
       throw Exception('Network error: $e');
     }

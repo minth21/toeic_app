@@ -1,17 +1,18 @@
-import { Typography, Card, Space, Spin, Avatar, Tag, Modal, Skeleton, Divider, Empty, Row, Col, Progress, Button } from 'antd';
+import { Typography, Card, Space, Spin, Avatar, Tag, Modal, Skeleton, Divider, Empty, Row, Col, Progress, Button, Flex } from 'antd';
 import {
     FileTextOutlined,
     QuestionCircleOutlined,
     UserOutlined,
     ReloadOutlined,
     BookOutlined,
-    TrophyOutlined,
     CrownOutlined,
     CheckCircleOutlined,
     RiseOutlined,
     FallOutlined,
     MessageOutlined,
+    BarChartOutlined,
 } from '@ant-design/icons';
+import { Column } from '@ant-design/plots';
 import { useOutletContext, useSearchParams, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { dashboardApi } from '../services/api';
@@ -63,8 +64,9 @@ export default function Overview() {
     const { theme } = useTheme();
     const isDark = theme === 'dark';
     const [stats, setStats] = useState<DashboardStats | null>(null);
+    const [classStats, setClassStats] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
-    
+
     // Submission Detail Modal States
     const [searchParams, setSearchParams] = useSearchParams();
     const [submissionModalVisible, setSubmissionModalVisible] = useState(false);
@@ -82,9 +84,17 @@ export default function Overview() {
 
         const fetchStats = async () => {
             try {
-                const response = await dashboardApi.getStats();
-                if (response.success) {
-                    setStats(response.data as any);
+                const [statsRes, classRes] = await Promise.all([
+                    dashboardApi.getStats(),
+                    dashboardApi.getClassComparison()
+                ]);
+
+                if (statsRes.success) {
+                    setStats(statsRes.data as any);
+                }
+
+                if (classRes.success) {
+                    setClassStats(classRes.data);
                 }
             } catch (error) {
                 console.error('Failed to fetch dashboard stats:', error);
@@ -128,7 +138,7 @@ export default function Overview() {
         const newParams = new URLSearchParams(searchParams);
         newParams.delete('submissionId');
         setSearchParams(newParams);
-        
+
         // Short delay before clearing data to avoid flicker during close animation
         setTimeout(() => setSelectedSubmission(null), 300);
     };
@@ -148,7 +158,7 @@ export default function Overview() {
                 </Text>
             </div>
 
-            <Space direction="vertical" size={32} style={{ width: '100%' }}>
+            <Flex vertical gap={32} style={{ width: '100%' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 24 }}>
                     {loading ? (
                         <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '40px' }}>
@@ -163,9 +173,9 @@ export default function Overview() {
                         ].map((item, index) => (
                             <Card
                                 key={index}
+                                variant="borderless"
                                 hoverable
                                 style={{
-                                    border: 'none',
                                     borderRadius: 24,
                                     boxShadow: 'var(--card-shadow)',
                                     transition: 'all 0.3s ease',
@@ -201,15 +211,74 @@ export default function Overview() {
                 </div>
 
                 {canViewFullDashboard && (
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 24 }}>
-                        {/* Leaderboard Section */}
+                    <>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 24, marginBottom: 24 }}>
+                            {/* Class Performance Comparison Chart */}
+                            <Card
+                                variant="borderless"
+                                title={
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0' }}>
+                                        <div style={{ width: 32, height: 32, borderRadius: 8, background: isDark ? '#1E293B' : '#E0F2FE', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0EA5E9' }}>
+                                            <BarChartOutlined />
+                                        </div>
+                                        <span style={{ fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.5px' }}>SO SÁNH HIỆU SUẤT GIỮA CÁC LỚP</span>
+                                    </div>
+                                }
+                                style={{
+                                    borderRadius: 24,
+                                    border: `1px solid var(--border-color)`,
+                                    boxShadow: 'var(--card-shadow)',
+                                    background: 'var(--bg-surface)',
+                                }}
+                            >
+                                {classStats.length > 0 ? (
+                                    <Column
+                                        data={classStats}
+                                        xField="className"
+                                        yField="averageScore"
+                                        colorField="className"
+                                        label={{
+                                            text: (d: any) => `${d.averageScore} pts`,
+                                            textBaseline: 'bottom',
+                                            position: 'top',
+                                            style: {
+                                                fill: isDark ? '#F1F5F9' : '#0F172A',
+                                                fontWeight: 700,
+                                            }
+                                        }}
+                                        style={{
+                                            maxWidth: 80,
+                                            radiusTopLeft: 10,
+                                            radiusTopRight: 10,
+                                        }}
+                                        tooltip={{
+                                            items: [
+                                                { channel: 'y', name: 'Điểm trung bình' },
+                                                (d: any) => ({ name: 'Sĩ số hiện tại', value: `${d.studentCount} học viên` })
+                                            ]
+                                        }}
+                                        axis={{
+                                            x: { title: false },
+                                            y: { title: false }
+                                        }}
+                                    />
+                                ) : (
+                                    <div style={{ textAlign: 'center', padding: '40px' }}>
+                                        <Empty description="Chưa có dữ liệu so sánh lớp học" />
+                                    </div>
+                                )}
+                            </Card>
+                        </div>
+
+                        {/* Recent Submissions Section */}
                         <Card
+                            variant="borderless"
                             title={
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0' }}>
-                                    <div style={{ width: 32, height: 32, borderRadius: 8, background: isDark ? 'var(--bg-secondary)' : '#FEF3C7', display: 'flex', alignItems: 'center', justifyContent: 'center', color: isDark ? '#FCD34D' : '#D97706' }}>
-                                        <TrophyOutlined />
+                                    <div style={{ width: 32, height: 32, borderRadius: 8, background: isDark ? '#334155' : '#F5F3FF', display: 'flex', alignItems: 'center', justifyContent: 'center', color: isDark ? '#A78BFA' : '#8B5CF6' }}>
+                                        <ReloadOutlined />
                                     </div>
-                                    <span style={{ fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.5px' }}>BẢNG XẾP HẠNG HỌC VIÊN</span>
+                                    <span style={{ fontWeight: 600, color: isDark ? '#F1F5F9' : '#1E3A8A' }}>Hoạt động làm bài gần đây</span>
                                 </div>
                             }
                             style={{
@@ -219,152 +288,50 @@ export default function Overview() {
                                 background: 'var(--bg-surface)',
                                 backdropFilter: isDark ? 'blur(10px)' : 'none',
                             }}
-                            bodyStyle={{ padding: '12px 24px' }}
                         >
-                            {loading ? (
-                                <div style={{ textAlign: 'center', padding: '20px' }}><Spin /></div>
-                            ) : (stats?.topStudents || []).length > 0 ? (
-                                (stats?.topStudents || []).map((s, i) => {
-                                    const rankColor = i === 0 ? '#FFD700' : i === 1 ? '#C0C0C0' : i === 2 ? '#CD7F32' : '#F1F5F9';
-                                    const isTop3 = i < 3;
-
-                                    return (
-                                        <div key={s.id} style={{
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'space-between',
-                                            padding: '16px 0',
-                                            borderBottom: i === ((stats?.topStudents?.length || 0) - 1) ? 'none' : `1px solid var(--border-color)`,
-                                            transition: 'all 0.2s ease',
-                                        }}>
-                                            <Space size={16}>
-                                                <div style={{
-                                                    width: 32,
-                                                    height: 32,
-                                                    borderRadius: '50%',
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    justifyContent: 'center',
-                                                    fontWeight: 800,
-                                                    fontSize: 14,
-                                                    background: isTop3 ? rankColor : 'var(--bg-secondary)',
-                                                    color: isTop3 ? '#FFF' : 'var(--text-secondary)',
-                                                    boxShadow: isTop3 ? `0 4px 10px ${rankColor}44` : 'none',
-                                                    border: isTop3 ? 'none' : `1px solid var(--border-color)`
-                                                }}>
-                                                    {i + 1}
-                                                </div>
-                                                <div style={{ position: 'relative' }}>
-                                                    <Avatar
-                                                        src={s.avatarUrl}
-                                                        size={44}
-                                                        icon={<UserOutlined />}
-                                                        style={{ border: isTop3 ? `2px solid ${rankColor}` : '2px solid transparent' }}
-                                                    />
-                                                    {i === 0 && <CrownOutlined style={{ position: 'absolute', top: -10, left: 14, color: '#FFD700', fontSize: 16 }} />}
-                                                </div>
-                                                <div>
-                                                    <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: 15 }}>{s.name}</div>
-                                                    <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{s.email}</div>
-                                                </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16 }}>
+                                {loading ? <Spin /> : (stats?.recentSubmissions || []).map((sub) => (
+                                    <div
+                                        key={sub.id}
+                                        onClick={() => navigate(`/dashboard?submissionId=${sub.id}`)}
+                                        style={{
+                                            padding: '16px',
+                                            background: 'var(--bg-secondary)',
+                                            borderRadius: 16,
+                                            border: `1px solid var(--border-color)`,
+                                            cursor: 'pointer',
+                                            transition: 'transform 0.2s, box-shadow 0.2s'
+                                        }}
+                                        onMouseEnter={(e) => {
+                                            e.currentTarget.style.transform = 'translateY(-2px)';
+                                            e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.1)';
+                                        }}
+                                        onMouseLeave={(e) => {
+                                            e.currentTarget.style.transform = 'none';
+                                            e.currentTarget.style.boxShadow = 'none';
+                                        }}
+                                    >
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
+                                            <Space>
+                                                <Avatar size="small" src={sub.user.avatarUrl} icon={<UserOutlined />} />
+                                                <Text strong style={{ fontSize: 13, color: 'var(--text-primary)' }}>{sub.user.name}</Text>
                                             </Space>
-                                            <div style={{ textAlign: 'right' }}>
-                                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }}>
-                                                    <div style={{
-                                                        background: isTop3 ? `${rankColor}20` : 'var(--bg-secondary)',
-                                                        color: isTop3 ? (i === 0 ? '#F59E0B' : i === 1 ? '#64748B' : '#B45309') : 'var(--text-primary)',
-                                                        padding: '4px 10px',
-                                                        borderRadius: 10,
-                                                        fontWeight: 800,
-                                                        fontSize: 14,
-                                                        display: 'inline-block'
-                                                    }}>
-                                                        {s.estimatedScore} <small style={{ fontSize: 9, fontWeight: 600 }}>PTS</small>
-                                                    </div>
-                                                    <div style={{ display: 'flex', gap: 6, fontSize: 10, fontWeight: 600, color: 'var(--text-secondary)' }}>
-                                                        <span style={{ color: '#3B82F6' }}>L: {s.estimatedListening || 0}</span>
-                                                        <span style={{ color: '#F43F5E' }}>R: {s.estimatedReading || 0}</span>
-                                                    </div>
-                                                </div>
-                                            </div>
+                                            <Tag color="blue">{sub.score}/{sub.totalQuestions} câu</Tag>
                                         </div>
-                                    );
-                                })
-                            ) : (
-                                <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>
-                                    Chưa có dữ liệu xếp hạng
-                                </div>
-                            )}
-                        </Card>
-                    </div>
-                )}
-
-                {canViewFullDashboard && (
-                    /* Recent Submissions Section */
-                    <Card
-                        title={
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0' }}>
-                                <div style={{ width: 32, height: 32, borderRadius: 8, background: isDark ? '#334155' : '#F5F3FF', display: 'flex', alignItems: 'center', justifyContent: 'center', color: isDark ? '#A78BFA' : '#8B5CF6' }}>
-                                    <ReloadOutlined />
-                                </div>
-                                <span style={{ fontWeight: 600, color: isDark ? '#F1F5F9' : '#1E3A8A' }}>Hoạt động làm bài gần đây</span>
+                                        <div style={{ color: isDark ? '#93C5FD' : '#1E3A8A', fontWeight: 600, fontSize: 13, marginBottom: 4 }}>
+                                            {sub.part.test.title}
+                                        </div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 11 }}>
+                                            <Text type="secondary">{sub.part.partName}</Text>
+                                            <Text type="danger" strong>+{sub.toeicScore} pts</Text>
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
-                        }
-                        style={{ 
-                            borderRadius: 20, 
-                            border: `1px solid var(--border-color)`, 
-                            boxShadow: 'var(--card-shadow)',
-                            background: 'var(--bg-surface)',
-                            backdropFilter: isDark ? 'blur(10px)' : 'none',
-                        }}
-                    >
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16 }}>
-                            {loading ? <Spin /> : (stats?.recentSubmissions || []).map((sub) => (
-                                <div 
-                                    key={sub.id} 
-                                    onClick={() => navigate(`/dashboard?submissionId=${sub.id}`)}
-                                    style={{
-                                        padding: '16px',
-                                        background: 'var(--bg-secondary)',
-                                        borderRadius: 16,
-                                        border: `1px solid var(--border-color)`,
-                                        cursor: 'pointer',
-                                        transition: 'transform 0.2s, box-shadow 0.2s'
-                                    }}
-                                    onMouseEnter={(e) => {
-                                        e.currentTarget.style.transform = 'translateY(-2px)';
-                                        e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.1)';
-                                    }}
-                                    onMouseLeave={(e) => {
-                                        e.currentTarget.style.transform = 'none';
-                                        e.currentTarget.style.boxShadow = 'none';
-                                    }}
-                                >
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
-                                        <Space>
-                                            <Avatar size="small" src={sub.user.avatarUrl} icon={<UserOutlined />} />
-                                            <Text strong style={{ fontSize: 13, color: 'var(--text-primary)' }}>{sub.user.name}</Text>
-                                        </Space>
-                                        <Text type="secondary" style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
-                                            {new Date(sub.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
-                                        </Text>
-                                    </div>
-                                    <div style={{ color: isDark ? '#93C5FD' : '#1E3A8A', fontWeight: 600, fontSize: 14 }}>
-                                        {sub.part.test.title}
-                                    </div>
-                                    <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 8 }}>
-                                        {sub.part.partName}
-                                    </div>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        <Tag color="blue">{sub.score}/{sub.totalQuestions} câu</Tag>
-                                        <div style={{ fontWeight: 700, color: '#f50b0bff' }}>+{sub.toeicScore} pts</div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </Card>
+                        </Card>
+                    </>
                 )}
-            </Space >
+            </Flex>
 
             {/* Submission Detail Modal */}
             <Modal
@@ -396,7 +363,7 @@ export default function Overview() {
                             {/* Summary Header Cards */}
                             <Row gutter={[16, 16]}>
                                 <Col span={8}>
-                                    <Card style={{ textAlign: 'center', background: isDark ? 'rgba(59, 130, 246, 0.1)' : '#F0F9FF', border: 'none', borderRadius: 16 }}>
+                                    <Card variant="borderless" style={{ textAlign: 'center', background: isDark ? 'rgba(59, 130, 246, 0.1)' : '#F0F9FF', borderRadius: 16 }}>
                                         <Text type="secondary" style={{ fontSize: 12, display: 'block', color: 'var(--text-secondary)' }}>KẾT QUẢ</Text>
                                         <Title level={3} style={{ margin: '8px 0', color: isDark ? 'var(--text-primary)' : '#1E40AF' }}>
                                             {selectedSubmission.correctCount} / {selectedSubmission.totalQuestions}
@@ -405,7 +372,7 @@ export default function Overview() {
                                     </Card>
                                 </Col>
                                 <Col span={8}>
-                                    <Card style={{ textAlign: 'center', background: isDark ? 'rgba(244, 63, 94, 0.1)' : '#FEF2F2', border: 'none', borderRadius: 16 }}>
+                                    <Card variant="borderless" style={{ textAlign: 'center', background: isDark ? 'rgba(244, 63, 94, 0.1)' : '#FEF2F2', borderRadius: 16 }}>
                                         <Text type="secondary" style={{ fontSize: 12, display: 'block', color: 'var(--text-secondary)' }}>TỔNG ĐIỂM (EST.)</Text>
                                         <Title level={3} style={{ margin: '8px 0', color: isDark ? '#F87171' : '#991B1B' }}>
                                             {selectedSubmission.totalScore} pts
@@ -414,7 +381,7 @@ export default function Overview() {
                                     </Card>
                                 </Col>
                                 <Col span={8}>
-                                    <Card style={{ textAlign: 'center', background: 'var(--bg-secondary)', border: 'none', borderRadius: 16 }}>
+                                    <Card variant="borderless" style={{ textAlign: 'center', background: 'var(--bg-secondary)', borderRadius: 16 }}>
                                         <Text type="secondary" style={{ fontSize: 12, display: 'block', color: 'var(--text-secondary)' }}>THỜI GIAN</Text>
                                         <Title level={3} style={{ margin: '8px 0', color: 'var(--text-primary)' }}>
                                             {Math.floor(selectedSubmission.durationSeconds / 60)}:{String(selectedSubmission.durationSeconds % 60).padStart(2, '0')}
@@ -432,18 +399,18 @@ export default function Overview() {
                             {selectedSubmission.aiAnalysis ? (() => {
                                 let analysis: any = {};
                                 try {
-                                    analysis = typeof selectedSubmission.aiAnalysis === 'string' 
-                                        ? JSON.parse(selectedSubmission.aiAnalysis) 
+                                    analysis = typeof selectedSubmission.aiAnalysis === 'string'
+                                        ? JSON.parse(selectedSubmission.aiAnalysis)
                                         : selectedSubmission.aiAnalysis;
                                 } catch (e) {
                                     console.error("AI Analysis Parse Error", e);
                                 }
 
                                 return (
-                                    <Space direction="vertical" size={20} style={{ width: '100%' }}>
+                                    <Flex vertical gap={20} style={{ width: '100%' }}>
                                         {/* Skill Progress Breakdown */}
                                         {analysis.skills && (
-                                            <Card size="small" style={{ borderRadius: 16, border: `1px solid var(--border-color)`, background: isDark ? 'rgba(30, 41, 59, 0.5)' : '#FFFFFF' }}>
+                                            <Card variant="borderless" size="small" style={{ borderRadius: 16, border: `1px solid var(--border-color)`, background: isDark ? 'rgba(30, 41, 59, 0.5)' : '#FFFFFF' }}>
                                                 <Row gutter={[24, 16]}>
                                                     {Object.entries(analysis.skills).map(([skill, val]: [string, any]) => (
                                                         <Col span={12} key={skill}>
@@ -479,25 +446,26 @@ export default function Overview() {
                                         </div>
 
                                         {/* Detailed Feedback */}
-                                        <Card 
-                                            size="small" 
+                                        <Card
+                                            variant="borderless"
+                                            size="small"
                                             title={<Space style={{ color: 'var(--text-primary)' }}><MessageOutlined /> Nhận xét chuyên sâu từ AI Coach</Space>}
-                                            style={{ borderRadius: 16, border: 'none', background: 'var(--bg-secondary)' }}
+                                            style={{ borderRadius: 16, background: 'var(--bg-secondary)' }}
                                         >
-                                            <div style={{ fontSize: 14, color: 'var(--text-primary)', lineHeight: 1.6 }} 
-                                                 dangerouslySetInnerHTML={{ __html: analysis.detailedAssessment || analysis.shortFeedback || 'Chưa có phân tích chi tiết.' }} 
+                                            <div style={{ fontSize: 14, color: 'var(--text-primary)', lineHeight: 1.6 }}
+                                                dangerouslySetInnerHTML={{ __html: analysis.detailedAssessment || analysis.shortFeedback || 'Chưa có phân tích chi tiết.' }}
                                             />
                                         </Card>
-                                    </Space>
+                                    </Flex>
                                 );
                             })() : (
-                                <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={<span style={{color: 'var(--text-secondary)'}}>AI đang phân tích bài làm của học viên này...</span>} />
+                                <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={<span style={{ color: 'var(--text-secondary)' }}>AI đang phân tích bài làm của học viên này...</span>} />
                             )}
 
                             <Divider orientation={"left" as any} style={{ margin: '32px 0 16px' }}>
                                 <Space style={{ color: 'var(--text-primary)' }}><FileTextOutlined style={{ color: '#3B82F6' }} /> Thông tin bài thi</Space>
                             </Divider>
-                            
+
                             <div style={{ background: 'var(--bg-secondary)', padding: '20px', borderRadius: 16, border: `1px solid var(--border-color)` }}>
                                 <Row gutter={[24, 12]}>
                                     <Col span={12}>
@@ -520,7 +488,7 @@ export default function Overview() {
                             </div>
                         </div>
                     ) : !submissionLoading && (
-                        <Empty description={<span style={{color: 'var(--text-secondary)'}}>Không tìm thấy thông tin bài làm này hoặc học viên đã xóa.</span>} />
+                        <Empty description={<span style={{ color: 'var(--text-secondary)' }}>Không tìm thấy thông tin bài làm này hoặc học viên đã xóa.</span>} />
                     )}
                 </Skeleton>
             </Modal>

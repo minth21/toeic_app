@@ -79,3 +79,60 @@ export const getDashboardStats = async (
         next(error);
     }
 };
+
+/**
+ * Get stats comparing class performances
+ * GET /api/dashboard/class-comparison
+ */
+export const getClassComparisonStats = async (
+    _req: Request,
+    res: Response,
+    next: NextFunction
+): Promise<void> => {
+    try {
+        // Lấy tất cả các lớp kèm theo học viên của họ
+        const classes = await p.class.findMany({
+            include: {
+                students: {
+                    select: { 
+                        role: true,
+                        estimatedScore: true 
+                    }
+                }
+            }
+        });
+
+        // Tính toán điểm trung bình và sĩ số cho mỗi lớp
+        const comparisonData = classes.map((c: any) => {
+            // Sĩ số thực tế (chỉ tính người dùng có role STUDENT)
+            const allStudents = (c.students || []).filter((s: any) => s.role === 'STUDENT');
+            const studentCount = allStudents.length;
+
+            // Chỉ tính trung bình cho những học viên đã làm bài và có điểm để không làm nhiễu dữ liệu
+            const studentsWithScores = allStudents.filter((s: any) => (s.estimatedScore || 0) > 0);
+            const studentScores = studentsWithScores.map((s: any) => s.estimatedScore);
+            
+            const avgScore = studentScores.length > 0 
+                ? Math.round(studentScores.reduce((a: number, b: number) => a + b, 0) / studentScores.length)
+                : 0;
+            
+            return {
+                id: c.id,
+                className: c.className,
+                classCode: c.classCode,
+                averageScore: avgScore,
+                studentCount: studentCount
+            };
+        });
+
+        // Sắp xếp theo điểm trung bình giảm dần
+        comparisonData.sort((a: any, b: any) => b.averageScore - a.averageScore);
+
+        res.status(200).json({
+            success: true,
+            data: comparisonData
+        });
+    } catch (error) {
+        next(error);
+    }
+};

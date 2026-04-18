@@ -10,6 +10,7 @@ class PracticeViewModel extends ChangeNotifier {
 
   List<ExamModel> _tests = [];
   bool _isLoading = false;
+  String? _loadingPartId; // ✅ Throttling: prevent multiple concurrent loads for same part
   String? _selectedDifficulty;
   String? _selectedSkill; // 'listening', 'reading', or null (all)
   String? _error;
@@ -80,14 +81,30 @@ class PracticeViewModel extends ChangeNotifier {
   List<QuestionModel> _currentQuestions = [];
   List<QuestionModel> get currentQuestions => _currentQuestions;
 
-  Future<void> loadQuestions(String partId) async {
+  Future<void> loadQuestions(String partId, {bool force = false}) async {
+    if (_loadingPartId == partId) {
+      debugPrint('[Integrity Audit] Already loading questions for $partId. Ignoring redundant call.');
+      return;
+    }
+
+    // ✅ Optimization: Skip loading if already have the fresh data
+    if (!force && _currentQuestions.isNotEmpty && _currentQuestions.first.partId == partId) {
+      debugPrint('[Integrity Audit] Questions for $partId already in memory. Skipping fetch.');
+      return;
+    }
+
+    _loadingPartId = partId;
     _isLoading = true;
     _error = null;
     _currentQuestions = [];
     _safeNotifyListeners();
 
     try {
-      _currentQuestions = await _apiService.getQuestionsByPartId(partId);
+      debugPrint('[Integrity Audit] Fetching questions for part: $partId');
+      final questions = await _apiService.getQuestionsByPartId(partId);
+      
+      _currentQuestions = questions;
+      
       // Find current test from loaded tests if available
       for (var test in _tests) {
         if (test.parts.any((p) => p.id == partId)) {
@@ -97,7 +114,9 @@ class PracticeViewModel extends ChangeNotifier {
       }
     } catch (e) {
       _error = e.toString();
+      debugPrint('[Integrity Audit] Error: $e');
     } finally {
+      _loadingPartId = null;
       _isLoading = false;
       _safeNotifyListeners();
     }

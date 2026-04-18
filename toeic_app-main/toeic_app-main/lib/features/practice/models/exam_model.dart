@@ -9,6 +9,7 @@ class ExamModel {
   final int listeningQuestions;
   final int readingQuestions;
   final int progress; // 0-100
+  final String status;
   final List<PartModel> parts;
 
   ExamModel({
@@ -19,6 +20,7 @@ class ExamModel {
     required this.totalQuestions,
     required this.listeningQuestions,
     required this.readingQuestions,
+    this.status = 'ACTIVE',
     this.progress = 0,
     this.parts = const [],
   });
@@ -34,14 +36,15 @@ class ExamModel {
     }
 
     return ExamModel(
-      id: json['id'] ?? '',
-      title: json['title'] ?? 'Unknown Test',
-      difficulty: json['difficulty'] ?? 'B1_B2',
-      duration: json['duration'] ?? 0,
-      totalQuestions: json['totalQuestions'] ?? 0,
-      listeningQuestions: json['listeningQuestions'] ?? 0,
-      readingQuestions: json['readingQuestions'] ?? 0,
-      progress: json['progress'] ?? 0,
+      id: (json['id'] ?? '').toString(),
+      title: (json['title'] ?? 'Unknown Test').toString(),
+      difficulty: (json['difficulty'] ?? 'B1_B2').toString(),
+      duration: int.tryParse((json['duration'] ?? '0').toString()) ?? 0,
+      totalQuestions: int.tryParse((json['totalQuestions'] ?? '0').toString()) ?? 0,
+      listeningQuestions: int.tryParse((json['listeningQuestions'] ?? '0').toString()) ?? 0,
+      readingQuestions: int.tryParse((json['readingQuestions'] ?? '0').toString()) ?? 0,
+      status: (json['status'] ?? 'ACTIVE').toString(),
+      progress: int.tryParse((json['progress'] ?? '0').toString()) ?? 0,
       parts: partsList,
     );
   }

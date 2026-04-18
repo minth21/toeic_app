@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../constants/app_constants.dart';
+import '../../../l10n/app_localizations.dart';
 import '../models/question_model.dart';
 import 'widgets/touchable_passage_widget.dart';
 import 'widgets/vocab_flashcard_panel.dart';
@@ -13,7 +14,8 @@ class ReadingReviewScreen extends StatefulWidget {
   final List<QuestionModel> questions;
   final Map<String, String> userAnswers; // questionId → selectedOption
   final List<String> flaggedQuestions; // questionIds
-  final Set<String>? correctQuestionIds; // NEW: Precise correctness from DB (attempt_details)
+  final Set<String>? correctQuestionIds;
+  final Set<int>? correctQuestionNumbers; // 🟢 NEW: Fallback for duplicate tests
   final int partNumber;
   final List<dynamic>? aiFeedbacks;
   final String? overallFeedback;
@@ -24,6 +26,7 @@ class ReadingReviewScreen extends StatefulWidget {
     required this.userAnswers,
     this.flaggedQuestions = const [],
     this.correctQuestionIds,
+    this.correctQuestionNumbers,
     required this.partNumber,
     this.aiFeedbacks,
     this.overallFeedback,
@@ -189,33 +192,41 @@ class _ReadingReviewScreenState extends State<ReadingReviewScreen> {
         labelPrefix = 'Q';
       } else if (questionIndex != -1) {
         final q = widget.questions[questionIndex];
-        final String? userAnswer = widget.userAnswers[q.id];
+        // 🟢 Aggressive answer normalization
+        String clean(String? s) {
+          if (s == null || s.isEmpty) return '';
+          final match = RegExp(r'[A-D]').firstMatch(s.trim().toUpperCase());
+          return match?.group(0) ?? s.trim().toUpperCase();
+        }
+
+        final String? userAnswer = widget.userAnswers[q.id.trim()];
         bool isCorrect;
-        if (widget.correctQuestionIds != null) {
-          isCorrect = widget.correctQuestionIds!.contains(q.id);
+        if (widget.correctQuestionIds != null || widget.correctQuestionNumbers != null) {
+          isCorrect = (widget.correctQuestionIds?.contains(q.id.trim()) ?? false) || 
+                       (widget.correctQuestionNumbers?.contains(q.questionNumber) ?? false);
         } else {
           isCorrect = userAnswer != null &&
-              userAnswer.trim().toUpperCase() == (q.correctAnswer ?? '').trim().toUpperCase();
+              clean(userAnswer) == clean(q.correctAnswer);
         }
         final isUnanswered = userAnswer == null || userAnswer.isEmpty;
         final isFlagged = widget.flaggedQuestions.contains(q.id);
 
-        if (isFlagged) {
-          bgColor = '#FFF7ED'; // Orange-50
-          textColor = '#C2410C'; // Orange-700
-          borderColor = '#FB923C'; // Orange-400
+        if (isCorrect) {
+          bgColor = '#D1FAE5'; // Emerald-100 (Stronger contrast)
+          textColor = '#065F46'; // Emerald-800
+          borderColor = '#10B981'; // Emerald-500
+        } else if (isFlagged) {
+          bgColor = '#FFEDD5'; // Orange-100
+          textColor = '#9A3412'; // Orange-800
+          borderColor = '#F97316'; // Orange-500
         } else if (isUnanswered) {
           bgColor = '#FFFFFF';
           textColor = '#64748B'; // Slate-500
           borderColor = '#CBD5E1';
-        } else if (isCorrect) {
-          bgColor = '#F0FDF4'; // Emerald-50
-          textColor = '#15803D'; // Emerald-700
-          borderColor = '#4ADE80'; // Emerald-400
         } else {
-          bgColor = '#FEF2F2'; // Rose-50
-          textColor = '#B91C1C'; // Rose-700
-          borderColor = '#F87171'; // Rose-400
+          bgColor = '#FEE2E2'; // Rose-100
+          textColor = '#991B1B'; // Rose-800
+          borderColor = '#EF4444'; // Rose-500
         }
       }
 
@@ -333,21 +344,31 @@ class _ReadingReviewScreenState extends State<ReadingReviewScreen> {
     }
     return null;
   }
-
   Map<String, dynamic> _getPaletteColorInfo(int i) {
     final isActive = i == _activeIndex;
     final q = widget.questions[i];
-    final userAnswer = widget.userAnswers[q.id];
+    final qId = q.id.trim();
+    final userAnswer = widget.userAnswers[qId];
     final isUnanswered = userAnswer == null || userAnswer.trim().isEmpty;
     
-    // Ưu tiên dùng dữ liệu từ bảng attempt_details nếu có
+    // 🟢 Aggressive answer normalization
+    String clean(String? s) {
+      if (s == null || s.isEmpty) return '';
+      final match = RegExp(r'[A-D]').firstMatch(s.trim().toUpperCase());
+      return match?.group(0) ?? s.trim().toUpperCase();
+    }
+
+    // Ưu tiên dùng dữ liệu từ bảng attempt_details nếu có (Dual-Check)
     bool isCorrect;
-    if (widget.correctQuestionIds != null) {
-      isCorrect = widget.correctQuestionIds!.contains(q.id);
+    if (widget.correctQuestionIds != null || widget.correctQuestionNumbers != null) {
+      final inIdSet = widget.correctQuestionIds?.contains(qId) ?? false;
+      final inNumSet = widget.correctQuestionNumbers?.contains(q.questionNumber) ?? false;
+      isCorrect = inIdSet || inNumSet;
     } else {
       isCorrect = !isUnanswered && 
-          userAnswer.trim().toUpperCase() == (q.correctAnswer ?? '').trim().toUpperCase();
+          clean(userAnswer) == clean(q.correctAnswer);
     }
+
 
     final isFlagged = widget.flaggedQuestions.contains(q.id);
 
@@ -362,15 +383,17 @@ class _ReadingReviewScreenState extends State<ReadingReviewScreen> {
     };
 
     if (isCorrect) {
-      // Đúng (Xanh)
-      info['bg'] = AppColors.success.withValues(alpha: 0.1);
+      // Đúng (Xanh) - High Priority
+      info['bg'] = AppColors.success.withValues(alpha: 0.2); // Increased visibility
       info['border'] = AppColors.success;
       info['text'] = AppColors.success;
+      info['borderWidth'] = 2.0; // Thicker for status
     } else {
       // Sai hoặc Bỏ trống -> Đều tính là lỗi (Đỏ)
-      info['bg'] = AppColors.error.withValues(alpha: 0.1);
+      info['bg'] = AppColors.error.withValues(alpha: 0.2); // Increased visibility
       info['border'] = AppColors.error;
       info['text'] = AppColors.error;
+      info['borderWidth'] = 2.0; // Thicker for status
       
       // Ưu tiên hiển thị Cắm cờ nếu HV đánh dấu câu phân vân
       if (isFlagged) {
@@ -502,6 +525,32 @@ class _ReadingReviewScreenState extends State<ReadingReviewScreen> {
   @override
   Widget build(BuildContext context) {
     final questions = widget.questions;
+
+    if (questions.isEmpty) {
+      return Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+            onPressed: () => Navigator.pop(context),
+          ),
+          title: Text(AppLocalizations.of(context)?.translate('review') ?? 'Xem lại'),
+        ),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error_outline_rounded, size: 48, color: AppColors.error),
+              const SizedBox(height: 16),
+              Text(
+                'Không tìm thấy dữ liệu câu hỏi.',
+                style: GoogleFonts.inter(color: AppColors.textSecondary),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     final bool hasPassage = _rawPassage.trim().isNotEmpty;
 
     return Scaffold(
@@ -537,15 +586,29 @@ class _ReadingReviewScreenState extends State<ReadingReviewScreen> {
                             const Icon(Icons.article_outlined, color: _primaryBlue, size: 20),
                             const SizedBox(width: 8),
                             Expanded(
-                              child: Text(
-                                'Đoạn văn Reading',
-                                style: GoogleFonts.inter(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: _slateText,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                                maxLines: 1,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Đoạn văn Reading',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: _slateText,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                    maxLines: 1,
+                                  ),
+                                  if (widget.questions.isNotEmpty)
+                                    Text(
+                                      'Câu ${widget.questions.first.questionNumber} - ${widget.questions.last.questionNumber}',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 12,
+                                        color: _slateSubtext,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                ],
                               ),
                             ),
                             const SizedBox(width: 8),
@@ -647,13 +710,23 @@ class _ReadingReviewScreenState extends State<ReadingReviewScreen> {
   }
 
   Widget _buildQuestionCard(QuestionModel question, int index) {
-    final String? userAnswer = widget.userAnswers[question.id];
+    final qId = question.id.trim();
+    final String? userAnswer = widget.userAnswers[qId];
+
+    // 🟢 Aggressive answer normalization
+    String clean(String? s) {
+      if (s == null || s.isEmpty) return '';
+      final match = RegExp(r'[A-D]').firstMatch(s.trim().toUpperCase());
+      return match?.group(0) ?? s.trim().toUpperCase();
+    }
+
     bool isCorrect;
-    if (widget.correctQuestionIds != null) {
-      isCorrect = widget.correctQuestionIds?.contains(question.id) ?? false;
+    if (widget.correctQuestionIds != null || widget.correctQuestionNumbers != null) {
+      isCorrect = (widget.correctQuestionIds?.contains(qId) ?? false) || 
+                   (widget.correctQuestionNumbers?.contains(question.questionNumber) ?? false);
     } else {
       isCorrect = userAnswer != null &&
-          userAnswer.trim().toUpperCase() == (question.correctAnswer ?? '').trim().toUpperCase();
+          clean(userAnswer) == clean(question.correctAnswer);
     }
     final aiData = _parseAiData(question);
 
@@ -693,26 +766,26 @@ class _ReadingReviewScreenState extends State<ReadingReviewScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                   color: isCorrect 
-                      ? Colors.green.shade50 
-                      : ((userAnswer == null || userAnswer.isEmpty) ? Colors.grey.shade100 : Colors.red.shade50),
+                      ? _emerald.withValues(alpha: 0.1)
+                      : _rose.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: isCorrect ? _emerald : _rose,
+                    width: 1,
+                  ),
                 ),
                 child: Row(
                   children: [
                     Icon(
                       isCorrect 
                           ? Icons.check_circle_rounded 
-                          : (userAnswer == null || userAnswer.isEmpty 
-                              ? Icons.help_outline_rounded 
-                              : Icons.cancel_rounded),
+                          : Icons.cancel_rounded,
                       color: isCorrect ? _emerald : _rose,
                       size: 16,
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      isCorrect 
-                          ? 'Đúng' 
-                          : (userAnswer == null || userAnswer.isEmpty ? 'Bỏ trống' : 'Sai'),
+                      isCorrect ? 'Đúng' : 'Sai',
                       style: GoogleFonts.inter(
                         color: isCorrect ? _emerald : _rose,
                         fontWeight: FontWeight.bold,
@@ -785,10 +858,11 @@ class _ReadingReviewScreenState extends State<ReadingReviewScreen> {
 
     final currentQuestion = widget.questions[index];
     
-    // Find feedback by questionNumber to be robust
+    // Precise ID-based matching (UUID) - Fallback to questionNumber for legacy data
     final feedbackItem = widget.aiFeedbacks!.firstWhere(
-      (f) => (f is Map && f['questionNumber'] == currentQuestion.questionNumber) || 
-             (f is Map && f['pnum'] == currentQuestion.questionNumber),
+      (f) => (f is Map && f['questionId'] == currentQuestion.id) ||
+             (f is Map && f['id'] == currentQuestion.id) ||
+             (f is Map && f['questionNumber'] == currentQuestion.questionNumber),
       orElse: () => null,
     );
 
@@ -839,77 +913,162 @@ class _ReadingReviewScreenState extends State<ReadingReviewScreen> {
     );
   }
 
+  Map<String, dynamic> _parseOverallFeedback(String? feedback) {
+    if (feedback == null || feedback.isEmpty) return {};
+    try {
+      if (feedback.trim().startsWith('{')) {
+        return jsonDecode(feedback);
+      }
+      // Fallback if it's plain text
+      return {'shortFeedback': feedback};
+    } catch (e) {
+      debugPrint('Error parsing overall feedback: $e');
+      return {'shortFeedback': feedback};
+    }
+  }
+
   Widget _buildOverallAssessmentCard() {
+    final data = _parseOverallFeedback(widget.overallFeedback);
+    final String feedbackText = data['shortFeedback'] ?? data['assessment'] ?? data['recommendationText'] ?? widget.overallFeedback ?? '';
+    final List<dynamic> strengths = data['strengths'] ?? [];
+    final List<dynamic> weaknesses = data['weaknesses'] ?? [];
+
     return Container(
       margin: const EdgeInsets.only(bottom: 24),
-      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [const Color(0xFFF59E0B).withValues(alpha: 0.1), Colors.white],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(20),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
         border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.2)),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFFF59E0B).withValues(alpha: 0.05),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
+            color: const Color(0xFFF59E0B).withValues(alpha: 0.08),
+            blurRadius: 24,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF59E0B).withValues(alpha: 0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.psychology_alt_rounded, color: Color(0xFFF59E0B), size: 28),
+          // Header with Orange Gradient
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [const Color(0xFFFFF7ED), Colors.white],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
               ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'TỔNG KẾT TỪ AI COACH',
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(24),
+                topRight: Radius.circular(24),
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF59E0B).withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.auto_awesome_rounded, color: Color(0xFFF59E0B), size: 24),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'TỔNG KẾT TỪ AI COACH',
+                        style: GoogleFonts.inter(
+                          fontWeight: FontWeight.w900,
+                          color: const Color(0xFF92400E),
+                          fontSize: 14,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      Text(
+                        'Phân tích chi tiết khả năng làm bài',
+                        style: GoogleFonts.inter(
+                          color: const Color(0xFFB45309),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (data['progressScore'] != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF59E0B),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '${data['progressScore']}%',
                       style: GoogleFonts.inter(
+                        color: Colors.white,
                         fontWeight: FontWeight.w900,
-                        color: const Color(0xFF92400E),
-                        fontSize: 16,
-                        letterSpacing: 0.5,
+                        fontSize: 14,
                       ),
                     ),
-                    Text(
-                      'Phân tích năng lực làm bài của bạn',
-                      style: GoogleFonts.inter(
-                        color: const Color(0xFFB45309),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
+                  ),
+              ],
+            ),
+          ),
+
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Main Feedback text
+                HtmlWidget(
+                  feedbackText,
+                  textStyle: GoogleFonts.inter(
+                    fontSize: 14,
+                    height: 1.6,
+                    color: const Color(0xFF451A03),
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
-              ),
-            ],
-          ),
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 16),
-            child: Divider(color: Color(0xFFF59E0B), thickness: 0.5),
-          ),
-          HtmlWidget(
-            widget.overallFeedback!,
-            textStyle: GoogleFonts.inter(
-              fontSize: 15,
-              height: 1.6,
-              color: const Color(0xFF92400E),
-              fontWeight: FontWeight.w500,
+                
+                if (strengths.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  Text('ĐIỂM MẠNH', style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w900, color: Colors.green.shade700, letterSpacing: 1)),
+                  const SizedBox(height: 8),
+                  ...strengths.map((s) => Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.check_circle_outline_rounded, size: 14, color: Colors.green),
+                        const SizedBox(width: 8),
+                        Expanded(child: Text(s.toString(), style: GoogleFonts.inter(fontSize: 13, color: Colors.green.shade900))),
+                      ],
+                    ),
+                  )),
+                ],
+
+                if (weaknesses.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  Text('CẦN CẢI THIỆN', style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w900, color: Colors.orange.shade700, letterSpacing: 1)),
+                  const SizedBox(height: 8),
+                  ...weaknesses.map((w) => Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.error_outline_rounded, size: 14, color: Colors.orange),
+                        const SizedBox(width: 8),
+                        Expanded(child: Text(w.toString(), style: GoogleFonts.inter(fontSize: 13, color: Colors.orange.shade900))),
+                      ],
+                    ),
+                  )),
+                ],
+              ],
             ),
           ),
         ],

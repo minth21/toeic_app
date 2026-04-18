@@ -86,6 +86,11 @@ export const dashboardApi = {
     getSubmissionDetail: async (id: string): Promise<{ success: boolean; data: any }> => {
         const response = await api.get(`/practice/attempt/${id}?t=${Date.now()}`);
         return response.data;
+    },
+
+    getClassComparison: async (): Promise<{ success: boolean; data: any[] }> => {
+        const response = await api.get(`/dashboard/class-comparison?t=${Date.now()}`);
+        return response.data;
     }
 };
 
@@ -375,6 +380,10 @@ export const teacherApi = {
         const response = await api.get(`/teacher/students/${studentId}/progress?t=${Date.now()}`);
         return response.data;
     },
+    getAttemptDetail: async (attemptId: string): Promise<{ success: boolean; data: any }> => {
+        const response = await api.get(`/teacher/attempts/${attemptId}?t=${Date.now()}`);
+        return response.data;
+    },
     exportStudentHistoryExcel: async (studentId: string): Promise<Blob> => {
         const response = await api.get(`/teacher/students/${studentId}/export-excel`, {
             responseType: 'blob'
@@ -385,6 +394,10 @@ export const teacherApi = {
         const response = await api.get(`/teacher/students/${studentId}/export-pdf`, {
             responseType: 'blob'
         });
+        return response.data;
+    },
+    publishRoadmap: async (id: string, teacherNote?: string): Promise<{ success: boolean; message: string }> => {
+        const response = await api.post(`/ai/roadmap/${id}/publish`, { teacherNote });
         return response.data;
     }
 };
@@ -436,6 +449,28 @@ export const aiApi = {
     assessRoadmap: async (userId: string): Promise<{ success: boolean; data: any; message?: string }> => {
         const response = await api.post(`/ai/assess-roadmap/${userId}`);
         return response.data;
+    },
+    updateRoadmap: async (id: string, data: { teacherNote?: string; summary?: string; content?: any }): Promise<{ success: boolean; data: any; message?: string }> => {
+        const response = await api.patch(`/ai/update-roadmap/${id}`, data);
+        return response.data;
+    },
+    publishRoadmap: async (id: string, data: { teacherNote?: string; summary?: string; content?: any }): Promise<{ success: boolean; data: any; message?: string }> => {
+        const response = await api.post(`/ai/publish-roadmap/${id}`, data);
+        return response.data;
+    },
+    exportRoadmapPdf: async (id: string): Promise<Blob> => {
+        const response = await api.get(`/ai/export-roadmap-pdf/${id}`, {
+            responseType: 'blob'
+        });
+        return response.data;
+    },
+    getRoadmapsAdmin: async (page: number = 1): Promise<{ 
+        success: boolean; 
+        data: any[]; 
+        meta: { total: number; page: number; totalPages: number } 
+    }> => {
+        const response = await api.get(`/ai/roadmaps/admin/all?page=${page}&t=${Date.now()}`);
+        return response.data;
     }
 };
 
@@ -455,7 +490,8 @@ export interface Class {
         avatarUrl?: string;
     };
     studentCount?: number;
-    status: 'ACTIVE' | 'INACTIVE';
+    status: 'ACTIVE' | 'INACTIVE' | 'LOCKED' | 'ARCHIVED';
+    maxCapacity: number;
     createdAt: string;
 }
 
@@ -488,6 +524,18 @@ export const classApi = {
         const response = await api.get(`/classes/${classId}/export`, {
             responseType: 'blob'
         });
+        return response.data;
+    },
+    getAvailableStudents: async (search?: string): Promise<{ success: boolean; data: any[] }> => {
+        const response = await api.get('/classes/available-students', { params: { search } });
+        return response.data;
+    },
+    addStudent: async (classId: string, studentId: string): Promise<{ success: boolean; message: string }> => {
+        const response = await api.post(`/classes/${classId}/students`, { studentId });
+        return response.data;
+    },
+    removeStudent: async (classId: string, studentId: string): Promise<{ success: boolean; message: string }> => {
+        const response = await api.delete(`/classes/${classId}/students/${studentId}`);
         return response.data;
     },
     toggleStatus: async (classId: string, status: 'ACTIVE' | 'INACTIVE'): Promise<{ success: boolean; message: string }> => {

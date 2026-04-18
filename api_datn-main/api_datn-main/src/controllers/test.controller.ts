@@ -38,8 +38,8 @@ export const getTests = async (
             }
             // If no status or status === 'ALL', no filter (show all)
         } else {
-            // Students only see ACTIVE
-            where.status = 'ACTIVE';
+            // Students see ACTIVE and PENDING (to show Coming Soon label)
+            where.status = { in: ['ACTIVE', 'PENDING'] };
         }
 
         if (search) {
@@ -109,10 +109,31 @@ export const getTests = async (
             else if (item.status === 'LOCKED') systemStats.locked = count;
         });
 
-        // Calculate progression for each test
+        // Calculate progression for each test based on current user's progress
+        const userId = (req as any).user?.id;
+        let userProgressMap: Record<string, string[]> = {}; // testId -> completedPartIds
+
+        if (userId) {
+            const completedEntries = await prisma.testAttempt.findMany({
+                where: { userId },
+                select: { partId: true, part: { select: { testId: true } } }
+            });
+
+
+            completedEntries.forEach(entry => {
+                const tId = entry.part?.testId;
+                if (tId) {
+                    if (!userProgressMap[tId]) userProgressMap[tId] = [];
+                    if (!userProgressMap[tId].includes(entry.partId)) {
+                        userProgressMap[tId].push(entry.partId);
+                    }
+                }
+            });
+        }
+
         const testsWithProgress = tests.map(test => {
-            const totalParts = 7;
-            const completedParts = test.parts.length;
+            const totalPartsCount = test.parts.length || 7;
+            const completedPartsCount = userProgressMap[test.id]?.length || 0;
 
             // Calculate listeningQuestions and readingQuestions from testType
             const listeningQuestions = (test as any).testType === 'LISTENING' ? (test as any).totalQuestions : 0;
@@ -120,13 +141,14 @@ export const getTests = async (
 
             return {
                 ...test,
-                totalParts,
-                completedParts,
-                progress: Math.round((completedParts / totalParts) * 100),
+                totalParts: totalPartsCount,
+                completedParts: completedPartsCount,
+                progress: Math.min(100, Math.round((completedPartsCount / totalPartsCount) * 100)),
                 listeningQuestions,
                 readingQuestions,
             };
         });
+
 
         res.status(200).json({
             success: true,
@@ -198,7 +220,7 @@ export const getTestById = async (
 
         if (userId) {
             const partIds = test.parts.map(p => p.id);
-            const progresses = await prisma.userPartProgress.findMany({
+            const progresses = await prisma.testAttempt.findMany({
                 where: {
                     userId,
                     partId: { in: partIds }
@@ -216,9 +238,12 @@ export const getTestById = async (
                 let currentProgress = 0;
 
                 if (latestAttempt) {
-                    // Use AI Progress Score if available, otherwise raw percentage
-                    currentProgress = latestAttempt.aiProgressScore ?? latestAttempt.percentage ?? 0;
+                    // Use correct percentage if available
+                    const total = latestAttempt.totalQuestions || 0;
+                    const correct = latestAttempt.correctCount || 0;
+                    currentProgress = total > 0 ? (correct / total) * 100 : 0;
                 }
+
 
                 return {
                     ...part,
@@ -385,6 +410,22 @@ export const updateTest = async (
         const listeningQuestions = (updatedTest as any).testType === 'LISTENING' ? (updatedTest as any).totalQuestions : 0;
         const readingQuestions = (updatedTest as any).testType === 'READING' ? (updatedTest as any).totalQuestions : 0;
 
+        // Gửi thông báo toàn hệ thống nếu đề thi chuyển sang ACTIVE
+        if (isAdmin && status === 'ACTIVE') {
+            (async () => {
+                try {
+                    await NotificationService.broadcastNotification({
+                        title: '🚀 Đề thi mới cực hot!',
+                        content: `Hệ thống vừa cập nhật đề thi "${updatedTest.title}". Hãy vào luyện tập ngay để bứt phá điểm số nhé!`,
+                        type: 'NEW_TEST_OPENED' as any,
+                        relatedId: updatedTest.id
+                    });
+                } catch (err) {
+                    console.error('Failed to broadcast notification on update:', err);
+                }
+            })();
+        }
+
         res.status(200).json({
             success: true,
             message: 'Test updated successfully',
@@ -529,6 +570,20 @@ export const approveTest = async (
                 console.error('Failed to notify author:', err);
             }
         })();
+
+        // BROADCAST TO ALL STUDENTS
+        (async () => {
+            try {
+                await NotificationService.broadcastNotification({
+                    title: '🚀 Đề thi mới đã sẵn sàng!',
+                    content: `Đề thi "${updatedTest.title}" vừa được xuất bản. Hãy vào thử sức ngay nào!`,
+                    type: 'NEW_TEST_OPENED' as any,
+                    relatedId: updatedTest.id
+                });
+            } catch (err) {
+                console.error('Failed to broadcast notification on approve:', err);
+            }
+        })();
     } catch (error) {
         next(error);
     }
@@ -618,6 +673,20 @@ export const approveTestFull = async (
                 console.error('Failed to notify author:', err);
             }
         })();
+
+        // BROADCAST TO ALL STUDENTS
+        (async () => {
+            try {
+                await NotificationService.broadcastNotification({
+                    title: '🚀 Siêu phẩm đề thi mới!',
+                    content: `Toàn bộ đề thi "${test.title}" đã được công khai. Cơ hội vàng để ôn luyện TOEIC đây rồi!`,
+                    type: 'NEW_TEST_OPENED' as any,
+                    relatedId: test.id
+                });
+            } catch (err) {
+                console.error('Failed to broadcast notification on full approve:', err);
+            }
+        })();
     } catch (error) {
         next(error);
     }
@@ -696,6 +765,22 @@ export const toggleTestLock = async (
             message: `Đã ${newStatus === 'ACTIVE' ? 'mở khóa' : 'khóa'} bài thi thành công`,
             test: updatedTest,
         });
+
+        // Gửi thông báo nếu MỞ KHÓA (chuyển sang ACTIVE)
+        if (newStatus === 'ACTIVE') {
+            (async () => {
+                try {
+                    await NotificationService.broadcastNotification({
+                        title: '🔔 Đề thi đã mở lại!',
+                        content: `Đề thi "${updatedTest.title}" đã có thể truy cập trở lại. Đừng bỏ lỡ cơ hội luyện tập nhé!`,
+                        type: 'NEW_TEST_OPENED' as any,
+                        relatedId: updatedTest.id
+                    });
+                } catch (err) {
+                    console.error('Failed to broadcast notification on toggle lock:', err);
+                }
+            })();
+        }
     } catch (error) {
         next(error);
     }

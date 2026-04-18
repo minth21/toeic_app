@@ -14,31 +14,33 @@ export async function computeLatestPartScores(userId: string, prisma: PrismaClie
     estimatedScore: number;
     listeningCorrect: number;
     readingCorrect: number;
-    partBreakdown: Record<number, { correct: number; total: number; date: Date } | null>;
+    partBreakdown: Record<number, { id: string; correct: number; total: number; date: Date } | null>;
 }> {
-    // 1. Lấy bài làm GẦN NHẤT cho mỗi Part từ bảng userPartProgress (chứa cả Full Test và Part lẻ)
-    const allProgress = await (prisma as any).userPartProgress.findMany({
+    // 1. Lấy bài làm GẦN NHẤT cho mỗi Part từ bảng testAttempt (Nguồn dữ liệu chính xác nhất hiện tại)
+    const allAttempts = await prisma.testAttempt.findMany({
         where: { userId },
         include: { part: { select: { partNumber: true } } },
-        orderBy: [{ partId: 'asc' }, { attemptNumber: 'desc' }],
+        orderBy: [{ partId: 'asc' }, { createdAt: 'desc' }],
     });
 
-    const partBreakdown: Record<number, { correct: number; total: number; date: Date } | null> = {};
+    const partBreakdown: Record<number, { id: string; correct: number; total: number; date: Date } | null> = {};
     const seenParts = new Set<string>();
 
-    for (const progress of allProgress) {
-        if (!seenParts.has(progress.partId)) {
-            seenParts.add(progress.partId);
-            const pNum = progress.part?.partNumber;
+    for (const attempt of allAttempts) {
+        if (attempt.partId && !seenParts.has(attempt.partId)) {
+            seenParts.add(attempt.partId);
+            const pNum = attempt.part?.partNumber;
             if (pNum && pNum >= 1 && pNum <= 7) {
                 partBreakdown[pNum] = {
-                    correct: progress.score || 0,
-                    total: progress.totalQuestions || 0,
-                    date: progress.createdAt,
+                    id: attempt.partId!,
+                    correct: attempt.correctCount || 0,
+                    total: attempt.totalQuestions || 0,
+                    date: attempt.createdAt,
                 };
             }
         }
     }
+
 
     // 2. Tổng correctCount cho từng kỹ năng (Incremental - có nhiêu tính bấy nhiêu)
     let listeningCorrect = 0;

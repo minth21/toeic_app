@@ -14,6 +14,9 @@ const router = express.Router();
 // Lấy tất cả lớp học (Admin)
 router.get('/', authMiddleware, roleMiddleware([Role.ADMIN, Role.SPECIALIST]), classController.getAllClasses);
 
+// Lấy danh sách học viên rảnh (để thêm vào lớp)
+router.get('/available-students', authMiddleware, roleMiddleware([Role.ADMIN]), classController.getAvailableStudents);
+
 // Tạo lớp học mới
 router.post('/', authMiddleware, roleMiddleware([Role.ADMIN, Role.SPECIALIST]), classController.createClass);
 
@@ -34,6 +37,12 @@ router.get('/my-classes', authMiddleware, roleMiddleware([('TEACHER' as unknown 
 
 // Lấy danh sách học viên trong lớp
 router.get('/:classId/students', authMiddleware, roleMiddleware([('TEACHER' as unknown as Role), Role.ADMIN, Role.SPECIALIST]), classController.getClassStudents);
+
+// Thêm học viên vào lớp (Admin)
+router.post('/:classId/students', authMiddleware, roleMiddleware([Role.ADMIN]), classController.addStudentToClass);
+
+// Kick học viên khỏi lớp (Admin)
+router.delete('/:classId/students/:studentId', authMiddleware, roleMiddleware([Role.ADMIN]), classController.removeStudentFromClass);
 
 // Xuất báo cáo Excel điểm số học viên
 router.get('/:classId/export', authMiddleware, roleMiddleware([('TEACHER' as unknown as Role), Role.ADMIN, Role.SPECIALIST]), classController.exportClassPerformance);

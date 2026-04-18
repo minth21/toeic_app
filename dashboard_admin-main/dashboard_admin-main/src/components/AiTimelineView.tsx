@@ -10,20 +10,25 @@ import {
     ClockCircleOutlined,
     FlagOutlined,
     TrophyOutlined,
-    FireOutlined
+    FireOutlined,
+    DownloadOutlined
 } from '@ant-design/icons';
-import { aiApi, userApi } from '../services/api';
+import { aiApi, userApi, authApi } from '../services/api';
 import dayjs from 'dayjs';
 import 'dayjs/locale/vi';
 import { Line } from '@ant-design/plots';
+import { message, Input } from 'antd';
 
-const { Text, Title, Paragraph } = Typography;
+const { TextArea } = Input;
+
+const { Text, Title } = Typography;
 
 interface AiTimelineViewProps {
     userId: string;
     isDark: boolean;
     hideHeader?: boolean;
     refreshTrigger?: number;
+    onDataLoaded?: (latestRoadmap: any) => void;
 }
 
 const ASSESSMENT_THEMES: Record<string, { color: string; icon: React.ReactNode; label: string; bg: string }> = {
@@ -44,6 +49,12 @@ const ASSESSMENT_THEMES: Record<string, { color: string; icon: React.ReactNode; 
         icon: <BookOutlined />,
         label: 'GIẢI THÍCH CHUYÊN SÂU',
         bg: 'rgba(139, 92, 246, 0.1)'
+    },
+    ROADMAP: {
+        color: '#10B981',
+        icon: <FireOutlined />,
+        label: 'LỘ TRÌNH CÁ NHÂN HÓA',
+        bg: 'rgba(16, 185, 129, 0.1)'
     }
 };
 
@@ -53,45 +64,110 @@ const TREND_THEMES: Record<string, { color: string; icon: React.ReactNode; text:
     STABLE: { color: '#64748B', icon: <LineOutlined />, text: 'Ổn định' }
 };
 
-export default function AiTimelineView({ userId, isDark, hideHeader = false, refreshTrigger = 0 }: AiTimelineViewProps) {
+export default function AiTimelineView({ 
+    userId, 
+    isDark, 
+    hideHeader = false, 
+    refreshTrigger = 0,
+    onDataLoaded
+}: AiTimelineViewProps) {
     const [loading, setLoading] = useState(true);
     const [assessments, setAssessments] = useState<any[]>([]);
     const [user, setUser] = useState<any>(null);
     const [page, setPage] = useState(1);
     const [hasMore, setHasMore] = useState(true);
+    const [myRole, setMyRole] = useState<string>('');
+    
+    // Ghi chú và trạng thái xuất bản
+    const [notes, setNotes] = useState<Record<string, string>>({});
+    const [publishingId, setPublishingId] = useState<string | null>(null);
+
+    const checkRole = useCallback(async () => {
+        try {
+            const res = await authApi.getCurrentUser();
+            if (res.success) {
+                setMyRole(res.data.user.role);
+            }
+        } catch (e) {
+            const cachedUser = localStorage.getItem('user');
+            if (cachedUser) {
+                setMyRole(JSON.parse(cachedUser).role);
+            }
+        }
+    }, []);
 
     const fetchTimeline = useCallback(async (pageNum: number, isLoadMore: boolean = false) => {
         if (!userId) return;
         
         if (!isLoadMore) setLoading(true);
         try {
-            const [timelineRes, userRes] = await Promise.all([
-                aiApi.getAiTimeline(userId, pageNum),
-                pageNum === 1 ? userApi.getUserById(userId) : Promise.resolve(null)
-            ]);
-
-            if (timelineRes.success) {
-                if (isLoadMore) {
-                    setAssessments(prev => [...prev, ...timelineRes.data]);
-                } else {
-                    setAssessments(timelineRes.data);
+            // Fetch Timeline
+            try {
+                const timelineRes = await aiApi.getAiTimeline(userId, pageNum);
+                if (timelineRes.success) {
+                    const data = timelineRes.data;
+                    if (isLoadMore) {
+                        setAssessments(prev => [...prev, ...data]);
+                    } else {
+                        setAssessments(data);
+                        // Báo cáo lộ trình mới nhất về cho Component cha (TeacherDashboard)
+                        if (onDataLoaded && data.length > 0) {
+                            const latestRoadmap = data.find((a: any) => a.type === 'ROADMAP');
+                            onDataLoaded(latestRoadmap);
+                        }
+                    }
+                    setHasMore(pageNum < timelineRes.meta.lastPage);
                 }
-                setHasMore(pageNum < timelineRes.meta.lastPage);
+            } catch (timelineError) {
+                console.error('Error fetching timeline:', timelineError);
+                message.error('Không thể tải danh sách lộ trình.');
             }
 
-            if (userRes && userRes.success) {
-                setUser(userRes.user);
+            // Fetch User Details (Can fail without breaking timeline)
+            if (pageNum === 1) {
+                try {
+                    const userRes = await userApi.getUserById(userId);
+                    if (userRes && userRes.success) {
+                        setUser(userRes.user);
+                    }
+                } catch (userError) {
+                    console.warn('Could not fetch student details (expected if not admin):', userError);
+                }
             }
         } catch (error) {
-            console.error('Error fetching AI data:', error);
+            console.error('General error in fetchTimeline:', error);
         } finally {
             setLoading(false);
         }
     }, [userId]);
 
+    const handleExportRoadmapPdf = async (id: string, title: string) => {
+        try {
+            const hide = message.loading('Đang khởi tạo PDF...', 0);
+            const response = await aiApi.exportRoadmapPdf(id);
+            hide();
+
+            // Chuyển đổi blob sang URL và tải về
+            const url = window.URL.createObjectURL(new Blob([response]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `Roadmap_${title.replace(/\s+/g, '_')}.pdf`);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.URL.revokeObjectURL(url);
+            
+            message.success('Tải báo cáo PDF thành công!');
+        } catch (error) {
+            console.error('Error exporting PDF:', error);
+            message.error('Lỗi khi xuất PDF. Hãy thử lại sau.');
+        }
+    };
+
     useEffect(() => {
         fetchTimeline(1);
-    }, [fetchTimeline, refreshTrigger]);
+        checkRole();
+    }, [fetchTimeline, checkRole, refreshTrigger]);
 
     // Listen for global reload event (triggered after assessment)
     useEffect(() => {
@@ -107,6 +183,42 @@ export default function AiTimelineView({ userId, isDark, hideHeader = false, ref
         const nextPage = page + 1;
         setPage(nextPage);
         fetchTimeline(nextPage, true);
+    };
+
+    const handlePublish = async (assessment: any) => {
+        const note = notes[assessment.id] || assessment.teacherNote || '';
+        setPublishingId(assessment.id);
+        try {
+            const res = await aiApi.publishRoadmap(assessment.id, { teacherNote: note });
+            if (res.success) {
+                message.success('Đã gửi lộ trình và thông báo cho học viên!');
+                fetchTimeline(1); // Reload
+            } else {
+                message.error(res.message || 'Lỗi khi xuất bản');
+            }
+        } catch (error: any) {
+            message.error(error.response?.data?.message || 'Lỗi hệ thống');
+        } finally {
+            setPublishingId(null);
+        }
+    };
+
+    const handleDownloadPdf = async (id: string, title: string) => {
+        try {
+            const hide = message.loading('Đang chuẩn bị tệp PDF...', 0);
+            const blob = await aiApi.exportRoadmapPdf(id);
+            hide();
+            
+            const url = window.URL.createObjectURL(new Blob([blob]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `Roadmap_${title.replace(/\s+/g, '_')}.pdf`);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+        } catch (error) {
+            message.error('Lỗi khi tải xuống PDF');
+        }
     };
 
     // Prepare chart data for Burn Down Chart
@@ -186,17 +298,49 @@ export default function AiTimelineView({ userId, isDark, hideHeader = false, ref
         );
     }
 
-    // Group assessments by date
-    const grouped = assessments.reduce((acc: any, item: any) => {
+    // Group ONLY roadmap assessments by date
+    const roadmaps = assessments.filter((a: any) => a.type === 'ROADMAP');
+    const grouped = roadmaps.reduce((acc: any, item: any) => {
         const date = dayjs(item.createdAt).locale('vi').format('DD MMMM, YYYY');
         if (!acc[date]) acc[date] = [];
         acc[date].push(item);
         return acc;
     }, {});
 
-    const targetScore = user?.targetScore || 0;
+    const targetScore = user?.targetScore || 990;
     const currentScore = user?.estimatedScore || 0;
     const remainingScore = Math.max(0, targetScore - currentScore);
+
+    const renderScoreTable = (scoreDetails: any) => {
+        if (!scoreDetails) return null;
+        return (
+            <div style={{ 
+                background: isDark ? '#0F172A' : '#F8FAFC', 
+                borderRadius: 12, 
+                padding: '16px 20px', 
+                marginBottom: 20,
+                border: isDark ? '1px solid #334155' : '1px solid #E2E8F0'
+            }}>
+                <Text strong style={{ fontSize: 12, color: 'var(--text-muted)', display: 'block', marginBottom: 12, textTransform: 'uppercase' }}>
+                    📈 Bảng điểm phân tích tại thời điểm này
+                </Text>
+                <Row gutter={16}>
+                    <Col span={6}>
+                        <Statistic title="Mục tiêu" value={scoreDetails.targetScore} valueStyle={{ fontSize: 16, fontWeight: 700 }} />
+                    </Col>
+                    <Col span={6}>
+                        <Statistic title="Listening" value={scoreDetails.estimatedListening} valueStyle={{ fontSize: 16, fontWeight: 700, color: '#3B82F6' }} />
+                    </Col>
+                    <Col span={6}>
+                        <Statistic title="Reading" value={scoreDetails.estimatedReading} valueStyle={{ fontSize: 16, fontWeight: 700, color: '#8B5CF6' }} />
+                    </Col>
+                    <Col span={6}>
+                        <Statistic title="Tổng điểm" value={scoreDetails.estimatedScore} valueStyle={{ fontSize: 16, fontWeight: 700, color: '#10B981' }} />
+                    </Col>
+                </Row>
+            </div>
+        );
+    };
 
     return (
         <div style={{ padding: '10px 20px' }}>
@@ -220,20 +364,20 @@ export default function AiTimelineView({ userId, isDark, hideHeader = false, ref
                                     TOEIC Burn Down
                                 </Title>
                                 
-                                <Space direction="vertical" size="large" style={{ width: '100%' }}>
+                                <Space orientation="vertical" size="large" style={{ width: '100%' }}>
                                     <Statistic 
                                         title="Mục tiêu của bạn" 
                                         value={targetScore} 
                                         suffix="PTS" 
                                         prefix={<FlagOutlined />} 
-                                        valueStyle={{ color: '#3B82F6', fontWeight: 800 }}
+                                        styles={{ content: { color: '#3B82F6', fontWeight: 800 } }}
                                     />
                                     <Statistic 
                                         title="Khoảng cách còn lại" 
                                         value={remainingScore} 
                                         suffix="PTS" 
                                         prefix={<TrophyOutlined />} 
-                                        valueStyle={{ color: '#F43F5E', fontWeight: 800 }}
+                                        styles={{ content: { color: '#F43F5E', fontWeight: 800 } }}
                                     />
                                 </Space>
                                 
@@ -258,7 +402,7 @@ export default function AiTimelineView({ userId, isDark, hideHeader = false, ref
                 </Card>
             )}
 
-            <Divider orientation={"left" as any} style={{ borderTopColor: isDark ? '#334155' : '#E2E8F0' }}>
+            <Divider titlePlacement="left" style={{ borderTopColor: isDark ? '#334155' : '#E2E8F0' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
                     <Text strong style={{ color: isDark ? '#94A3B8' : '#64748B', fontSize: 13, textTransform: 'uppercase', letterSpacing: '1px' }}>
                         Chi tiết lộ trình luyện tập
@@ -276,120 +420,221 @@ export default function AiTimelineView({ userId, isDark, hideHeader = false, ref
                 </div>
             </Divider>
 
-            {assessments.length === 0 ? (
+            {roadmaps.length === 0 ? (
                 <Empty 
                     image={Empty.PRESENTED_IMAGE_SIMPLE} 
-                    description={<Text type="secondary">Chưa có nhận xét nào từ AI cho học viên này.</Text>}
-                    style={{ padding: '40px 0' }}
+                    description={
+                        <Space orientation="vertical" align="center">
+                            <Text type="secondary">Học viên này chưa có Lộ trình luyện tập nào.</Text>
+                            <Text type="secondary" style={{ fontSize: '12px' }}>Hãy nhấn "Phân tích lộ trình" bên dưới để AI khởi tạo.</Text>
+                        </Space>
+                    }
+                    style={{ padding: '60px 0' }}
                 />
             ) : (
-                <Timeline mode="left" style={{ marginTop: 32 }}>
-                    {Object.keys(grouped).map((date) => (
-                        <React.Fragment key={date}>
-                            <Timeline.Item 
-                                dot={<ClockCircleOutlined style={{ fontSize: '18px', color: isDark ? '#94A3B8' : '#64748B' }} />}
-                                label={<Text strong style={{ color: isDark ? '#94A3B8' : '#64748B' }}>{date}</Text>}
-                            >
-                                <div style={{ marginBottom: 32 }}>
-                                    {grouped[date].map((item: any) => {
-                                        const theme = ASSESSMENT_THEMES[item.type] || ASSESSMENT_THEMES.PERFORMANCE;
-                                        const trend = item.trend ? TREND_THEMES[item.trend] : null;
+                <Timeline 
+                    mode="start" 
+                    style={{ marginTop: 32 }} 
+                    items={Object.keys(grouped).map((date) => ({
+                        dot: <ClockCircleOutlined style={{ fontSize: '18px', color: isDark ? '#94A3B8' : '#64748B' }} />,
+                        label: <Text strong style={{ color: isDark ? '#94A3B8' : '#64748B' }}>{date}</Text>,
+                        children: (
+                            <div style={{ marginBottom: 32 }}>
+                                {grouped[date].map((item: any) => {
+                                    const theme = ASSESSMENT_THEMES[item.type] || ASSESSMENT_THEMES.PERFORMANCE;
+                                    const trend = item.trend ? TREND_THEMES[item.trend] : null;
 
-                                        return (
-                                            <Card
-                                                key={item.id}
-                                                style={{
-                                                    marginBottom: 20,
-                                                    borderRadius: 20,
-                                                    background: isDark ? '#1E293B' : '#FFFFFF',
-                                                    border: isDark ? '1px solid #334155' : '1px solid #F1F5F9',
-                                                    boxShadow: isDark ? '0 4px 12px rgba(0,0,0,0.2)' : '0 4px 12px rgba(0,0,0,0.03)',
-                                                    overflow: 'hidden',
-                                                    transition: 'all 0.3s ease'
-                                                }}
-                                                bodyStyle={{ padding: '20px 24px' }}
-                                                className="assessment-card"
-                                            >
-                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
-                                                    <Space size="middle">
-                                                        <div style={{
-                                                            width: 44,
-                                                            height: 44,
-                                                            borderRadius: 12,
-                                                            background: theme.bg,
-                                                            color: theme.color,
-                                                            display: 'flex',
-                                                            alignItems: 'center',
-                                                            justifyContent: 'center',
-                                                            fontSize: 22
-                                                        }}>
-                                                            {theme.icon}
+                                    return (
+                                        <Card
+                                            key={item.id}
+                                            style={{
+                                                marginBottom: 20,
+                                                borderRadius: 20,
+                                                background: isDark ? '#1E293B' : '#FFFFFF',
+                                                border: isDark ? '1px solid #334155' : '1px solid #F1F5F9',
+                                                boxShadow: isDark ? '0 4px 12px rgba(0,0,0,0.2)' : '0 4px 12px rgba(0,0,0,0.03)',
+                                                overflow: 'hidden',
+                                                transition: 'all 0.3s ease'
+                                            }}
+                                            styles={{ body: { padding: '20px 24px' } }}
+                                            className="assessment-card"
+                                        >
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+                                                <Space size="middle">
+                                                    <div style={{
+                                                        width: 44,
+                                                        height: 44,
+                                                        borderRadius: 12,
+                                                        background: theme.bg,
+                                                        color: theme.color,
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                        fontSize: 22
+                                                    }}>
+                                                        {theme.icon}
+                                                    </div>
+                                                    <div>
+                                                        <div style={{ fontSize: 10, fontWeight: 800, color: theme.color, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 2 }}>
+                                                              {theme.label}
                                                         </div>
-                                                        <div>
-                                                            <div style={{ fontSize: 10, fontWeight: 800, color: theme.color, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 2 }}>
-                                                                  {theme.label}
-                                                            </div>
-                                                            <Text strong style={{ fontSize: 16, color: isDark ? '#F1F5F9' : '#0F172A' }}>
-                                                                {item.title}
-                                                            </Text>
-                                                        </div>
-                                                    </Space>
-                                                    
-                                                    {trend && (
+                                                        <Text strong style={{ fontSize: 16, color: isDark ? '#F1F5F9' : '#0F172A' }}>
+                                                            {item.title}
+                                                        </Text>
+                                                    </div>
+                                                </Space>
+                                                
+                                                {trend && (
+                                                    <Tag 
+                                                        color={trend.color === '#10B981' ? 'success' : trend.color === '#EF4444' ? 'error' : 'default'}
+                                                        icon={trend.icon}
+                                                        style={{ borderRadius: 8, fontWeight: 700, border: 'none', padding: '4px 12px' }}
+                                                    >
+                                                        {trend.text}
+                                                    </Tag>
+                                                )}
+
+                                                {/* Status & Export Tags for Teachers */}
+                                                {(myRole === 'ADMIN' || myRole === 'TEACHER') && (
+                                                    <Space size="small">
+                                                        {item.type === 'ROADMAP' && (
+                                                            <Button 
+                                                                size="small"
+                                                                type="text"
+                                                                icon={<DownloadOutlined style={{ color: '#6366F1' }} />}
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleExportRoadmapPdf(item.id, item.title);
+                                                                }}
+                                                                style={{ 
+                                                                    borderRadius: 6, 
+                                                                    background: 'rgba(99, 102, 241, 0.1)',
+                                                                    color: '#6366F1',
+                                                                    fontSize: '11px',
+                                                                    fontWeight: 600
+                                                                }}
+                                                            >
+                                                                XUẤT PDF
+                                                            </Button>
+                                                        )}
                                                         <Tag 
-                                                            color={trend.color === '#10B981' ? 'success' : trend.color === '#EF4444' ? 'error' : 'default'}
-                                                            icon={trend.icon}
-                                                            style={{ borderRadius: 8, fontWeight: 700, border: 'none', padding: '4px 12px' }}
+                                                            color={item.isPublished ? 'processing' : 'warning'}
+                                                            style={{ borderRadius: 8, fontWeight: 700, margin: 0 }}
                                                         >
-                                                            {trend.text}
+                                                            {item.isPublished ? 'ĐÃ GỬI HV' : 'BẢN NHÁP'}
                                                         </Tag>
-                                                    )}
-                                                </div>
+                                                    </Space>
+                                                )}
+                                            </div>
 
-                                                <Paragraph 
-                                                    ellipsis={{ rows: 3, expandable: true, symbol: 'Xem thêm' }}
+                                            {item.type === 'ROADMAP' && item.content?.scoreDetails && renderScoreTable(item.content.scoreDetails)}
+
+                                            {/* Chỉ Giáo viên mới xem được nội dung chi tiết Summary */}
+                                            {(myRole === 'TEACHER') && (
+                                                <div 
                                                     style={{ 
                                                         color: isDark ? '#CBD5E1' : '#475569', 
-                                                        fontSize: 14, 
-                                                        marginBottom: 16,
-                                                        lineHeight: '1.7'
+                                                        fontSize: 15, 
+                                                        marginBottom: 20, 
+                                                        lineHeight: '1.8',
+                                                        wordBreak: 'break-word'
                                                     }}
-                                                >
-                                                    {item.summary || item.content?.detailedAssessment || 'Học viên đã hoàn thành tốt bài luyện tập này.'}
-                                                </Paragraph>
+                                                    className="assessment-summary"
+                                                    dangerouslySetInnerHTML={{ __html: item.summary || item.content?.detailedAssessment || 'Học viên đã hoàn thành tốt bài luyện tập này.' }}
+                                                />
+                                            )}
 
+                                            {/* Teacher Note Display (if published) */}
+                                            {item.teacherNote && (
                                                 <div style={{ 
-                                                    display: 'flex', 
-                                                    justifyContent: 'space-between', 
-                                                    alignItems: 'center',
-                                                    marginTop: 12,
-                                                    paddingTop: 16,
-                                                    borderTop: isDark ? '1px solid #334155' : '1px solid #F1F5F9'
+                                                    background: isDark ? 'rgba(99, 102, 241, 0.1)' : '#EEF2FF',
+                                                    borderLeft: '4px solid #6366F1',
+                                                    padding: '12px 16px',
+                                                    borderRadius: '0 8px 8px 0',
+                                                    marginBottom: 16
                                                 }}>
-                                                    <Space size="large">
-                                                        <Text type="secondary" style={{ fontSize: 12 }}>
-                                                            {dayjs(item.createdAt).format('HH:mm')} • {item.testAttempt?.test?.title || 'Luyện tập'}
-                                                        </Text>
-                                                        {item.score !== null && (
-                                                            <Tag color="blue" bordered={false} style={{ borderRadius: 4, fontWeight: 600 }}>
-                                                                Đạt mức: {item.score} PTS
-                                                            </Tag>
-                                                        )}
-                                                    </Space>
-                                                    <Badge 
-                                                        status="processing" 
-                                                        color={theme.color} 
-                                                        text={<span style={{ fontSize: 12, color: isDark ? '#94A3B8' : '#64748B', fontWeight: 500 }}>Phân tích bởi AI Coach</span>} 
+                                                    <div style={{ color: '#6366F1', fontWeight: 700, fontSize: 11, marginBottom: 4 }}>
+                                                        💡 GHI CHÚ CỦA GIÁO VIÊN:
+                                                    </div>
+                                                    <div 
+                                                        style={{ color: isDark ? '#E2E8F0' : '#1E293B', fontSize: 13, whiteSpace: 'pre-wrap' }}
+                                                        dangerouslySetInnerHTML={{ __html: item.teacherNote }}
                                                     />
                                                 </div>
-                                            </Card>
-                                        );
-                                    })}
-                                </div>
-                            </Timeline.Item>
-                        </React.Fragment>
-                    ))}
-                </Timeline>
+                                            )}
+
+                                            {/* Publishing UI (Draft Mode for Teachers) */}
+                                            {(myRole === 'ADMIN' || myRole === 'TEACHER') && !item.isPublished && (
+                                                <div style={{ 
+                                                    marginTop: 16, 
+                                                    padding: 16, 
+                                                    background: isDark ? '#0F172A' : '#F8FAFC', 
+                                                    borderRadius: 12,
+                                                    border: '1px dashed #6366F1'
+                                                }}>
+                                                    <Text strong style={{ fontSize: 12, display: 'block', marginBottom: 8, color: '#6366F1' }}>
+                                                        KÍNH GỬI GIÁO VIÊN: Thêm lời khuyên và gửi lộ trình cho học viên
+                                                    </Text>
+                                                    <TextArea 
+                                                        rows={3}
+                                                        placeholder="Nhập ghi chú cá nhân hóa cho học viên (Hỗ trợ định dạng văn bản)..."
+                                                        value={notes[item.id] !== undefined ? notes[item.id] : (item.teacherNote || '')}
+                                                        onChange={(e) => setNotes(prev => ({...prev, [item.id]: e.target.value}))}
+                                                        style={{ marginBottom: 12, borderRadius: 8 }}
+                                                    />
+                                                    <Button 
+                                                        type="primary" 
+                                                        block
+                                                        loading={publishingId === item.id}
+                                                        onClick={() => handlePublish(item)}
+                                                        style={{ borderRadius: 8, background: '#6366F1', height: 40, fontWeight: 600 }}
+                                                    >
+                                                        Gửi lộ trình & Thông báo cho HV
+                                                    </Button>
+                                                </div>
+                                            )}
+
+                                            <div style={{ 
+                                                display: 'flex', 
+                                                justifyContent: 'space-between', 
+                                                alignItems: 'center',
+                                                marginTop: 12,
+                                                paddingTop: 16,
+                                                borderTop: isDark ? '1px solid #334155' : '1px solid #F1F5F9'
+                                            }}>
+                                                <Space size="large">
+                                                    <Text type="secondary" style={{ fontSize: 12 }}>
+                                                        {dayjs(item.createdAt).format('HH:mm')} • {item.testAttempt?.test?.title || 'Luyện tập'}
+                                                    </Text>
+                                                    {item.score !== null && (
+                                                        <Tag color="blue" variant="filled" style={{ borderRadius: 4, fontWeight: 600 }}>
+                                                            Đạt mức: {item.score} PTS
+                                                        </Tag>
+                                                    )}
+                                                    {item.isPublished && (
+                                                        <Button 
+                                                            type="link" 
+                                                            size="small" 
+                                                            icon={<DownloadOutlined />}
+                                                            onClick={() => handleDownloadPdf(item.id, item.title)}
+                                                            style={{ padding: 0, fontSize: 12 }}
+                                                        >
+                                                            Tải lộ trình (PDF)
+                                                        </Button>
+                                                    )}
+                                                </Space>
+                                                <Badge 
+                                                    status="processing" 
+                                                    text={<span style={{ fontSize: 12, color: isDark ? '#94A3B8' : '#64748B', fontWeight: 500 }}>Phân tích bởi AI Coach</span>} 
+                                                />
+                                            </div>
+                                        </Card>
+                                    );
+                                })}
+                            </div>
+                        )
+                    }))} 
+                />
             )}
 
             {hasMore && assessments.length > 0 && (

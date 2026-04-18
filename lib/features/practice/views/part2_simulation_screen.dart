@@ -57,7 +57,7 @@ class _Part2SimulationScreenState extends State<Part2SimulationScreen> {
 
   void _onOptionSelected(String questionId, String option) {
     if (widget.isReviewMode) return;
-    
+
     HapticFeedback.lightImpact();
     setState(() {
       _selectedAnswers[questionId] = option;
@@ -96,12 +96,14 @@ class _Part2SimulationScreenState extends State<Part2SimulationScreen> {
         children: [
           // Progress bar
           LinearProgressIndicator(
-            value: (widget.questions.isEmpty) ? 0 : (_currentIndex + 1) / widget.questions.length,
+            value: (widget.questions.isEmpty)
+                ? 0
+                : (_currentIndex + 1) / widget.questions.length,
             backgroundColor: Colors.grey[200],
             valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
             minHeight: 6,
           ),
-          
+
           Expanded(
             child: PageView.builder(
               controller: _pageController,
@@ -130,7 +132,9 @@ class _Part2SimulationScreenState extends State<Part2SimulationScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          if (_currentIndex == 0 && widget.overallFeedback != null && widget.overallFeedback!.isNotEmpty)
+          if (_currentIndex == 0 &&
+              widget.overallFeedback != null &&
+              widget.overallFeedback!.isNotEmpty)
             _buildOverallAssessmentCard(),
           const SizedBox(height: 10),
           Text(
@@ -142,15 +146,16 @@ class _Part2SimulationScreenState extends State<Part2SimulationScreen> {
             ),
           ),
           const SizedBox(height: 24),
-          
+
           // Audio Player - Specific or Generic
           CustomAudioPlayer(
-            audioUrl: (question.audioUrl != null && question.audioUrl!.isNotEmpty) 
-                ? question.audioUrl! 
+            audioUrl:
+                (question.audioUrl != null && question.audioUrl!.isNotEmpty)
+                ? question.audioUrl!
                 : (widget.partAudioUrl ?? ''),
             autoPlay: true,
           ),
-          
+
           const SizedBox(height: 40),
 
           // NEW: AI Feedback Area
@@ -158,7 +163,7 @@ class _Part2SimulationScreenState extends State<Part2SimulationScreen> {
             _buildAIFeedbackArea(question, _currentIndex),
             const SizedBox(height: 24),
           ],
-          
+
           // Review Content (English Tapescript Only - NO AI)
           if (widget.isReviewMode) ...[
             _buildTapescriptSection(question),
@@ -167,9 +172,9 @@ class _Part2SimulationScreenState extends State<Part2SimulationScreen> {
 
           // Large Reflex Buttons (A, B, C)
           _buildOptionButtons(question, selectedOption),
-          
+
           const SizedBox(height: 40),
-          
+
           if (!widget.isReviewMode)
             Text(
               'Chọn nhanh đáp án bạn nghe được!',
@@ -197,7 +202,11 @@ class _Part2SimulationScreenState extends State<Part2SimulationScreen> {
         children: [
           const Row(
             children: [
-              Icon(Icons.description_outlined, color: AppColors.primary, size: 20),
+              Icon(
+                Icons.description_outlined,
+                color: AppColors.primary,
+                size: 20,
+              ),
               SizedBox(width: 8),
               Text(
                 'English Tapescript',
@@ -236,14 +245,12 @@ class _Part2SimulationScreenState extends State<Part2SimulationScreen> {
         children: [
           Text(
             '($label) ',
-            style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary),
-          ),
-          Expanded(
-            child: Text(
-              text,
-              style: const TextStyle(fontSize: 15),
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              color: AppColors.primary,
             ),
           ),
+          Expanded(child: Text(text, style: const TextStyle(fontSize: 15))),
         ],
       ),
     );
@@ -270,10 +277,16 @@ class _Part2SimulationScreenState extends State<Part2SimulationScreen> {
     );
   }
 
-  Widget _buildBigButton(String option, QuestionModel question, String selectedOption) {
+  Widget _buildBigButton(
+    String option,
+    QuestionModel question,
+    String selectedOption,
+  ) {
     final bool isSelected = selectedOption == option;
-    final bool isCorrect = widget.isReviewMode && question.correctAnswer == option;
-    final bool isWrong = widget.isReviewMode && isSelected && question.correctAnswer != option;
+    final bool isCorrect =
+        widget.isReviewMode && question.correctAnswer == option;
+    final bool isWrong =
+        widget.isReviewMode && isSelected && question.correctAnswer != option;
 
     Color bgColor = Colors.white;
     Color borderColor = Colors.grey[200]!;
@@ -308,7 +321,10 @@ class _Part2SimulationScreenState extends State<Part2SimulationScreen> {
         decoration: BoxDecoration(
           color: bgColor,
           borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: borderColor, width: isSelected || (widget.isReviewMode && isCorrect) ? 2.5 : 1),
+          border: Border.all(
+            color: borderColor,
+            width: isSelected || (widget.isReviewMode && isCorrect) ? 2.5 : 1,
+          ),
           boxShadow: [
             if (isSelected && !widget.isReviewMode)
               BoxShadow(
@@ -340,9 +356,12 @@ class _Part2SimulationScreenState extends State<Part2SimulationScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             IconButton(
-              onPressed: _currentIndex > 0 
-                ? () => _pageController.previousPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut)
-                : null,
+              onPressed: _currentIndex > 0
+                  ? () => _pageController.previousPage(
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeInOut,
+                    )
+                  : null,
               icon: const Icon(Icons.arrow_back_ios),
               color: AppColors.primary,
             ),
@@ -351,7 +370,9 @@ class _Part2SimulationScreenState extends State<Part2SimulationScreen> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 minimumSize: const Size(180, 50),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
                 elevation: 4,
                 shadowColor: AppColors.primary.withValues(alpha: 0.4),
               ),
@@ -359,17 +380,27 @@ class _Part2SimulationScreenState extends State<Part2SimulationScreen> {
                   ? const SizedBox(
                       width: 20,
                       height: 20,
-                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
                     )
                   : const Text(
-                      'Nộp bài Part 2', 
-                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)
+                      'Nộp bài ngay',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
                     ),
             ),
             IconButton(
               onPressed: _currentIndex < widget.questions.length - 1
-                ? () => _pageController.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut)
-                : null,
+                  ? () => _pageController.nextPage(
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeInOut,
+                    )
+                  : null,
               icon: const Icon(Icons.arrow_forward_ios),
               color: AppColors.primary,
             ),
@@ -381,13 +412,13 @@ class _Part2SimulationScreenState extends State<Part2SimulationScreen> {
 
   Future<void> _submitTest() async {
     if (widget.part == null) return;
-    
+
     setState(() {
       _isSubmitting = true;
     });
 
     final viewModel = context.read<PracticeViewModel>();
-    
+
     // Calculate raw score for fallback/display
     int correctCount = 0;
     for (var q in widget.questions) {
@@ -405,9 +436,10 @@ class _Part2SimulationScreenState extends State<Part2SimulationScreen> {
         _selectedAnswers,
         timeTaken: 0, // Part 2 is often short, or add timer later
       );
-      
+
       if (submitResult != null) {
-        attemptId = (submitResult['attemptId'] ?? submitResult['id']).toString();
+        attemptId = (submitResult['attemptId'] ?? submitResult['id'])
+            .toString();
       }
     } catch (e) {
       debugPrint("Part 2 submit error: $e");
@@ -450,7 +482,8 @@ class _Part2SimulationScreenState extends State<Part2SimulationScreen> {
 
     if (feedbackItem == null) return const SizedBox.shrink();
 
-    final String comment = feedbackItem['comment'] ??
+    final String comment =
+        feedbackItem['comment'] ??
         feedbackItem['tip'] ??
         feedbackItem['feedback'] ??
         feedbackItem.toString();
@@ -504,7 +537,10 @@ class _Part2SimulationScreenState extends State<Part2SimulationScreen> {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [const Color(0xFFF59E0B).withValues(alpha: 0.1), Colors.white],
+          colors: [
+            const Color(0xFFF59E0B).withValues(alpha: 0.1),
+            Colors.white,
+          ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),

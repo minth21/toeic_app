@@ -6,6 +6,7 @@ import {
     updateUserById,
     createUser,
     updateProfile,
+    getProfile,
     toggleUserStatus,
     getLeaderboard,
 } from '../controllers/user.controller';
@@ -28,6 +29,12 @@ router.post('/avatar', authMiddleware, uploadAvatar.single('image'), uploadUserA
 router.patch('/me', authMiddleware, updateProfile);
 
 /**
+ * GET /api/users/me - Get current user profile
+ * Protected route - requires authentication (Any Role)
+ */
+router.get('/me', authMiddleware, getProfile);
+
+/**
  * POST /api/users - Create new user (Admin only)
  * Admin only
  */
@@ -43,9 +50,16 @@ router.get('/', authMiddleware, adminMiddleware, getUsers);
 
 /**
  * GET /api/users/:id - Lấy thông tin chi tiết 1 user
- * Admin only
+ * Admin or Teacher only
  */
-router.get('/:id', authMiddleware, adminMiddleware, getUserById);
+router.get('/:id', authMiddleware, (req, res, next) => {
+    const role = (req as any).user?.role?.toUpperCase();
+    if (role === 'ADMIN' || role === 'TEACHER') {
+        next();
+    } else {
+        res.status(403).json({ success: false, message: 'Forbidden: Requires Admin or Teacher role' });
+    }
+}, getUserById);
 
 /**
  * PATCH /api/users/:id - Cập nhật thông tin user

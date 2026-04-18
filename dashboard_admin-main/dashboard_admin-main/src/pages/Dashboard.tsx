@@ -15,6 +15,7 @@ import {
     MoonOutlined,
     FlagOutlined,
     MessageOutlined,
+    BulbOutlined,
 } from '@ant-design/icons';
 import { useTheme } from '../hooks/useThemeContext';
 import { useNavigate, Outlet, useLocation } from 'react-router-dom';
@@ -87,6 +88,8 @@ export default function Dashboard() {
             setSelectedMenu('7');
         } else if (path === '/class-feedback') {
             setSelectedMenu('8');
+        } else if (path === '/roadmap-audit') {
+            setSelectedMenu('9');
         }
     }, [location.pathname]);
 
@@ -164,6 +167,7 @@ export default function Dashboard() {
             '6': 'HỒ SƠ CÁ NHÂN',
             '7': 'QUẢN LÝ GÓP Ý',
             '8': 'Ý KIẾN HỌC VIÊN',
+            '9': 'KIỂM DUYỆT LỘ TRÌNH AI',
         };
         return menuTitles[menuKey] || 'TỔNG QUAN';
     };
@@ -207,6 +211,7 @@ export default function Dashboard() {
         if (key === '6') navigate('/profile');
         if (key === '7') navigate('/complaints');
         if (key === '8') navigate('/class-feedback');
+        if (key === '9') navigate('/roadmap-audit');
     };
 
     // ============================================
@@ -242,6 +247,14 @@ export default function Dashboard() {
                 key: '4',
                 icon: <BookOutlined style={{ fontSize: 20 }} />,
                 label: <span style={{ fontWeight: 600 }}>Quản lý lớp học</span>,
+                style: { borderRadius: 12, marginBottom: 12, height: 54, display: 'flex', alignItems: 'center', fontSize: 15 },
+            });
+            
+            // NEW: Roadmap Audit - Admin only
+            items.push({
+                key: '9',
+                icon: <BulbOutlined style={{ fontSize: 20 }} />,
+                label: <span style={{ fontWeight: 600 }}>Kiểm duyệt lộ trình</span>,
                 style: { borderRadius: 12, marginBottom: 12, height: 54, display: 'flex', alignItems: 'center', fontSize: 15 },
             });
         }

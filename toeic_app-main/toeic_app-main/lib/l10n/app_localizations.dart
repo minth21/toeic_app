@@ -6,7 +6,11 @@ class AppLocalizations {
   AppLocalizations(this.locale);
 
   static AppLocalizations? of(BuildContext context) {
-    return Localizations.of<AppLocalizations>(context, AppLocalizations);
+    final instance = Localizations.of<AppLocalizations>(context, AppLocalizations);
+    if (instance == null) {
+      debugPrint('WARNING: AppLocalizations not found in context! Falling back to keys.');
+    }
+    return instance;
   }
 
   static const LocalizationsDelegate<AppLocalizations> delegate =
@@ -207,14 +211,14 @@ class AppLocalizations {
       'target_score_hint': 'VD: 850',
       'update': 'Cập nhật',
       'invalid_score_msg': 'Vui lòng nhập điểm từ 0 - 990',
-      'personal_achievement': 'Thành tích cá nhân',
+      'personal_achievement': 'Điểm số cá nhân',
       'current_average_score_caps': 'ĐIỂM TRUNG BÌNH HIỆN TẠI',
       'completed': 'Hoàn thành',
       'points_to_go': 'điểm nữa!',
       'target_achieved': 'Đã đạt mục tiêu! 🎉',
-      'no_performance_data_msg': 'Hãy thi thử để bắt đầu ghi lại thành tích',
+      'no_performance_data_msg': 'Hãy thi thử để bắt đầu ghi lại điểm số',
       'no_ai_assessments_msg': 'Chưa có nhận xét AI nào.',
-      'achievement_points_label': 'Thành tích',
+      'achievement_points_label': 'Điểm',
 
       // Progress
       'learning_journey': 'AI Coach',

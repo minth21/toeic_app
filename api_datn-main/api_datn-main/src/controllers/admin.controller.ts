@@ -15,7 +15,7 @@ export class AdminController {
      */
     async createUserAuto(req: Request, res: Response) {
         try {
-            const { name, phoneNumber, role, studentClassId, gender } = req.body;
+            const { name, phoneNumber, dateOfBirth, role, studentClassId, gender } = req.body;
             logger.info(`Incoming createUserAuto request: ${JSON.stringify(req.body)}`);
 
             // Kiểm tra role hợp lệ để tự sinh mã
@@ -63,6 +63,7 @@ export class AdminController {
                 data: {
                     name,
                     phoneNumber,
+                    dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
                     password: hashedPassword,
                     role: role as any,
                     username: nextCode,

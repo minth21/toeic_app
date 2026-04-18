@@ -8,13 +8,12 @@ import '../../vocabulary/viewmodels/vocabulary_viewmodel.dart';
 import '../../progress/viewmodels/progress_viewmodel.dart';
 
 import '../../practice/viewmodels/practice_viewmodel.dart';
-import '../../practice/models/part_model.dart';
-import '../../practice/views/practice_result_screen.dart';
 import '../widgets/activity_chart.dart';
-import '../widgets/activity_heatmap.dart';
 import '../../auth/viewmodels/auth_viewmodel.dart';
 import '../../auth/models/user_model.dart';
 import '../../class/views/class_materials_screen.dart';
+import '../../notifications/viewmodels/notification_viewmodel.dart';
+import '../../notifications/views/notification_screen.dart';
 import '../../../l10n/app_localizations.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -25,7 +24,6 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  String? _loadingActivityId;
 
   @override
   void initState() {
@@ -37,6 +35,23 @@ class _HomeScreenState extends State<HomeScreen> {
       final progressVM = context.read<ProgressViewModel>();
       await progressVM.loadUserStats();
     });
+  }
+
+  String _getAiDynamicTagline(int currentScore, int targetScore) {
+    if (currentScore == 0) return '🚀 Bắt đầu bài thi thử để AI lập lộ trình cho bạn nhé!';
+    
+    final gap = targetScore - currentScore;
+    final List<String> taglines = [
+      '🔥 Bạn chỉ còn cách mục tiêu $gap điểm nữa thôi. Cố lên!',
+      '💡 Mẹo nhỏ: Tập trung vào Part 5 để gỡ điểm ngữ pháp nhanh nhất.',
+      '🎧 Đừng quên luyện nghe 15 phút mỗi sáng để nhạy bén hơn nhé.',
+      '📚 Hôm nay hãy thử chinh phục 10 từ vựng Part 7 xem sao?',
+      '🎯 Tập trung vào những phần bạn còn yếu để bứt phá điểm số.',
+      '✨ AI đã cập nhật chiến thuật mới dựa trên kết quả hôm qua của bạn.'
+    ];
+    
+    // Simple rotation based on day or score to feel "alive"
+    return taglines[DateTime.now().second % taglines.length];
   }
 
   @override
@@ -63,7 +78,7 @@ class _HomeScreenState extends State<HomeScreen> {
         child: CustomScrollView(
           slivers: [
             // A. SliverAppBar (Welcome Banner & Streak)
-            _buildSliverAppBar(displayName, dashboardViewModel.streak),
+            _buildSliverAppBar(displayName, dashboardViewModel, authUser),
 
             // B. Hero Card (Mục tiêu & Điểm số)
             SliverToBoxAdapter(
@@ -77,6 +92,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 dashboardViewModel.readingScore > 0
                     ? dashboardViewModel.readingScore
                     : context.watch<ProgressViewModel>().readingScore,
+                // Ưu tiên lấy targetScore từ AuthViewModel (đã set bên tab tiến độ)
+                authUser?.targetScore ?? context.watch<ProgressViewModel>().targetScore,
               ),
             ),
 
@@ -91,24 +108,21 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
 
-            // C. Quick Categories (Menu Kỹ năng)
+            // C. AI Coaching Section (Gia sư AI)
+            if (dashboardViewModel.recommendations.isNotEmpty)
+              _buildAiCoachingSection(dashboardViewModel),
+
+            // D. Quick Categories (Menu Kỹ năng)
             SliverToBoxAdapter(
               child: _buildQuickCategories(context),
             ),
-
-
-
-            // E. Recent Activity
-            _buildRecentActivity(dashboardViewModel),
             
+            // E. Recent Activity Section (RESTORED)
+            _buildRecentActivitySection(dashboardViewModel.recentActivities),
+
             // F. Activity Frequency Chart (Bar)
             SliverToBoxAdapter(
               child: ActivityChart(stats: dashboardViewModel.activityStats),
-            ),
-
-            // G. Activity Heatmap (Monthly calendar)
-            SliverToBoxAdapter(
-              child: ActivityHeatmap(datasets: dashboardViewModel.heatmapData),
             ),
 
             // Bottom Padding
@@ -119,7 +133,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildSliverAppBar(String userName, int streak) {
+  Widget _buildSliverAppBar(String userName, DashboardViewModel dashboardViewModel, UserModel? authUser) {
     return SliverAppBar(
       expandedHeight: 120,
       floating: true,
@@ -149,17 +163,31 @@ class _HomeScreenState extends State<HomeScreen> {
                         color: Theme.of(context).textTheme.displayLarge?.color,
                       ),
                     ),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).cardColor,
-                        shape: BoxShape.circle,
-                        boxShadow: AppShadows.softShadow,
-                      ),
-                      child: IconButton(
-                        icon: Icon(Icons.notifications_none_rounded,
-                            color: Theme.of(context).textTheme.bodyLarge?.color),
-                        onPressed: () {},
-                      ),
+                    Consumer<NotificationViewModel>(
+                      builder: (context, notificationVM, child) {
+                        return Badge(
+                          label: Text('${notificationVM.unreadCount}'),
+                          isLabelVisible: notificationVM.unreadCount > 0,
+                          backgroundColor: AppColors.error,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).cardColor,
+                              shape: BoxShape.circle,
+                              boxShadow: AppShadows.softShadow,
+                            ),
+                            child: IconButton(
+                              icon: Icon(Icons.notifications_none_rounded,
+                                  color: Theme.of(context).textTheme.bodyLarge?.color),
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (context) => const NotificationScreen()),
+                                );
+                              },
+                            ),
+                          ),
+                        );
+                      },
                     ),
                   ],
                 ),
@@ -170,10 +198,14 @@ class _HomeScreenState extends State<HomeScreen> {
                   children: [
                     Expanded(
                       child: Text(
-                        context.tr('today_plan'), // Need to add this key or use a fallback
+                        _getAiDynamicTagline(
+                          dashboardViewModel.predictedScore > 0 ? dashboardViewModel.predictedScore : context.watch<ProgressViewModel>().totalScore,
+                          authUser?.targetScore ?? 500
+                        ),
                         style: GoogleFonts.inter(
-                          fontSize: 14,
-                          color: Theme.of(context).textTheme.bodyMedium?.color,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.8),
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -189,8 +221,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildHeroCard(int totalScore, int listeningScore, int readingScore) {
-    final targetScore = context.watch<DashboardViewModel>().targetScore;
+  Widget _buildHeroCard(int totalScore, int listeningScore, int readingScore, int targetScore) {
     final gap = targetScore - totalScore;
 
     return Container(
@@ -312,6 +343,101 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       ],
+    );
+  }
+
+
+  Widget _buildAiCoachingSection(DashboardViewModel vm) {
+    return SliverPadding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 0),
+      sliver: SliverList(
+        delegate: SliverChildListDelegate([
+          Row(
+            children: [
+              const Icon(Icons.psychology_alt_rounded, color: AppColors.primary, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                'GIA SƯ AI: TƯ VẤN CHIẾN THUẬT',
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.primary.withValues(alpha: 0.8),
+                  letterSpacing: 1.1,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ...vm.recommendations.take(2).map((rec) => _buildAiCoachCard(rec)),
+          const SizedBox(height: 8),
+        ]),
+      ),
+    );
+  }
+
+  Widget _buildAiCoachCard(dynamic rec) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: AppShadows.softShadow,
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.08)),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+             // Link to Progress tab when clicking advice
+             context.read<NavigationViewModel>().setIndex(3);
+          },
+          borderRadius: BorderRadius.circular(20),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.05),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    rec['icon'] == 'warning' ? Icons.lightbulb_rounded : Icons.auto_awesome, 
+                    color: Colors.amber, 
+                    size: 20
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        rec['title'] ?? 'Chiến thuật gợi ý',
+                        style: GoogleFonts.inter(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        rec['subtitle'] ?? 'Hãy xem chi tiết phân tích từ AI.',
+                        style: GoogleFonts.inter(
+                          fontSize: 13,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.textHint),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -455,174 +581,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
 
 
-  Widget _buildRecentActivity(DashboardViewModel vm) {
-    return SliverPadding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      sliver: SliverList(
-        delegate: SliverChildListDelegate([
-          if (vm.recentActivities.isNotEmpty) ...[
-            Text(
-              context.tr('recent_activity'),
-              style: GoogleFonts.inter(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Theme.of(context).textTheme.titleLarge?.color,
-              ),
-            ),
-            const SizedBox(height: 12),
-            ...vm.recentActivities.map((act) => Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: _buildRecentActivityItem(
-                    '${act['title']} - ${act['partName']}',
-                    '${act['score']}/${act['totalQuestions']}',
-                    _formatTimeDiff(act['createdAt']),
-                    isLoading: _loadingActivityId == act['id'],
-                    onTap: _loadingActivityId != null ? null : () => _handleActivityClick(act['id']),
-                  ),
-                )),
-          ],
-        ]),
-      ),
-    );
-  }
-
-  Future<void> _handleActivityClick(String? id) async {
-    if (id == null) {
-      // Fallback if no specific ID linked - Go to Progress tab (Index 3)
-      context.read<NavigationViewModel>().setIndex(3);
-      return;
-    }
-
-    if (_loadingActivityId != null) return;
-    
-    setState(() => _loadingActivityId = id);
-    
-    try {
-      final practiceVM = context.read<PracticeViewModel>();
-      final detail = await practiceVM.loadAttemptDetail(id);
-      
-      if (detail != null && mounted) {
-        // Construct PartModel from detail data
-        final partData = detail['part'] as Map<String, dynamic>;
-        final partModel = PartModel.fromJson(partData);
-        
-        // Construct result data
-        final resultData = {
-          'score': detail['correctCount'],
-          'totalQuestions': detail['totalQuestions'],
-          'toeicScore': detail['totalScore'] ?? detail['toeicScore'],
-          'percentage': ((detail['correctCount'] / detail['totalQuestions']) * 100).toDouble(),
-        };
-
-        if (mounted) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => PracticeResultScreen(
-                resultData: resultData,
-                part: partModel,
-                attemptId: id,
-              ),
-            ),
-          );
-        }
-      } else if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Không thể tải chi tiết bài làm. Vui lòng thử lại sau.'),
-            backgroundColor: AppColors.error,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Lỗi kết nối: ${e.toString()}'),
-            backgroundColor: AppColors.error,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _loadingActivityId = null);
-      }
-    }
-  }
-
-  Widget _buildRecentActivityItem(String title, String score, String time, {VoidCallback? onTap, bool isLoading = false}) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: AppShadows.softShadow,
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(20),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                isLoading 
-                  ? const SizedBox(
-                      width: 24, 
-                      height: 24, 
-                      child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary)
-                    )
-                  : const Icon(Icons.check_circle_rounded, color: AppColors.success, size: 24),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: GoogleFonts.inter(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                          color: Theme.of(context).textTheme.titleMedium?.color,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      Text(
-                        time,
-                        style: GoogleFonts.inter(
-                          fontSize: 12,
-                          color: Theme.of(context).textTheme.bodyMedium?.color,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Text(
-                  score,
-                  style: GoogleFonts.inter(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.primary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  String _formatTimeDiff(String createdAt) {
-    final date = DateTime.parse(createdAt);
-    final diff = DateTime.now().difference(date);
-    if (diff.inDays > 0) return '${diff.inDays} ${context.tr('days_ago')}';
-    if (diff.inHours > 0) return '${diff.inHours} ${context.tr('hours_ago')}';
-    if (diff.inMinutes > 0) return '${diff.inMinutes} ${context.tr('minutes_ago')}';
-    return context.tr('just_now');
-  }
-
   Widget _buildClassCard(BuildContext context, UserModel user) {
     return Container(
       margin: const EdgeInsets.fromLTRB(20, 0, 20, 24),
@@ -696,6 +654,97 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRecentActivitySection(List<dynamic> activities) {
+    if (activities.isEmpty) return const SliverToBoxAdapter(child: SizedBox.shrink());
+
+    return SliverPadding(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+      sliver: SliverList(
+        delegate: SliverChildListDelegate([
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'LUYỆN TẬP GẦN ĐÂY',
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textSecondary,
+                  letterSpacing: 1.1,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          ...activities.take(3).map((activity) => _buildRecentActivityCard(activity)),
+        ]),
+      ),
+    );
+  }
+
+  Widget _buildRecentActivityCard(dynamic activity) {
+    final int percentage = activity['percentage'] ?? 0;
+    final bool isCorrect = percentage >= 50; // Đưa về 50% để bài làm hôm qua hiện Xanh đúng chuẩn
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: AppShadows.softShadow,
+      ),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        leading: Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: (isCorrect ? AppColors.success : AppColors.error).withValues(alpha: 0.1),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(
+            isCorrect ? Icons.check_circle_outline : Icons.highlight_off_rounded,
+            color: isCorrect ? AppColors.success : AppColors.error,
+            size: 24,
+          ),
+        ),
+        title: Text(
+          'Part ${activity['partNumber']}: ${activity['partName']}',
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+        subtitle: Text(
+          activity['title'] ?? 'Luyện tập',
+          style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+        ),
+        trailing: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: isCorrect ? AppColors.success : AppColors.error,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                isCorrect ? 'ĐÚNG' : 'SAI',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '${activity['score']}/${activity['totalQuestions']}',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ],
         ),
       ),
     );

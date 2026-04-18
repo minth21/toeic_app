@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../viewmodels/practice_viewmodel.dart';
-import '../models/part_model.dart'; 
+import '../models/part_model.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
 import '../../../constants/app_constants.dart';
@@ -25,6 +25,7 @@ class TestDetailScreen extends StatefulWidget {
 class _TestDetailScreenState extends State<TestDetailScreen> {
   late ExamModel _test;
   bool _isLoading = false;
+  bool _isProcessing = false;
 
   @override
   void initState() {
@@ -48,628 +49,495 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
     }
   }
 
-  // ignore: unused_element
-  int _calculateTOEICScore(int correct, int total) {
-    if (total == 0) return 5;
-    double ratio = correct / total;
-    int equivalentCorrect = (ratio * 100).round();
-    int score = 0;
-    if (equivalentCorrect <= 2) {
-      score = 5;
-    } else {
-      score = 5 + (equivalentCorrect - 2) * 5;
-    }
-    if (score > 495) score = 495;
-    return score;
-  }
-
-  Future<void> _checkHistoryAndStart(PartModel part) async {
+  void _showLoadingDialog(BuildContext context, {String message = 'Đang chuẩn bị dữ liệu...'}) {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => const Center(child: CircularProgressIndicator()),
+      builder: (ctx) => Center(
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const CircularProgressIndicator(),
+              const SizedBox(height: 16),
+              Text(
+                message,
+                style: GoogleFonts.inter(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.textPrimary,
+                  decoration: TextDecoration.none,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
+  }
 
+  Future<void> _checkHistoryAndStart(PartModel part) async {
+    if (_isProcessing) return;
+    
+    setState(() => _isProcessing = true);
     final viewModel = Provider.of<PracticeViewModel>(context, listen: false);
-    final history = await viewModel.getPartHistory(part.id);
 
-    if (mounted) Navigator.of(context).pop();
+    try {
+      final history = await viewModel.getPartHistory(part.id);
+      
+      if (!mounted) {
+        setState(() => _isProcessing = false);
+        return;
+      }
 
-    if (!mounted) return;
+      if (history.isNotEmpty) {
+        final latest = history.first;
+        final score = latest['score'];
+        final total = latest['totalQuestions'];
+        String assessment = 'Hãy cố gắng hơn nhé!';
+        List<String> strengths = [];
+        List<String> weaknesses = [];
+        String shortFeedback = '';
 
-    final Color adminDarkBlue = const Color(0xFF1E3A8A);
-    final Color adminBlue = const Color(0xFF2563EB);
-    final Color adminBgLight = const Color(0xFFF8FAFC);
+        try {
+          final rawAssessment = latest['aiAssessment'];
+          if (rawAssessment != null && rawAssessment.isNotEmpty) {
+            final dynamic parsed = rawAssessment is String
+                ? jsonDecode(rawAssessment)
+                : rawAssessment;
+            if (parsed is Map<String, dynamic>) {
+              final aiFeedback =
+                  parsed['shortFeedback'] ??
+                  parsed['recommendationText'] ??
+                  parsed['assessment'];
+              shortFeedback = (parsed['shortFeedback'] ?? '').toString();
 
-    final completedHistory = history.where((h) => h['score'] != null).toList();
+              if (aiFeedback != null) {
+                assessment = aiFeedback.toString();
+              }
 
-    if (completedHistory.isNotEmpty) {
-      final latest = completedHistory.first;
-      final score = latest['score'];
-      final total = latest['totalQuestions'];
-      String assessment = 'Hãy cố gắng hơn nhé!';
-      List<String> strengths = [];
-      List<String> weaknesses = [];
-      String shortFeedback = '';
-
-      try {
-        final rawAssessment = latest['aiAssessment'];
-        if (rawAssessment != null && rawAssessment.isNotEmpty) {
-          final dynamic parsed = rawAssessment is String ? jsonDecode(rawAssessment) : rawAssessment;
-          if (parsed is Map<String, dynamic>) {
-            final aiFeedback = parsed['shortFeedback'] ?? parsed['recommendationText'] ?? parsed['assessment'];
-            shortFeedback = (parsed['shortFeedback'] ?? '').toString();
-            
-            if (aiFeedback != null) {
-              assessment = aiFeedback.toString();
-            }
-
-            if (parsed['strengths'] is List) {
-              strengths = (parsed['strengths'] as List).map((e) => e.toString()).toList();
-            }
-            if (parsed['weaknesses'] is List) {
-              weaknesses = (parsed['weaknesses'] as List).map((e) => e.toString()).toList();
+              if (parsed['strengths'] is List) {
+                strengths = (parsed['strengths'] as List)
+                    .map((e) => e.toString())
+                    .toList();
+              }
+              if (parsed['weaknesses'] is List) {
+                weaknesses = (parsed['weaknesses'] as List)
+                    .map((e) => e.toString())
+                    .toList();
+              }
             }
           }
-        }
-      } catch (_) {}
+        } catch (_) {}
 
-      final shouldRetake = await showDialog<bool>(
-        context: context,
-        barrierDismissible: false,
-        builder: (ctx) {
-          return Dialog(
-            backgroundColor: Colors.transparent,
-            insetPadding: const EdgeInsets.all(20),
-            child: Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(24),
-                boxShadow: [
-                  BoxShadow(
-                    color: adminDarkBlue.withValues(alpha: 0.15),
-                    blurRadius: 24,
-                    offset: const Offset(0, 8),
-                  ),
-                ],
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Icon(Icons.history_edu, size: 48, color: adminBlue),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Bạn đã làm phần này rồi',
-                    style: GoogleFonts.inter(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: adminDarkBlue,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 24),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          SizedBox(
-                            width: 100,
-                            height: 100,
-                            child: CircularProgressIndicator(
-                              value: (total != null && total > 0) ? (score as num).toDouble() / (total as num).toDouble() : 0.0,
-                              strokeWidth: 10,
-                              backgroundColor: Colors.grey[200],
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                (total != null && total > 0 && (score as num) / (total as num) >= 0.8)
-                                    ? const Color(0xFF4CAF50)
-                                    : ((total != null && total > 0 && (score as num) / (total as num) >= 0.5)
-                                        ? const Color(0xFFFF9800)
-                                        : const Color(0xFFF44336)),
-                              ),
-                            ),
-                          ),
-                          Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                '${(total != null && total > 0) ? (((score as num) / (total as num)) * 100).toStringAsFixed(0) : 0}%',
-                                style: GoogleFonts.inter(
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.bold,
-                                  color: adminDarkBlue,
-                                ),
-                              ),
-                              Text(
-                                '${score ?? 0}/${total ?? 0}',
-                                style: GoogleFonts.inter(
-                                  fontSize: 14,
-                                  color: Colors.grey[600],
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
+        final bool? ready = await showDialog<bool>(
+          context: context,
+          barrierDismissible: false,
+          builder: (ctx) {
+            return Dialog(
+              backgroundColor: Colors.transparent,
+              insetPadding: const EdgeInsets.all(20),
+              child: Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Icon(Icons.history_edu, size: 48, color: AppColors.primary),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Bạn đã làm phần này rồi',
+                      style: GoogleFonts.inter(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textPrimary,
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-                  
-                  // NEW: Strengths and Weaknesses
-                  if (strengths.isNotEmpty || weaknesses.isNotEmpty) ...[
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 24),
                     Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        if (strengths.isNotEmpty)
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                        Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            SizedBox(
+                              width: 80,
+                              height: 80,
+                              child: CircularProgressIndicator(
+                                value: (total != null && total > 0)
+                                    ? (score ?? 0).toDouble() /
+                                        (total ?? 0).toDouble()
+                                    : 0.0,
+                                strokeWidth: 8,
+                                backgroundColor: Colors.grey[100],
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  (total != null &&
+                                          total > 0 &&
+                                          (score ?? 0) / (total ?? 0) >= 0.8)
+                                      ? AppColors.success
+                                      : ((total != null &&
+                                              total > 0 &&
+                                              (score ?? 0) / (total ?? 0) >= 0.5)
+                                          ? AppColors.warning
+                                          : AppColors.error),
+                                ),
+                              ),
+                            ),
+                            Column(
+                              mainAxisSize: MainAxisSize.min,
                               children: [
                                 Text(
-                                  'ĐIỂM MẠNH',
-                                  style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w900, color: Colors.green[700], letterSpacing: 0.5),
+                                  '${score ?? 0}/${total ?? 0}',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.textPrimary,
+                                  ),
                                 ),
-                                const SizedBox(height: 8),
-                                ...strengths.take(2).map((s) => Container(
-                                  margin: const EdgeInsets.only(bottom: 4),
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                  decoration: BoxDecoration(color: Colors.green[50], borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.green[100]!)),
-                                  child: Text(s, style: GoogleFonts.inter(fontSize: 11, color: Colors.green[800], fontWeight: FontWeight.w500), overflow: TextOverflow.ellipsis),
-                                )),
-                              ],
-                            ),
-                          ),
-                        if (strengths.isNotEmpty && weaknesses.isNotEmpty) const SizedBox(width: 12),
-                        if (weaknesses.isNotEmpty)
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
                                 Text(
-                                  'CẦN CẢI THIỆN',
-                                  style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w900, color: Colors.orange[700], letterSpacing: 0.5),
+                                  'Đúng',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 10,
+                                    color: AppColors.textSecondary,
+                                  ),
                                 ),
-                                const SizedBox(height: 8),
-                                ...weaknesses.take(2).map((w) => Container(
-                                  margin: const EdgeInsets.only(bottom: 4),
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                  decoration: BoxDecoration(color: Colors.orange[50], borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.orange[100]!)),
-                                  child: Text(w, style: GoogleFonts.inter(fontSize: 11, color: Colors.orange[800], fontWeight: FontWeight.w500), overflow: TextOverflow.ellipsis),
-                                )),
                               ],
                             ),
-                          ),
+                          ],
+                        ),
                       ],
                     ),
                     const SizedBox(height: 24),
-                  ],
-
-                  // NEW: Styled AI Assessment Card
-                  Text(
-                    'NHẬN XÉT TỪ AI',
-                    style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w900, color: adminBlue, letterSpacing: 0.5),
-                  ),
-                  const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF0F7FF),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: adminBlue.withValues(alpha: 0.1)),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (shortFeedback.isNotEmpty) ...[
-                          Row(
-                            children: [
-                              const Icon(Icons.auto_awesome, color: Color(0xFF4F46E5), size: 18),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  shortFeedback,
-                                  style: GoogleFonts.inter(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.bold,
-                                    color: const Color(0xFF312E81),
-                                    fontStyle: FontStyle.italic,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 12),
-                            child: Divider(color: Color(0xFFE0E7FF), thickness: 1),
-                          ),
+                    
+                    // Strengths/Weaknesses
+                    if (strengths.isNotEmpty || weaknesses.isNotEmpty) ...[
+                      Row(
+                        children: [
+                          if (strengths.isNotEmpty)
+                            Expanded(child: _buildCompactTagList('Điểm mạnh', strengths, Colors.green)),
+                          if (strengths.isNotEmpty && weaknesses.isNotEmpty) const SizedBox(width: 8),
+                          if (weaknesses.isNotEmpty)
+                            Expanded(child: _buildCompactTagList('Cần cải thiện', weaknesses, Colors.orange)),
                         ],
-                        Container(
-                          constraints: const BoxConstraints(maxHeight: 120),
-                          child: RawScrollbar(
-                            thumbColor: adminBlue.withValues(alpha: 0.2),
-                            radius: const Radius.circular(8),
-                            thickness: 4,
-                            child: SingleChildScrollView(
-                              child: assessment.contains('<')
-                                  ? HtmlWidget(
-                                      assessment,
-                                      textStyle: GoogleFonts.inter(
-                                        fontSize: 13,
-                                        color: const Color(0xFF374151),
-                                        height: 1.6,
-                                      ),
-                                    )
-                                  : Text(
-                                      assessment,
-                                      style: GoogleFonts.inter(
-                                        fontSize: 13,
-                                        color: const Color(0xFF374151),
-                                        height: 1.6,
-                                      ),
-                                    ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+
+                    // AI Assessment
+                    if (assessment.isNotEmpty)
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppColors.indigo50.withValues(alpha: 0.5),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('NHẬN XÉT AI', style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w900, color: AppColors.primary)),
+                            const SizedBox(height: 4),
+                            Text(
+                              shortFeedback.isNotEmpty ? shortFeedback : 'Bạn đang có tiến bộ tốt!',
+                              style: GoogleFonts.inter(fontSize: 12, fontStyle: FontStyle.italic, color: AppColors.textPrimary),
                             ),
-                          ),
+                          ],
+                        ),
+                      ),
+
+                    const SizedBox(height: 24),
+                    Row(
+                      children: [
+                        Expanded(child: OutlinedButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Đóng'))),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () {
+                              Navigator.of(ctx).pop();
+                              _directReview(part);
+                            }, 
+                            child: const Text('Xem lại')
+                          )
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () => Navigator.of(ctx).pop(true), 
+                            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: Colors.white),
+                            child: const Text('Làm bài')
+                          )
                         ),
                       ],
                     ),
-                  ),
-                  const SizedBox(height: 24),
-                  Row(
-                    children: [
-                      Expanded(
-                        flex: 2,
-                        child: OutlinedButton(
-                          onPressed: () => Navigator.of(ctx).pop(false),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            side: BorderSide(color: Colors.grey[300]!),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            foregroundColor: Colors.grey[700],
-                          ),
-                          child: const Text('Đóng'),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        flex: 3,
-                        child: OutlinedButton(
-                          onPressed: () async {
-                            Navigator.of(ctx).pop();
-                            showDialog(
-                              context: context,
-                              barrierDismissible: false,
-                              builder: (c) => const Center(child: CircularProgressIndicator()),
-                            );
-
-                              try {
-                                final viewModel = Provider.of<PracticeViewModel>(context, listen: false);
-                                await viewModel.loadQuestions(part.id);
-                                
-                                // NEW: Load full attempt details to get isCorrect flags
-                                final fullAttempt = await viewModel.loadAttemptDetail(latest['id'].toString());
-                                final List<dynamic> details = fullAttempt?['details'] ?? [];
-                                final Set<String> correctQuestionIds = details
-                                    .where((d) => d['isCorrect'] == true || d['is_correct'] == true)
-                                    .map((d) {
-                                      final qMap = d['question'] as Map?;
-                                      return (d['questionId'] ?? d['question_id'] ?? qMap?['id'] ?? '').toString();
-                                    })
-                                    .where((id) => id.isNotEmpty)
-                                    .toSet();
-
-                                if (!mounted) return;
-
-                                Map<String, String> parsedUserAnswers = {};
-                                try {
-                                  if (latest['answers'] != null) {
-                                    final Map answersRaw = latest['answers'] is String 
-                                        ? jsonDecode(latest['answers']) 
-                                        : latest['answers'];
-                                    answersRaw.forEach((k, v) {
-                                      parsedUserAnswers[k.toString()] = v.toString();
-                                    });
-                                  }
-                                } catch (e) {
-                                  debugPrint("Error parsing historical answers: $e");
-                                }
-
-                                List<dynamic>? parsedAIFeedbacks;
-                                try {
-                                  final rawAi = latest['aiAssessment'];
-                                  if (rawAi != null && rawAi.isNotEmpty) {
-                                    final decoded = rawAi is String ? jsonDecode(rawAi) : rawAi;
-                                    if (decoded is Map && decoded.containsKey('questionFeedbacks')) {
-                                      parsedAIFeedbacks = decoded['questionFeedbacks'];
-                                    }
-                                  }
-                                } catch (e) {
-                                  debugPrint("Error parsing historical AI feedbacks: $e");
-                                }
-
-                                if (mounted) Navigator.of(context).pop();
-                                if (!mounted) return;
-
-                                if (part.partNumber <= 4) {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => Part1SimulationScreen(
-                                        test: _test,
-                                        partId: part.id,
-                                        isReviewMode: true,
-                                        initialUserAnswers: parsedUserAnswers,
-                                        aiFeedbacks: parsedAIFeedbacks,
-                                        overallFeedback: latest['assessment'] ?? latest['aiAnalysis'] ?? latest['aiAssessment'],
-                                      ),
-                                    ),
-                                  );
-                                } else {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => ReadingReviewScreen(
-                                        questions: viewModel.currentQuestions,
-                                        userAnswers: parsedUserAnswers,
-                                        correctQuestionIds: correctQuestionIds, // Pass the DB-calculated flags
-                                        partNumber: part.partNumber,
-                                        aiFeedbacks: parsedAIFeedbacks,
-                                        overallFeedback: latest['assessment'] ?? latest['aiAnalysis'] ?? latest['aiAssessment'],
-                                      ),
-                                    ),
-                                  );
-                                }
-                            } catch (e) {
-                              if (mounted) Navigator.of(context).pop();
-                              debugPrint("Error preparing review: $e");
-                            }
-                          },
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            side: BorderSide(color: adminBlue),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            foregroundColor: adminBlue,
-                          ),
-                          child: const Text('Xem lại'),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        flex: 3,
-                        child: ElevatedButton(
-                          onPressed: () => Navigator.of(ctx).pop(true),
-                          style: ElevatedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            backgroundColor: adminBlue,
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            foregroundColor: Colors.white,
-                            shadowColor: adminBlue.withValues(alpha: 0.4),
-                          ),
-                          child: const Text(
-                            'Làm lại',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      );
-
-      if (shouldRetake != true) return;
-    } else {
-      String durationStr = 'Không giới hạn';
-      if (part.timeLimit != null) {
-        final m = part.timeLimit! ~/ 60;
-        final s = part.timeLimit! % 60;
-        durationStr = s > 0 ? '$m phút $s giây' : '$m phút';
-      }
-
-      final ready = await showDialog<bool>(
-        context: context,
-        barrierDismissible: false,
-        builder: (ctx) => Dialog(
-          backgroundColor: Colors.transparent,
-          insetPadding: const EdgeInsets.all(20),
-          child: Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(24),
-              boxShadow: [
-                BoxShadow(
-                  color: adminDarkBlue.withValues(alpha: 0.15),
-                  blurRadius: 24,
-                  offset: const Offset(0, 8),
-                ),
-              ],
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Container(
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    color: adminBlue.withValues(alpha: 0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.play_arrow_rounded,
-                    size: 48,
-                    color: adminBlue,
-                  ),
-                ),
-                const SizedBox(height: 24),
-                Text(
-                  'Bắt đầu làm bài?',
-                  style: GoogleFonts.inter(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: adminDarkBlue,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Bạn đã sẵn sàng để thử sức với phần thi này chưa?',
-                  style: GoogleFonts.inter(
-                    color: Colors.grey[600],
-                    fontSize: 15,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 24),
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: adminBgLight,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: adminBlue.withValues(alpha: 0.1)),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.timer_outlined, color: adminBlue),
-                      const SizedBox(width: 12),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Thời gian',
-                            style: GoogleFonts.inter(
-                              color: Colors.grey[600],
-                              fontSize: 12,
-                            ),
-                          ),
-                          Text(
-                            durationStr,
-                            style: GoogleFonts.inter(
-                              fontWeight: FontWeight.bold,
-                              color: adminDarkBlue,
-                              fontSize: 16,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                if (part.instructions != null) ...[
-                  const SizedBox(height: 16),
-                  Text(
-                    'Hướng dẫn:',
-                    style: GoogleFonts.inter(
-                      fontWeight: FontWeight.bold,
-                      color: adminDarkBlue,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Container(
-                    constraints: const BoxConstraints(maxHeight: 120),
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.grey[50], 
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Scrollbar(
-                      thumbVisibility: true,
-                      child: SingleChildScrollView(
-                        child: HtmlWidget(
-                          part.instructions!,
-                          textStyle: GoogleFonts.inter(
-                            fontSize: 14,
-                            color: Colors.grey[800],
-                            height: 1.5,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 32),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () => Navigator.of(ctx).pop(false),
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          side: BorderSide(color: Colors.grey[300]!),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          foregroundColor: Colors.grey[700],
-                        ),
-                        child: const Text('Để sau'),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: () => Navigator.of(ctx).pop(true),
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          backgroundColor: adminBlue,
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          foregroundColor: Colors.white,
-                          shadowColor: adminBlue.withValues(alpha: 0.4),
-                        ),
-                        child: const Text(
-                          'Bắt đầu ngay',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                    ),
                   ],
                 ),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
+        );
+
+        if (ready == true) {
+          await _directSimulation(part);
+        }
+      } else {
+        await _directSimulation(part);
+      }
+    } catch (e) {
+      debugPrint("Error in _checkHistoryAndStart: $e");
+    } finally {
+      if (mounted) setState(() => _isProcessing = false);
+    }
+  }
+
+  Future<void> _directSimulation(PartModel part) async {
+    _showLoadingDialog(context, message: 'Đang chuẩn bị bài thi...');
+    
+    try {
+      final viewModel = Provider.of<PracticeViewModel>(context, listen: false);
+      await viewModel.loadQuestions(part.id);
+
+      if (!mounted) return;
+      Navigator.pop(context);
+
+      if (viewModel.currentQuestions.isEmpty) {
+        debugPrint('[Integrity Audit] WARNING: Questions list is empty for part ${part.id}');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Không tải được câu hỏi. Có thể dữ liệu chưa sẵn sàng.')),
+          );
+        }
+        return;
+      }
+
+      if (!mounted) return;
+
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) {
+            if (part.partNumber == 1) {
+              return Part1SimulationScreen(test: _test, partId: part.id);
+            }
+            if (part.partNumber == 2) {
+              return Part2SimulationScreen(
+                questions: viewModel.currentQuestions,
+                partAudioUrl: part.audioUrl,
+                part: part,
+              );
+            }
+            return TestSimulationScreen(test: _test, partId: part.id);
+          },
         ),
       );
-      if (ready != true) return;
+      _refreshTest();
+    } catch (e) {
+      if (mounted) Navigator.pop(context);
+      debugPrint("Error starting simulation: $e");
     }
+  }
 
-    if (!mounted) return;
+  Future<void> _directReview(PartModel part) async {
+    if (_isProcessing) return;
+    setState(() => _isProcessing = true);
 
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) {
-          if (part.partNumber == 1) {
-            return Part1SimulationScreen(test: _test, partId: part.id);
-          }
-          if (part.partNumber == 2) {
-            return Part2SimulationScreen(
-              questions: viewModel.currentQuestions,
-              partAudioUrl: part.audioUrl,
-              part: part,
+    _showLoadingDialog(context, message: 'Đang tải lịch sử...');
+
+    try {
+      final viewModel = Provider.of<PracticeViewModel>(context, listen: false);
+      final history = await viewModel.getPartHistory(part.id);
+
+      if (mounted) Navigator.pop(context);
+
+      if (history.isEmpty) {
+        setState(() => _isProcessing = false);
+        return;
+      }
+
+      final latestAttempt = history.first;
+      
+      // NEW: Fetch FULL detail for the attempt to get correct/incorrect flags
+      if (!mounted) {
+        setState(() => _isProcessing = false);
+        return;
+      }
+      _showLoadingDialog(context, message: 'Đang tải chi tiết kết quả...');
+      final detailedAttempt = await viewModel.loadAttemptDetail(latestAttempt['id'].toString());
+      if (mounted) Navigator.of(context).pop(); // Close loading
+
+      if (detailedAttempt == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Không thể tải chi tiết bài làm.')),
+          );
+        }
+        setState(() => _isProcessing = false);
+        return;
+      }
+
+      // Loading questions
+      if (!mounted) {
+        setState(() => _isProcessing = false);
+        return;
+      }
+      _showLoadingDialog(context, message: 'Đang chuẩn bị bản xem lại...');
+      await viewModel.loadQuestions(part.id);
+      if (mounted) Navigator.pop(context); // Close loading
+      
+      if (viewModel.currentQuestions.isEmpty) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Không thể tải dữ liệu câu hỏi.')),
             );
           }
-          return TestSimulationScreen(test: _test, partId: part.id);
-        },
+          setState(() => _isProcessing = false);
+          return;
+      }
+
+      if (!mounted) {
+        setState(() => _isProcessing = false);
+        return;
+      }
+
+      Map<String, String> parsedUserAnswers = {};
+      final answersData = detailedAttempt['answers'];
+      if (answersData != null) {
+        final Map answersRaw = answersData is String
+            ? jsonDecode(answersData)
+            : answersData;
+        answersRaw.forEach(
+          (k, v) => parsedUserAnswers[k.toString()] = v.toString(),
+        );
+      }
+
+      List<dynamic>? parsedAIFeedbacks;
+      final rawAi = detailedAttempt['aiAssessment'] ?? detailedAttempt['aiAnalysis'];
+      if (rawAi != null && rawAi.isNotEmpty) {
+        final decoded = rawAi is String ? jsonDecode(rawAi) : rawAi;
+        if (decoded is Map && decoded.containsKey('questionFeedbacks')) {
+          parsedAIFeedbacks = decoded['questionFeedbacks'];
+        }
+      }
+
+      if (part.partNumber <= 4) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => Part1SimulationScreen(
+              test: _test,
+              partId: part.id,
+              isReviewMode: true,
+              initialUserAnswers: parsedUserAnswers,
+              aiFeedbacks: parsedAIFeedbacks,
+              overallFeedback:
+                  detailedAttempt['assessment'] ??
+                  detailedAttempt['aiAnalysis'] ??
+                  detailedAttempt['aiAssessment'],
+              part: part,
+            ),
+          ),
+        );
+      } else {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ReadingReviewScreen(
+              questions: viewModel.currentQuestions,
+              userAnswers: parsedUserAnswers,
+              correctQuestionIds: _extractCorrectIds(detailedAttempt),
+              partNumber: part.partNumber,
+              aiFeedbacks: parsedAIFeedbacks,
+              overallFeedback:
+                  detailedAttempt['assessment'] ??
+                  detailedAttempt['aiAnalysis'] ??
+                  detailedAttempt['aiAssessment'],
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) Navigator.pop(context);
+      debugPrint("Error in _directReview: $e");
+    } finally {
+      if (mounted) setState(() => _isProcessing = false);
+    }
+  }
+
+  Set<String> _extractCorrectIds(dynamic attempt) {
+    final List<dynamic> details = attempt?['details'] ?? [];
+    return details
+        .where((d) => d['isCorrect'] == true || d['is_correct'] == true)
+        .map((d) {
+          final qMap = d['question'] as Map?;
+          return (d['questionId'] ?? d['question_id'] ?? qMap?['id'] ?? '').toString();
+        })
+        .where((id) => id.isNotEmpty)
+        .toSet();
+  }
+
+  Future<void> _directRetake(PartModel part) async {
+    if (_isProcessing) return;
+
+    final bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            const Icon(Icons.refresh_rounded, color: Colors.orange),
+            const SizedBox(width: 12),
+            Text(
+              'Làm lại bài thi?',
+              style: GoogleFonts.inter(fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+        content: Text(
+          'Bạn đã hoàn thành phần thi này. Bạn có chắc chắn muốn làm lại để cải thiện điểm số không? Lịch sử cũ của bạn vẫn sẽ được lưu lại.',
+          style: GoogleFonts.inter(height: 1.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(
+              'Hủy',
+              style: GoogleFonts.inter(color: Colors.grey.shade600),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: Text(
+              'Bắt đầu lại',
+              style: GoogleFonts.inter(fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
       ),
     );
 
-    _refreshTest();
+    if (confirm != true) return;
+
+    setState(() => _isProcessing = true);
+    try {
+      await _directSimulation(part);
+    } finally {
+      if (mounted) setState(() => _isProcessing = false);
+    }
   }
 
   @override
@@ -695,7 +563,11 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
                   )
                 : null,
             leading: IconButton(
-              icon: const Icon(Icons.arrow_back_ios_new, size: 20, color: Colors.white),
+              icon: const Icon(
+                Icons.arrow_back_ios_new_rounded,
+                size: 20,
+                color: Colors.white,
+              ),
               onPressed: () => Navigator.pop(context),
             ),
             flexibleSpace: FlexibleSpaceBar(
@@ -737,7 +609,9 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
                           color: Colors.white.withValues(alpha: 0.2),
                           shape: BoxShape.circle,
                           border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.3), width: 2),
+                            color: Colors.white.withValues(alpha: 0.3),
+                            width: 2,
+                          ),
                         ),
                         child: const Icon(
                           Icons.menu_book_rounded,
@@ -749,7 +623,7 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 24),
                         child: Text(
-                          _test.title,
+                          _test.title.isNotEmpty ? _test.title : 'Unknown Test',
                           textAlign: TextAlign.center,
                           style: GoogleFonts.inter(
                             color: Colors.white,
@@ -786,24 +660,21 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
                 children: [
                   _buildSummaryItem(
                     icon: Icons.speed,
-                    label: AppLocalizations.of(context)?.translate('difficulty') ??
-                        'Độ khó',
+                    label: context.tr('difficulty'),
                     value: _getDifficultyText(context, _test.difficulty),
                     color: _getDifficultyColor(_test.difficulty),
                   ),
                   _buildVerticalDivider(),
                   _buildSummaryItem(
                     icon: Icons.timer_outlined,
-                    label:
-                        AppLocalizations.of(context)?.translate('duration') ?? 'Thời gian',
+                    label: context.tr('duration'),
                     value: '${_test.duration}ph',
                     color: AppColors.primary,
                   ),
                   _buildVerticalDivider(),
                   _buildSummaryItem(
                     icon: Icons.format_list_numbered,
-                    label: AppLocalizations.of(context)?.translate('total_questions') ??
-                        'Tổng câu',
+                    label: context.tr('total_questions'),
                     value: '${_test.totalQuestions}',
                     color: AppColors.success,
                   ),
@@ -817,7 +688,7 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
               padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
               child: Row(
                 children: [
-                   Container(
+                  Container(
                     width: 4,
                     height: 18,
                     decoration: BoxDecoration(
@@ -842,13 +713,10 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
           SliverPadding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             sliver: SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (context, index) {
-                  final part = _test.parts[index];
-                  return _buildPartCard(part);
-                },
-                childCount: _test.parts.length,
-              ),
+              delegate: SliverChildBuilderDelegate((context, index) {
+                final part = _test.parts[index];
+                return _buildPartCard(part);
+              }, childCount: _test.parts.length),
             ),
           ),
 
@@ -898,6 +766,7 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
   }
 
   Widget _buildPartCard(PartModel part) {
+    final status = part.status.isNotEmpty ? part.status : 'ACTIVE';
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
@@ -908,7 +777,7 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: () => _checkHistoryAndStart(part),
+          onTap: status == 'PENDING' ? null : () => _checkHistoryAndStart(part),
           borderRadius: BorderRadius.circular(20),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
@@ -941,7 +810,7 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
                         children: [
                           Flexible(
                             child: Text(
-                              part.partName,
+                              part.partName.isNotEmpty ? part.partName : 'Unknown Part',
                               style: GoogleFonts.inter(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 16,
@@ -950,7 +819,27 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                          if (part.instructions != null && part.instructions!.isNotEmpty) ...[
+                          if (status == 'PENDING') ...[
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Colors.grey.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(color: Colors.grey.withValues(alpha: 0.3)),
+                              ),
+                              child: Text(
+                                'CHƯA DUYỆT',
+                                style: GoogleFonts.inter(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.grey.shade600,
+                                ),
+                              ),
+                            ),
+                          ],
+                          if (part.instructions != null &&
+                              part.instructions!.isNotEmpty) ...[
                             const SizedBox(width: 4),
                             GestureDetector(
                               onTap: () => _showInstructionsDialog(part),
@@ -966,7 +855,11 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
                       const SizedBox(height: 4),
                       Row(
                         children: [
-                          Icon(Icons.help_outline, size: 14, color: AppColors.textHint),
+                          Icon(
+                            Icons.help_outline,
+                            size: 14,
+                            color: AppColors.textHint,
+                          ),
                           const SizedBox(width: 4),
                           Text(
                             '${part.totalQuestions} câu hỏi',
@@ -990,20 +883,20 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
                           width: 42,
                           height: 42,
                           child: CircularProgressIndicator(
-                            value: part.userProgress! / 100,
+                            value: (part.userProgress ?? 0) / 100,
                             backgroundColor: AppColors.indigo50,
                             valueColor: AlwaysStoppedAnimation<Color>(
-                              part.userProgress! >= 80
+                              (part.userProgress ?? 0) >= 80
                                   ? AppColors.success
-                                  : (part.userProgress! >= 50
-                                      ? AppColors.warning
-                                      : AppColors.error),
+                                  : ((part.userProgress ?? 0) >= 50
+                                        ? AppColors.warning
+                                        : AppColors.error),
                             ),
                             strokeWidth: 4,
                           ),
                         ),
                         Text(
-                          '${part.userProgress}%',
+                          '${part.userProgress ?? 0}%',
                           style: GoogleFonts.inter(
                             fontSize: 10,
                             fontWeight: FontWeight.w900,
@@ -1026,15 +919,37 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
                       const SizedBox(width: 4),
                       _buildPartActionButton(
                         icon: Icons.refresh_rounded,
-                        label: 'Làm lại',
+                        label: 'Làm bài',
                         onTap: () => _directRetake(part),
                         isPrimary: true,
                       ),
                     ],
                   )
+                else if (status == 'PENDING')
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.lock_clock_rounded,
+                        color: Colors.grey,
+                        size: 24,
+                      ),
+                      Text(
+                        'Chưa mở',
+                        style: GoogleFonts.inter(
+                          fontSize: 10,
+                          color: Colors.grey,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  )
                 else
-                  const Icon(Icons.play_circle_filled_rounded,
-                      color: AppColors.primary, size: 32),
+                  const Icon(
+                    Icons.play_circle_filled_rounded,
+                    color: AppColors.primary,
+                    size: 32,
+                  ),
               ],
             ),
           ),
@@ -1044,13 +959,15 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
   }
 
   String _getDifficultyText(BuildContext context, String difficulty) {
-    switch (difficulty) {
+    if (difficulty.isEmpty) return 'B1-B2';
+    
+    switch (difficulty.toUpperCase()) {
       case 'A1_A2':
-        return AppLocalizations.of(context)?.translate('a1_a2') ?? 'A1-A2';
+        return context.tr('a1_a2');
       case 'B1_B2':
-        return AppLocalizations.of(context)?.translate('b1_b2') ?? 'B1-B2';
+        return context.tr('b1_b2');
       case 'C1':
-        return AppLocalizations.of(context)?.translate('c1') ?? 'C1';
+        return context.tr('c1');
       default:
         return difficulty;
     }
@@ -1070,7 +987,9 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
         decoration: BoxDecoration(
           color: isPrimary ? AppColors.primary : AppColors.indigo50,
           borderRadius: BorderRadius.circular(10),
-          border: isPrimary ? null : Border.all(color: AppColors.primary.withValues(alpha: 0.1)),
+          border: isPrimary
+              ? null
+              : Border.all(color: AppColors.primary.withValues(alpha: 0.1)),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -1102,7 +1021,7 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
 
   void _showInstructionsDialog(PartModel part) {
     if (part.instructions == null) return;
-    
+
     showDialog(
       context: context,
       builder: (context) => Dialog(
@@ -1115,7 +1034,10 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
             children: [
               Row(
                 children: [
-                  const Icon(Icons.info_outline_rounded, color: AppColors.primary),
+                  const Icon(
+                    Icons.info_outline_rounded,
+                    color: AppColors.primary,
+                  ),
                   const SizedBox(width: 10),
                   Text(
                     'Hướng dẫn: ${part.partName}',
@@ -1147,10 +1069,18 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
                   onPressed: () => Navigator.pop(context),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                     padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
-                  child: const Text('Đã hiểu', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  child: const Text(
+                    'Đã hiểu',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -1160,79 +1090,42 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
     );
   }
 
-  Future<void> _directReview(PartModel part) async {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => const Center(child: CircularProgressIndicator()),
-    );
-
-    final viewModel = Provider.of<PracticeViewModel>(context, listen: false);
-    final history = await viewModel.getPartHistory(part.id);
-    
-    if (mounted) Navigator.pop(context); // Close loading
-    if (history.isEmpty) return;
-
-    final latest = history.first;
-    await viewModel.loadQuestions(part.id);
-    
-    if (!mounted) return;
-
-    Map<String, String> parsedUserAnswers = {};
-    if (latest['answers'] != null) {
-      final Map answersRaw = latest['answers'] is String ? jsonDecode(latest['answers']) : latest['answers'];
-      answersRaw.forEach((k, v) => parsedUserAnswers[k.toString()] = v.toString());
-    }
-
-    List<dynamic>? parsedAIFeedbacks;
-    final rawAi = latest['aiAssessment'];
-    if (rawAi != null && rawAi.isNotEmpty) {
-      final decoded = rawAi is String ? jsonDecode(rawAi) : rawAi;
-      if (decoded is Map && decoded.containsKey('questionFeedbacks')) {
-        parsedAIFeedbacks = decoded['questionFeedbacks'];
-      }
-    }
-
-    if (part.partNumber <= 4) {
-      Navigator.push(context, MaterialPageRoute(
-        builder: (context) => Part1SimulationScreen(
-          test: _test,
-          partId: part.id,
-          isReviewMode: true,
-          initialUserAnswers: parsedUserAnswers,
-          aiFeedbacks: parsedAIFeedbacks,
-        ),
-      ));
-    } else {
-      Navigator.push(context, MaterialPageRoute(
-        builder: (context) => ReadingReviewScreen(
-          questions: viewModel.currentQuestions,
-          userAnswers: parsedUserAnswers,
-          partNumber: part.partNumber,
-          aiFeedbacks: parsedAIFeedbacks,
-        ),
-      ));
-    }
-  }
-
-  void _directRetake(PartModel part) {
-    if (part.partNumber == 1) {
-      Navigator.push(context, MaterialPageRoute(builder: (context) => Part1SimulationScreen(test: _test, partId: part.id)));
-    } else {
-      Navigator.push(context, MaterialPageRoute(builder: (context) => TestSimulationScreen(test: _test, partId: part.id)));
-    }
-  }
 
   Color _getDifficultyColor(String difficulty) {
     switch (difficulty) {
       case 'A1_A2':
-        return const Color(0xFF4CAF50);
+        return AppColors.success;
       case 'B1_B2':
-        return const Color(0xFFFF9800);
+        return AppColors.warning;
       case 'C1':
-        return const Color(0xFFF44336);
+        return AppColors.error;
       default:
         return Colors.grey;
     }
+  }
+
+  Widget _buildCompactTagList(String label, List<String> items, Color color) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label.toUpperCase(),
+            style: GoogleFonts.inter(
+                fontSize: 9,
+                fontWeight: FontWeight.w900,
+                color: color.withValues(alpha: 0.8))),
+        const SizedBox(height: 4),
+        ...items.take(2).map((item) => Container(
+              margin: const EdgeInsets.only(bottom: 2),
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(4)),
+              child: Text(item,
+                  style: GoogleFonts.inter(
+                      fontSize: 10, color: color, fontWeight: FontWeight.w500),
+                  overflow: TextOverflow.ellipsis),
+            )),
+      ],
+    );
   }
 }

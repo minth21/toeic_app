@@ -1,4 +1,4 @@
-enum AiAssessmentType { performance, coaching, explanation }
+enum AiAssessmentType { performance, coaching, explanation, roadmap }
 
 enum TrendType { up, down, stable }
 
@@ -14,6 +14,8 @@ class AiAssessment {
   final TrendType? trend;
   final DateTime createdAt;
   final TestAttemptInfo? testAttempt;
+  final String? teacherNote;
+  final bool isPublished;
 
   AiAssessment({
     required this.id,
@@ -27,6 +29,8 @@ class AiAssessment {
     this.trend,
     required this.createdAt,
     this.testAttempt,
+    this.teacherNote,
+    this.isPublished = true,
   });
 
   factory AiAssessment.fromJson(Map<String, dynamic> json) {
@@ -46,6 +50,8 @@ class AiAssessment {
       testAttempt: json['testAttempt'] != null 
           ? TestAttemptInfo.fromJson(json['testAttempt']) 
           : null,
+      teacherNote: json['teacherNote'],
+      isPublished: json['isPublished'] ?? true,
     );
   }
 
@@ -55,6 +61,8 @@ class AiAssessment {
         return AiAssessmentType.coaching;
       case 'EXPLANATION':
         return AiAssessmentType.explanation;
+      case 'ROADMAP':
+        return AiAssessmentType.roadmap;
       default:
         return AiAssessmentType.performance;
     }

@@ -197,7 +197,7 @@ export default function ClassFeedbackManagement() {
                     border: 'none',
                     overflow: 'hidden'
                 }}
-                bodyStyle={{ padding: 0 }}
+                styles={{ body: { padding: 0 } }}
             >
                 <Table
                     columns={columns}

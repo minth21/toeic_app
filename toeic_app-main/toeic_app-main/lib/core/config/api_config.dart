@@ -24,6 +24,7 @@ class ApiConfig {
   static const String flashcards = '/flashcards';
   static const String feedbacks = '/feedbacks';
   static const String classMaterials = '/classes';
+  static const String notifications = '/notifications';
 
   // Headers
   static Map<String, String> get headers => {

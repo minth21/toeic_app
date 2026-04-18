@@ -9,13 +9,13 @@ export class ExportService {
     private printer: any;
 
     constructor() {
-        // Standard fonts configuration for pdfmake
+        // Standard fonts configuration for pdfmake with Vietnamese support
         const fonts = {
             Roboto: {
-                normal: 'Helvetica',
-                bold: 'Helvetica-Bold',
-                italics: 'Helvetica-Oblique',
-                bolditalics: 'Helvetica-BoldOblique'
+                normal: 'node_modules/pdfmake/fonts/Roboto/Roboto-Regular.ttf',
+                bold: 'node_modules/pdfmake/fonts/Roboto/Roboto-Medium.ttf',
+                italics: 'node_modules/pdfmake/fonts/Roboto/Roboto-Italic.ttf',
+                bolditalics: 'node_modules/pdfmake/fonts/Roboto/Roboto-MediumItalic.ttf'
             }
         };
         // @ts-ignore
@@ -213,6 +213,111 @@ export class ExportService {
                 sectionHeader: { fontSize: 14, bold: true, color: '#1E3A8A', margin: [0, 25, 0, 10] },
                 infoSection: { margin: [0, 0, 0, 20] },
                 tableHeader: { bold: true, fontSize: 11, color: 'white', fillColor: '#1E3A8A', alignment: centerAlign, margin: [0, 5, 0, 5] }
+            },
+            defaultStyle: {
+                font: 'Roboto',
+                lineHeight: 1.2
+            }
+        };
+
+        return this.printer.createPdfKitDocument(docDefinition);
+    }
+
+    /**
+     * Generate PDF for a Single Specific AiAssessment (Roadmap)
+     */
+    async generateSingleRoadmapPdf(assessmentId: string): Promise<any> {
+        const assessment = await (prisma as any).aiAssessment.findUnique({
+            where: { id: assessmentId },
+            include: { user: { select: { name: true, username: true, targetScore: true, estimatedScore: true } } }
+        });
+
+        if (!assessment) throw new Error('Không tìm thấy lộ trình');
+
+        const centerAlign: Alignment = 'center';
+
+        const docDefinition: TDocumentDefinitions = {
+            pageSize: 'A4',
+            pageMargins: [40, 60, 40, 60],
+            content: [
+                { text: 'ANTIGRAVITY TOEIC LEARNING SYSTEM', style: 'brand', alignment: centerAlign },
+                { canvas: [{ type: 'line' as any, x1: 0, y1: 5, x2: 515, y2: 5, lineWidth: 1, lineColor: '#1E3A8A' }] },
+                
+                { text: 'LỘ TRÌNH PHÁT TRIỂN NĂNG LỰC CÁ NHÂN HÓA', style: 'pdfTitle', alignment: centerAlign, margin: [0, 25, 0, 10] },
+                { text: `Ngày tạo: ${assessment.createdAt.toLocaleDateString('vi-VN')}`, alignment: centerAlign, fontSize: 10, color: '#6B7280', margin: [0, 0, 0, 20] },
+
+                // Student Stats Info
+                {
+                    style: 'infoSection',
+                    table: {
+                        widths: ['*', '*'],
+                        body: [
+                            [
+                                { text: `Học viên: ${assessment.user?.name || 'N/A'}`, bold: true },
+                                { text: `Mã số: ${assessment.user?.username || 'N/A'}`, bold: true }
+                            ],
+                            [
+                                { text: `Mục tiêu: ${assessment.user?.targetScore || 0} điểm`, color: '#1E3A8A', bold: true },
+                                { text: `Dự kiến hiện tại: ${assessment.user?.estimatedScore || 0} / 990`, color: '#059669', bold: true }
+                            ]
+                        ]
+                    },
+                    layout: 'noBorders'
+                },
+
+                // I. Overview Summary
+                { text: 'I. TỔNG QUAN NĂNG LỰC HIỆN TẠI', style: 'sectionHeader' },
+                { 
+                    text: assessment.summary.replace(/<[^>]*>/g, ''), 
+                    fontSize: 11, 
+                    lineHeight: 1.5,
+                    margin: [5, 0, 0, 10] as [number, number, number, number]
+                },
+
+                // II. Teacher's Note (Mục tiêu của User) - Supports HTML to plain conversion Lite
+                ...(assessment.teacherNote ? [
+                    { text: 'II. LỜI KHUYÊN TỪ GIÁO VIÊN', style: 'sectionHeader' },
+                    { 
+                        canvas: [{ type: 'rect' as any, x: 0, y: 0, w: 515, h: 2, color: '#1E3A8A' }] 
+                    },
+                    { 
+                        text: assessment.teacherNote.replace(/<[^>]*>/g, '\n').trim(), 
+                        fontSize: 11, 
+                        italics: true,
+                        color: '#1E3A8A',
+                        margin: [10, 10, 10, 20] as [number, number, number, number],
+                        lineHeight: 1.4
+                    }
+                ] : []),
+
+                // III. Phân tích chi tiết (từ field content)
+                { text: 'III. CHI TIẾT LỘ TRÌNH & KỸ NĂNG', style: 'sectionHeader' },
+                {
+                    stack: [
+                        { text: 'Phân tích dựa trên 10 bài luyện tập gần nhất và xu hướng phát triển của AI Coaching.', fontSize: 10, italics: true, color: '#6B7280', margin: [0, 0, 0, 15] },
+                        // Rendering details from roadmap content if available
+                        ...(assessment.content && (assessment.content as any).recommendations ? (assessment.content as any).recommendations.map((rec: string) => ({
+                            text: `• ${rec}`, margin: [0, 2, 0, 5] as any, fontSize: 10
+                        })) : [{ text: 'Chi tiết lộ trình được tối ưu hóa trong ứng dụng di động.', fontSize: 10 }])
+                    ]
+                },
+
+                // Footer
+                { 
+                    text: '\n\n\n\nBáo cáo này được bảo mật và chỉ dành riêng cho mục đích học tập cá nhân.\n© 2024 Antigravity Center - Empower your potential.', 
+                    alignment: centerAlign, 
+                    fontSize: 8, 
+                    color: '#9CA3AF',
+                    italics: true,
+                    margin: [0, 50, 0, 0] as [number, number, number, number]
+                }
+            ],
+            styles: {
+                brand: { fontSize: 11, bold: true, color: '#1E3A8A', characterSpacing: 1.2 },
+                pdfTitle: { fontSize: 20, bold: true, color: '#111827' },
+                sectionHeader: { fontSize: 15, bold: true, color: '#1E3A8A', margin: [0, 20, 0, 10], decoration: 'underline' },
+                infoSection: { margin: [0, 10, 0, 20], fillColor: '#F3F4F6' },
+                tableHeader: { bold: true, fontSize: 12, color: 'white', fillColor: '#1E3A8A', alignment: centerAlign }
             },
             defaultStyle: {
                 font: 'Roboto',

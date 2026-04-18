@@ -28,6 +28,10 @@ class _PracticeHistoryScreenState extends State<PracticeHistoryScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+          onPressed: () => Navigator.pop(context),
+        ),
         title: Text(
           'Lịch sử luyện tập',
           style: GoogleFonts.inter(fontWeight: FontWeight.bold),

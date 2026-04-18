@@ -172,6 +172,10 @@ export default function UserManagement() {
         try {
             // Sanitize avatarUrl: ensure it's a string, not the AntD Upload object
             const submitValues = { ...values };
+            // Format dateOfBirth to ISO string for backend
+            if (submitValues.dateOfBirth) {
+                submitValues.dateOfBirth = submitValues.dateOfBirth.toISOString();
+            }
             if (typeof submitValues.avatarUrl === 'object' && submitValues.avatarUrl !== null) {
                 submitValues.avatarUrl = form.getFieldValue('avatarUrl');
                 if (typeof submitValues.avatarUrl !== 'string') {
@@ -207,6 +211,10 @@ export default function UserManagement() {
         try {
             // Sanitize avatarUrl: ensure it's a string, not the AntD Upload object
             const submitValues = { ...values };
+            // Format dateOfBirth to ISO string for backend
+            if (submitValues.dateOfBirth) {
+                submitValues.dateOfBirth = submitValues.dateOfBirth.toISOString();
+            }
             if (typeof submitValues.avatarUrl === 'object' && submitValues.avatarUrl !== null) {
                 submitValues.avatarUrl = createForm.getFieldValue('avatarUrl');
                 if (typeof submitValues.avatarUrl !== 'string') {

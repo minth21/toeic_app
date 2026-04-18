@@ -7,6 +7,9 @@ import '../viewmodels/progress_viewmodel.dart';
 import '../../practice/viewmodels/ai_timeline_viewmodel.dart';
 import '../../auth/viewmodels/auth_viewmodel.dart';
 import '../../home/viewmodels/dashboard_viewmodel.dart';
+import '../../practice/views/ai_assessment_detail_screen.dart';
+import 'part_record_detail_screen.dart';
+import 'package:intl/intl.dart';
 import '../../../l10n/app_localizations.dart';
 
 class ProgressScreen extends StatefulWidget {
@@ -110,7 +113,15 @@ class _ProgressScreenState extends State<ProgressScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
       final progressVM = context.read<ProgressViewModel>();
+      final timelineVM = context.read<AiTimelineViewModel>();
+      final dashboardVM = context.read<DashboardViewModel>();
+      final userId = context.read<AuthViewModel>().currentUser?.id;
+      
       await progressVM.loadUserStats();
+      if (userId != null && mounted) {
+        await timelineVM.loadTimeline(userId);
+        await dashboardVM.loadDashboard();
+      }
     });
   }
 
@@ -149,12 +160,19 @@ class _ProgressScreenState extends State<ProgressScreen> {
                   const SizedBox(height: 16),
                   _buildBurnDownCard(),
                   const SizedBox(height: 32),
+                  _buildSectionTitle(context, 'AI COACH: TƯ VẤN CHIẾN THUẬT', Icons.psychology_alt_rounded),
+                  const SizedBox(height: 16),
+                  _buildAiCoachList(),
+                  const SizedBox(height: 32),
                   _buildSectionTitle(context, 'KỶ LỤC TỪNG PHẦN', Icons.grid_view_rounded),
                   const SizedBox(height: 16),
                   _buildPartsGrid(context),
                   _buildSectionTitle(context, context.tr('performance_history'), Icons.trending_up),
                   const SizedBox(height: 16),
                   _buildPerformanceChart(),
+                  const SizedBox(height: 32),
+                  const SizedBox(height: 40), // Bottom padding
+
                 ],
               ),
             ),
@@ -203,7 +221,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
                 ],
               ),
               Text(
-                'trên 990 điểm',
+                'trên ${viewModel.targetScore > 0 ? viewModel.targetScore : 990} điểm',
                 style: GoogleFonts.outfit(
                   color: Colors.white.withValues(alpha: 0.7),
                   fontSize: 16,
@@ -429,58 +447,134 @@ class _ProgressScreenState extends State<ProgressScreen> {
   }
 
   Widget _buildPerformanceChart() {
-    return Consumer<AiTimelineViewModel>(
-      builder: (context, timelineVM, child) {
-        if (timelineVM.isLoading) {
+    return Consumer<ProgressViewModel>(
+      builder: (context, viewModel, child) {
+        if (viewModel.isLoading) {
           return const SizedBox(
-            height: 200,
+            height: 250,
             child: Center(child: CircularProgressIndicator()),
           );
         }
 
-        final assessments = timelineVM.assessments.reversed.toList();
-        if (assessments.isEmpty) {
-          return _buildChartPlaceholder(context, context.tr('no_performance_data_msg'));
+        final target = viewModel.targetScore > 0 ? viewModel.targetScore.toDouble() : 990.0;
+        final stats = viewModel.userStats;
+        
+        // Define total questions per part for normalization
+        final totals = [6, 31, 39, 30, 30, 16, 54];
+        
+        final List<double> values = [];
+        for (int i = 1; i <= 7; i++) {
+          final score = (stats?['max_p$i'] ?? 0).toDouble();
+          final max = totals[i - 1].toDouble();
+          // Scale percentage to the target score
+          values.add((score / max) * target);
         }
 
-        final points = assessments.asMap().entries.map((e) {
-          return FlSpot(e.key.toDouble(), e.value.score?.toDouble() ?? 0);
-        }).toList();
-
         return Container(
-          height: 250,
-          padding: const EdgeInsets.all(16),
+          height: 300,
+          padding: const EdgeInsets.fromLTRB(12, 24, 20, 12),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(24),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
+            boxShadow: AppShadows.softShadow,
           ),
-          child: LineChart(
-            LineChartData(
-              gridData: const FlGridData(show: false),
-              titlesData: const FlTitlesData(show: false),
-              borderData: FlBorderData(show: false),
-              minY: 0,
-              maxY: 1000,
-              lineBarsData: [
-                LineChartBarData(
-                  spots: points,
-                  isCurved: true,
-                  color: AppColors.primary,
-                  barWidth: 4,
-                  belowBarData: BarAreaData(
-                    show: true,
-                    color: AppColors.primary.withValues(alpha: 0.1),
-                  ),
-                  dotData: const FlDotData(show: true),
+          child: BarChart(
+            BarChartData(
+              alignment: BarChartAlignment.spaceAround,
+              maxY: target,
+              barTouchData: BarTouchData(
+                enabled: true,
+                touchTooltipData: BarTouchTooltipData(
+                  tooltipBgColor: AppColors.primary,
+                  tooltipRoundedRadius: 8,
+                  getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                    final actualScore = stats?['max_p${groupIndex + 1}'] ?? 0;
+                    final total = totals[groupIndex];
+                    return BarTooltipItem(
+                      'Part ${groupIndex + 1}\n',
+                      GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.bold),
+                      children: [
+                         TextSpan(
+                          text: '$actualScore/$total câu',
+                          style: GoogleFonts.outfit(color: Colors.white.withValues(alpha: 0.9), fontWeight: FontWeight.normal, fontSize: 12),
+                        ),
+                      ],
+                    );
+                  },
                 ),
-              ],
+              ),
+              titlesData: FlTitlesData(
+                show: true,
+                bottomTitles: AxisTitles(
+                  sideTitles: SideTitles(
+                    showTitles: true,
+                    getTitlesWidget: (value, meta) {
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 8.0),
+                        child: Text(
+                          'P${value.toInt() + 1}',
+                          style: GoogleFonts.outfit(
+                            color: AppColors.textSecondary,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      );
+                    },
+                    reservedSize: 30,
+                  ),
+                ),
+                leftTitles: AxisTitles(
+                  sideTitles: SideTitles(
+                    showTitles: true,
+                    reservedSize: 40,
+                    getTitlesWidget: (value, meta) {
+                      if (value == 0 || value == target || value == (target / 2).roundToDouble()) {
+                        return Text(
+                          value.toInt().toString(),
+                          style: GoogleFonts.outfit(color: Colors.grey, fontSize: 10),
+                        );
+                      }
+                      return const SizedBox();
+                    },
+                  ),
+                ),
+                topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+              ),
+              gridData: FlGridData(
+                show: true,
+                drawVerticalLine: false,
+                horizontalInterval: target / 4,
+                getDrawingHorizontalLine: (value) => FlLine(
+                  color: AppColors.divider.withValues(alpha: 0.5),
+                  strokeWidth: 1,
+                  dashArray: [5, 5],
+                ),
+              ),
+              borderData: FlBorderData(show: false),
+              barGroups: values.asMap().entries.map((e) {
+                return BarChartGroupData(
+                  x: e.key,
+                  barRods: [
+                    BarChartRodData(
+                      toY: e.value,
+                      gradient: LinearGradient(
+                        colors: [AppColors.primary, AppColors.primary.withValues(alpha: 0.6)],
+                        begin: Alignment.bottomCenter,
+                        end: Alignment.topCenter,
+                      ),
+                      width: 18,
+                      borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
+                      backDrawRodData: BackgroundBarChartRodData(
+                        show: true,
+                        toY: target,
+                        color: AppColors.indigo50,
+                      ),
+                    ),
+                  ],
+                );
+              }).toList(),
             ),
           ),
         );
@@ -514,56 +608,76 @@ class _ProgressScreenState extends State<ProgressScreen> {
           itemCount: parts.length,
           itemBuilder: (context, index) {
             final part = parts[index];
+            final partNumber = index + 1;
+            final partId = viewModel.userStats?['id_p$partNumber'];
             final p = (part['score'] / part['total']).toDouble();
             
-            return Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: AppShadows.softShadow,
-                border: Border.all(color: AppColors.divider.withValues(alpha: 0.5)),
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                   Row(
-                    children: [
-                      Icon(part['icon'], size: 14, color: AppColors.primary),
-                      const SizedBox(width: 8),
-                      Text(
-                        part['name'],
-                        style: GoogleFonts.outfit(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                      const Spacer(),
-                      Text(
-                        '${part['score']}/${part['total']}',
-                        style: GoogleFonts.outfit(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(4),
-                    child: LinearProgressIndicator(
-                      value: p,
-                      backgroundColor: AppColors.indigo50,
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        p >= 0.8 ? AppColors.success : (p >= 0.4 ? AppColors.primary : AppColors.warning)
-                      ),
-                      minHeight: 6,
+            return GestureDetector(
+              onTap: partId != null ? () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => PartRecordDetailScreen(
+                      partId: partId,
+                      partName: part['name'],
+                      partNumber: partNumber,
                     ),
                   ),
-                ],
+                );
+              } : () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Hãy làm ít nhất một bài tập ở Part này để xem chi tiết.')),
+                );
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: AppShadows.softShadow,
+                  border: Border.all(color: AppColors.divider.withValues(alpha: 0.5)),
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                     Row(
+                      children: [
+                        Icon(part['icon'], size: 14, color: AppColors.primary),
+                        const SizedBox(width: 8),
+                        Text(
+                          part['name'],
+                          style: GoogleFonts.outfit(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                        const Spacer(),
+                        Text(
+                          '${part['score']}/${part['total']}',
+                          style: GoogleFonts.outfit(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: LinearProgressIndicator(
+                        value: p,
+                        backgroundColor: AppColors.indigo50,
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          p >= 0.8 ? AppColors.success : (p >= 0.4 ? AppColors.primary : AppColors.warning)
+                        ),
+                        minHeight: 6,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             );
           },
@@ -584,21 +698,111 @@ class _ProgressScreenState extends State<ProgressScreen> {
           child: Icon(icon, color: AppColors.primary, size: 20),
         ),
         const SizedBox(width: 12),
-        Text(
-          title,
-          style: GoogleFonts.outfit(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: AppColors.textPrimary,
+        Expanded(
+          child: Text(
+            title,
+            style: GoogleFonts.outfit(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textPrimary,
+            ),
           ),
         ),
       ],
     );
   }
 
+  Widget _buildAiCoachList() {
+    return Consumer<AiTimelineViewModel>(
+      builder: (context, timelineVM, child) {
+        if (timelineVM.isLoading && timelineVM.assessments.isEmpty) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        final assessments = timelineVM.assessments;
+        if (assessments.isEmpty) {
+          return _buildChartPlaceholder(context, 'Chưa có tư vấn chiến thuật nào từ AI.');
+        }
+
+        return Column(
+          children: [
+            ...assessments.map((item) => Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: AppShadows.softShadow,
+                border: Border.all(color: AppColors.primary.withValues(alpha: 0.1)),
+              ),
+              child: ListTile(
+                dense: true,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.auto_awesome, color: AppColors.primary, size: 16),
+                ),
+                title: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      item.title,
+                      style: GoogleFonts.outfit(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    Text(
+                      DateFormat('HH:mm - dd/MM/yyyy').format(item.createdAt),
+                      style: GoogleFonts.outfit(
+                        fontSize: 11,
+                        color: AppColors.textSecondary,
+                        fontWeight: FontWeight.w400,
+                      ),
+                    ),
+                  ],
+                ),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Xem chi tiết',
+                      style: GoogleFonts.outfit(
+                        fontSize: 12,
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    const Icon(Icons.arrow_forward_ios_rounded, size: 12, color: AppColors.primary),
+                  ],
+                ),
+                onTap: () {
+                   Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => AiAssessmentDetailScreen(assessment: item),
+                    ),
+                  );
+                },
+              ),
+            )),
+          ],
+        );
+      },
+    );
+  }
+
+
+  
+
   Widget _buildChartPlaceholder(BuildContext context, String message) {
     return Container(
-      height: 200,
+      height: 150,
       width: double.infinity,
       decoration: BoxDecoration(
         color: Colors.white,
@@ -610,4 +814,5 @@ class _ProgressScreenState extends State<ProgressScreen> {
       ),
     );
   }
+
 }

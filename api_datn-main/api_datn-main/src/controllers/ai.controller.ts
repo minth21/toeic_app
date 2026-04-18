@@ -409,9 +409,25 @@ export const getAiTimeline = async (req: Request, res: Response, next: NextFunct
         const limit = parseInt(req.query.limit as string) || 20;
         const skip = (page - 1) * limit;
 
-        // Note: Using (prisma as any) temporarily if lint persists after generate
+        const user = (req as any).user;
+        const userRole = user?.role?.toUpperCase();
+        const isTeacher = userRole === 'TEACHER';
+        
+        console.log('=== DEBUG AI TIMELINE ---');
+        console.log(`Requester ID: ${user?.id}`);
+        console.log(`Requester Role: ${user?.role}`);
+        console.log(`Target Student ID: ${userId}`);
+        console.log(`isTeacher detected: ${isTeacher}`);
+        console.log('--------------------------');
+
+        const where: any = { userId };
+        if (!isTeacher) {
+            // Chỉ giáo viên mới thấy được bản nháp. Admin và Học viên chỉ thấy bản đã gửi.
+            where.isPublished = true;
+        }
+
         const assessments = await (prisma as any).aiAssessment.findMany({
-            where: { userId },
+            where,
             orderBy: { createdAt: 'desc' },
             skip,
             take: limit,
@@ -429,7 +445,10 @@ export const getAiTimeline = async (req: Request, res: Response, next: NextFunct
             }
         });
 
-        const total = await (prisma as any).aiAssessment.count({ where: { userId } });
+        const total = await (prisma as any).aiAssessment.count({ where });
+        
+        console.log(`[DEBUG] Found ${assessments.length} assessments for user ${userId}`);
+        console.log(`[DEBUG] Where clause: ${JSON.stringify(where)}`);
 
         return res.status(200).json({
             success: true,
@@ -465,8 +484,10 @@ export const assessStudentRoadmap = async (req: Request, res: Response) => {
                 name: true,
                 targetScore: true,
                 estimatedScore: true,
+                estimatedListening: true,
+                estimatedReading: true,
                 testAttempts: {
-                    take: 10,
+                    take: 50,
                     orderBy: { createdAt: 'desc' },
                     select: {
                         totalScore: true,
@@ -484,23 +505,49 @@ export const assessStudentRoadmap = async (req: Request, res: Response) => {
             return res.status(404).json({ success: false, message: 'Không tìm thấy học viên' });
         }
 
-        // 2. Gọi AI Service để phân tích
+        // 2. Lọc ra danh sách: Duy nhất 1 bài mới nhất cho mỗi Part (từ 1 đến 7)
+        const latestPartAttempts: any[] = [];
+        const seenParts = new Set<number>();
+
+        for (const attempt of student.testAttempts) {
+            const partNum = attempt.part?.partNumber;
+            // Nếu là bài làm theo Part và chưa lấy Part này
+            if (partNum && !seenParts.has(partNum)) {
+                latestPartAttempts.push(attempt);
+                seenParts.add(partNum);
+            }
+            // Nếu đã đủ 7 Part thì dừng
+            if (seenParts.size === 7) break;
+        }
+
+        // Nếu học viên làm Full Test, nó sẽ không có partNumber ở root 
+        // (Tùy cấu trúc DB, ở đây ta ưu tiên lấy các bài luyện theo Part để có dữ liệu sâu)
+
         const roadmap = await generatePersonalizedRoadmapService(
             student.name,
-            student.targetScore || 500, // Default if not set
+            student.targetScore || 500,
             student.estimatedScore || 0,
-            student.testAttempts
+            latestPartAttempts // Gửi danh sách 7 Part tinh hoa
         );
 
         // 3. Lưu vào bảng AiAssessment để lưu trữ lịch sử
         const assessment = await (prisma as any).aiAssessment.create({
             data: {
                 userId,
-                type: 'COACHING',
+                type: 'ROADMAP',
                 title: 'Lộ trình phát triển năng lực cá nhân',
                 summary: roadmap.summary || 'Phân tích lộ trình học tập dựa trên kết quả luyện tập.',
-                content: roadmap,
-                score: student.estimatedScore || 0
+                content: {
+                    ...roadmap,
+                    scoreDetails: {
+                        targetScore: student.targetScore || 500,
+                        estimatedListening: student.estimatedListening || 0,
+                        estimatedReading: student.estimatedReading || 0,
+                        estimatedScore: student.estimatedScore || 0
+                    }
+                },
+                score: student.estimatedScore || 0,
+                isPublished: false // GV cần duyệt trước khi gửi cho HV
             }
         });
 
@@ -510,7 +557,162 @@ export const assessStudentRoadmap = async (req: Request, res: Response) => {
         });
 
     } catch (error: any) {
-        console.error('AI Roadmap Error:', error);
+        console.error('Assess Student Roadmap Error:', error);
         return res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+/**
+ * 📢 PUBLISH ROADMAP
+ * GV phê duyệt lộ trình, thêm ghi chú HTML và gửi thông báo cho HV.
+ */
+export const publishRoadmap = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const { teacherNote } = req.body;
+        // Xóa teacherId không dùng
+
+        // 1. Tìm bản ghi assessment
+        const assessment = await (prisma as any).aiAssessment.findUnique({
+            where: { id },
+            include: { user: { select: { name: true } } }
+        });
+
+        if (!assessment) {
+            return res.status(404).json({ success: false, message: 'Không tìm thấy lộ trình' });
+        }
+
+        // 2. Cập nhật trạng thái và ghi chú (hỗ trợ lưu cả nội dung đã sửa)
+        const updated = await (prisma as any).aiAssessment.update({
+            where: { id },
+            data: {
+                summary: req.body.summary || assessment.summary,
+                content: req.body.content || assessment.content,
+                isPublished: true,
+                teacherNote: teacherNote || assessment.teacherNote // Giữ nguyên nếu không có note mới
+            }
+        });
+
+        // 3. Gửi thông báo cho Học viên (ROADMAP_RECEIVED)
+        const { NotificationService } = await import('../services/notification.service');
+        await NotificationService.createNotification({
+            userId: assessment.userId,
+            title: '🚀 Lộ trình cá nhân hóa mới dành cho bạn',
+            content: `Giáo viên vừa cập nhật lộ trình luyện tập dựa trên năng lực hiện tại của bạn. Hãy kiểm tra ngay!`,
+            type: 'ROADMAP_RECEIVED' as any,
+            relatedId: assessment.id
+        });
+
+        return res.json({
+            success: true,
+            message: 'Đã gửi lộ trình cho học viên thành công',
+            data: updated
+        });
+
+    } catch (error: any) {
+        console.error('Publish Roadmap Error:', error);
+        return res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+/**
+ * 💾 UPDATE ROADMAP DRAFT
+ * GV lưu lại các chỉnh sửa nhưng chưa gửi cho học viên.
+ */
+export const updateRoadmap = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const { summary, content, teacherNote } = req.body;
+
+        const assessment = await (prisma as any).aiAssessment.findUnique({
+            where: { id }
+        });
+
+        if (!assessment) {
+            return res.status(404).json({ success: false, message: 'Không tìm thấy lộ trình' });
+        }
+
+        const updated = await (prisma as any).aiAssessment.update({
+            where: { id },
+            data: {
+                summary: summary || assessment.summary,
+                content: content || assessment.content,
+                teacherNote: teacherNote || assessment.teacherNote
+            }
+        });
+
+        return res.json({
+            success: true,
+            message: 'Đã lưu bản nháp thành công',
+            data: updated
+        });
+    } catch (error: any) {
+        console.error('Update Roadmap Error:', error);
+        return res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+/**
+ * 📄 EXPORT PDF ROADMAP
+ */
+export const exportRoadmapPdf = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        // Logic gọi export service ở đây (giả định dùng exportService có sẵn)
+        const pdfBuffer = await require('../services/export.service').exportRoadmapToPdf(id);
+        
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename=roadmap-${id}.pdf`);
+        return res.send(pdfBuffer);
+    } catch (error: any) {
+        console.error('Export PDF Error:', error);
+        return res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+/**
+ * 🕵️ ADMIN ROADMAP AUDIT
+ * Lấy toàn bộ lộ trình trong hệ thống (kèm thông tin Học viên)
+ */
+export const getAllRoadmaps = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const page = parseInt(req.query.page as string) || 1;
+        const limit = parseInt(req.query.limit as string) || 20;
+        const skip = (page - 1) * limit;
+
+        const assessments = await (prisma as any).aiAssessment.findMany({
+            where: { type: 'ROADMAP' },
+            orderBy: { createdAt: 'desc' },
+            skip,
+            take: limit,
+            include: {
+                user: {
+                    select: {
+                        id: true,
+                        name: true,
+                        username: true,
+                        avatarUrl: true,
+                        studentClass: { select: { className: true } }
+                    }
+                }
+            }
+        });
+
+        const total = await (prisma as any).aiAssessment.count({ 
+            where: { type: 'ROADMAP' } 
+        });
+
+        return res.json({
+            success: true,
+            data: assessments,
+            meta: {
+                total,
+                page,
+                limit,
+                totalPages: Math.ceil(total / limit)
+            }
+        });
+    } catch (error) {
+        return next(error);
     }
 };

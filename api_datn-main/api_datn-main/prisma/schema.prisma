@@ -310,6 +310,7 @@ model Class {
   materials   ClassMaterial[] // Tài liệu bổ trợ
   sessions    ClassSession[]  // Lịch học
   status      ClassStatus @default(ACTIVE)
+  maxCapacity Int         @default(30) // Sĩ số tối đa mặc định
   lastActivityAt DateTime? // Theo dõi hoạt động gần nhất của lớp
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
@@ -339,6 +340,8 @@ enum TestStatus {
 enum ClassStatus {
   ACTIVE
   INACTIVE
+  LOCKED
+  ARCHIVED
 }
 
 enum TestType {
@@ -496,6 +499,8 @@ enum NotificationType {
   COMPLAINT_RESOLVED // Admin/CV xử lý xong -> GV nhận tin
   STUDENT_FEEDBACK  // Học viên gửi ý kiến -> Giáo viên
   FEEDBACK_RESOLVED  // Giáo viên xử lý xong -> Học viên nhận tin
+  ROADMAP_RECEIVED   // Giáo viên gửi lộ trình cá nhân hóa -> Học viên
+  NEW_TEST_OPENED    // Đề thi mới được mở (ACTIVE) -> Tất cả học viên
   SYSTEM            // Thông báo hệ thống chung
 }
 
@@ -505,6 +510,7 @@ enum AiAssessmentType {
   PERFORMANCE
   COACHING
   EXPLANATION
+  ROADMAP
 }
 
 enum TrendType {
@@ -523,7 +529,12 @@ model AiAssessment {
   content       Json             // Lưu chi tiết: skills, strengths, weaknesses, v.v.
   score         Int?
   trend         TrendType?
+  
+  isPublished   Boolean          @default(false) // Trạng thái GV đã duyệt và gửi cho HV chưa
+  teacherNote   String?          @db.Text        // Ghi chú của GV đính kèm lộ trình (Hỗ trợ HTML)
+
   createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt @default(now())
 
   // Relations
   user          User             @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -531,6 +542,7 @@ model AiAssessment {
 
   @@index([userId])
   @@index([createdAt])
+  @@index([isPublished])
 }
 
 // ============================================

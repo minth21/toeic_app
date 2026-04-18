@@ -62,7 +62,7 @@ export class ClassController {
      */
     async createClass(req: Request, res: Response) {
         try {
-            const { className, classCode, description, teacherId } = req.body;
+            const { className, classCode, description, teacherId, maxCapacity } = req.body;
 
             if (!className || !teacherId) {
                 return errorResponse(res, 'Tên lớp và giáo viên là bắt buộc', HTTP_STATUS.BAD_REQUEST);
@@ -81,7 +81,8 @@ export class ClassController {
                     className,
                     classCode: classCode || `C${Math.floor(Date.now() / 1000)}`, // Auto-gen if empty
                     description,
-                    teacherId
+                    teacherId,
+                    maxCapacity: maxCapacity ? parseInt(maxCapacity) : 30
                 },
                 include: {
                     teacher: {
@@ -105,7 +106,7 @@ export class ClassController {
     async updateClass(req: Request, res: Response) {
         try {
             const { classId } = req.params;
-            const { className, classCode, description, teacherId } = req.body;
+            const { className, classCode, description, teacherId, maxCapacity, status } = req.body;
 
             const updatedClass = await p.class.update({
                 where: { id: classId },
@@ -113,7 +114,9 @@ export class ClassController {
                     className,
                     classCode,
                     description,
-                    teacherId
+                    teacherId,
+                    maxCapacity: maxCapacity ? parseInt(maxCapacity) : undefined,
+                    status
                 },
                 include: {
                     teacher: {
@@ -138,24 +141,17 @@ export class ClassController {
         try {
             const { classId } = req.params;
 
-            // Kiểm tra sĩ số trước khi xóa
-            const studentCount = await p.user.count({
-                where: { studentClassId: classId }
+            // Không xóa vật lý, chỉ chuyển sang ARCHIVED
+            await p.class.update({
+                where: { id: classId },
+                data: { status: 'ARCHIVED' }
             });
 
-            if (studentCount > 0) {
-                return errorResponse(res, 'Không thể xóa lớp đang có học viên. Vui lòng chuyển học viên sang lớp khác trước.', HTTP_STATUS.BAD_REQUEST);
-            }
-
-            await p.class.delete({
-                where: { id: classId }
-            });
-
-            logger.info(`Class deleted: ${classId} by ${ (req as any).user.username}`);
-            return successResponse(res, null, 'Xóa lớp học thành công');
+            logger.info(`Class archived: ${classId} by ${ (req as any).user.username}`);
+            return successResponse(res, null, 'Đã chuyển lớp học vào kho lưu trữ (Archive) thành công');
         } catch (error) {
             logger.error('Error in deleteClass:', error);
-            return errorResponse(res, 'Lỗi khi xóa lớp học');
+            return errorResponse(res, 'Lỗi khi lưu trữ lớp học');
         }
     }
 
@@ -333,17 +329,16 @@ export class ClassController {
         }
     }
 
-    /**
-     * Thay đổi trạng thái lớp học (ACTIVE/INACTIVE)
-     * PATCH /api/classes/:classId/status
-     */
     async toggleClassStatus(req: Request, res: Response) {
         try {
             const { classId } = req.params;
-            const { status } = req.body;
+            const status = (req.body.status as string)?.toUpperCase();
 
-            if (!['ACTIVE', 'INACTIVE'].includes(status)) {
-                return errorResponse(res, 'Trạng thái không hợp lệ', HTTP_STATUS.BAD_REQUEST);
+            logger.info(`Updating class ${classId} status to: ${status}`);
+
+            const validStatuses = ['ACTIVE', 'INACTIVE', 'LOCKED', 'ARCHIVED'];
+            if (!validStatuses || !validStatuses.includes(status)) {
+                return errorResponse(res, `Trạng thái không hợp lệ: ${status}`, HTTP_STATUS.BAD_REQUEST);
             }
 
             const updatedClass = await p.class.update({
@@ -352,10 +347,100 @@ export class ClassController {
             });
 
             logger.info(`Class status updated: ${classId} to ${status} by ${(req as any).user.username}`);
-            return successResponse(res, updatedClass, `Lớp học đã được ${status === 'ACTIVE' ? 'mở khóa' : 'đóng lại'} thành công`);
+            return successResponse(res, updatedClass, `Trạng thái lớp học đã được cập nhật thành ${status}`);
         } catch (error) {
             logger.error('Error in toggleClassStatus:', error);
             return errorResponse(res, 'Lỗi khi cập nhật trạng thái lớp học');
+        }
+    }
+
+    /**
+     * Thêm học viên vào lớp
+     * POST /api/classes/:classId/students
+     */
+    async addStudentToClass(req: Request, res: Response) {
+        try {
+            const { classId } = req.params;
+            const { studentId } = req.body;
+
+            if (!studentId) {
+                return errorResponse(res, 'Thiếu ID học viên', HTTP_STATUS.BAD_REQUEST);
+            }
+
+            const student = await p.user.findUnique({ where: { id: studentId } });
+            if (!student || student.role !== 'STUDENT') {
+                return errorResponse(res, 'Không tìm thấy học viên hợp lệ', HTTP_STATUS.NOT_FOUND);
+            }
+
+            const updatedStudent = await p.user.update({
+                where: { id: studentId },
+                data: { studentClassId: classId }
+            });
+
+            logger.info(`Student ${studentId} added to class ${classId} by ${(req as any).user.username}`);
+            return successResponse(res, updatedStudent, 'Đã thêm học viên vào lớp thành công');
+        } catch (error) {
+            logger.error('Error in addStudentToClass:', error);
+            return errorResponse(res, 'Lỗi khi thêm học viên vào lớp');
+        }
+    }
+
+    /**
+     * Kick học viên khỏi lớp
+     * DELETE /api/classes/:classId/students/:studentId
+     */
+    async removeStudentFromClass(req: Request, res: Response) {
+        try {
+            const { classId, studentId } = req.params;
+
+            const student = await p.user.findUnique({ where: { id: studentId } });
+            if (!student || student.studentClassId !== classId) {
+                return errorResponse(res, 'Học viên không thuộc lớp này', HTTP_STATUS.NOT_FOUND);
+            }
+
+            const updatedStudent = await p.user.update({
+                where: { id: studentId },
+                data: { studentClassId: null }
+            });
+
+            logger.info(`Student ${studentId} removed from class ${classId} by ${(req as any).user.username}`);
+            return successResponse(res, updatedStudent, 'Đã mời học viên ra khỏi lớp thành công');
+        } catch (error) {
+            logger.error('Error in removeStudentFromClass:', error);
+            return errorResponse(res, 'Lỗi khi xoá học viên khỏi lớp');
+        }
+    }
+
+    /**
+     * Lấy danh sách học viên tự do (chưa có lớp)
+     * GET /api/classes/available-students
+     */
+    async getAvailableStudents(req: Request, res: Response) {
+        try {
+            const search = (req.query.search as string) || '';
+            
+            const students = await p.user.findMany({
+                where: {
+                    role: 'STUDENT',
+                    studentClassId: null,
+                    OR: [
+                        { name: { contains: search, mode: 'insensitive' } },
+                        { username: { contains: search, mode: 'insensitive' } }
+                    ]
+                },
+                select: {
+                    id: true,
+                    name: true,
+                    username: true,
+                    avatarUrl: true
+                },
+                take: 20
+            });
+
+            return successResponse(res, students, 'Tải danh sách học viên rảnh thành công');
+        } catch (error) {
+            logger.error('Error in getAvailableStudents:', error);
+            return errorResponse(res, 'Lỗi khi tải danh sách học viên');
         }
     }
 

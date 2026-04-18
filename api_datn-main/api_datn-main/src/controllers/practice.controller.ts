@@ -49,6 +49,7 @@ export const submitPart = async (
                 },
                 select: {
                     id: true,
+                    questionNumber: true,
                     correctAnswer: true,
                     topic_tag: true,
                     questionText: true,
@@ -68,6 +69,7 @@ export const submitPart = async (
 
         const questions = questionsSource as unknown as {
             id: string,
+            questionNumber: number,
             correctAnswer: string,
             topic_tag?: string,
             questionText?: string,
@@ -91,8 +93,10 @@ export const submitPart = async (
         const errorDetails: any[] = [];
 
         questions.forEach(q => {
-            const selected = answerMap.get(q.id);
-            if (selected === q.correctAnswer) {
+            const selected = (answerMap.get(q.id) || '').toString().trim().toUpperCase();
+            const correct = (q.correctAnswer || '').toString().trim().toUpperCase();
+            
+            if (selected === correct && selected.length > 0) {
                 correctCount++;
             } else {
                 // Wrong answer, collect tag and details for AI
@@ -138,8 +142,16 @@ export const submitPart = async (
             // Get current user stats for comparison
             const currentUser = await tx.user.findUnique({
                 where: { id: userId },
-                select: { highestScore: true, studentClassId: true, totalAttempts: true, averageScore: true }
+                select: { 
+                    highestScore: true, 
+                    studentClassId: true, 
+                    totalAttempts: true, 
+                    averageScore: true,
+                    currentStreak: true,
+                    lastActiveAt: true
+                }
             });
+
 
             // A. Save to Legacy Board (UserPartProgress)
             const progress = await tx.userPartProgress.create({
@@ -175,12 +187,13 @@ export const submitPart = async (
 
             // C. Save Details (AttemptDetail)
             const detailData = questions.map(q => {
-                const selected = answerMap.get(q.id);
+                const selected = (answerMap.get(q.id) || '').toString().trim().toUpperCase();
+                const correct = (q.correctAnswer || '').toString().trim().toUpperCase();
                 return {
                     attemptId: attempt.id,
                     questionId: q.id,
-                    userAnswer: selected || null,
-                    isCorrect: selected === q.correctAnswer,
+                    userAnswer: answerMap.get(q.id) || null,
+                    isCorrect: selected === correct && selected.length > 0,
                 };
             });
 
@@ -188,23 +201,51 @@ export const submitPart = async (
                 data: detailData
             });
 
-            // D. Update User Aggregate Stats (Analytics)
+            // D. Update User Aggregate Stats & STREAK Logic
             const newHighestScore = Math.max(currentUser?.highestScore || 0, toeicScore);
             const oldTotalAttempts = currentUser?.totalAttempts || 0;
             const oldAverage = currentUser?.averageScore || 0;
             const newAverage = Math.round((oldAverage * oldTotalAttempts + toeicScore) / (oldTotalAttempts + 1));
             
+            // --- STREAK CALCULATION ---
+            let newStreak = currentUser?.currentStreak || 0;
+            const now = new Date();
+            const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+            
+            if (!currentUser?.lastActiveAt) {
+                newStreak = 1;
+            } else {
+                const lastActive = new Date(currentUser.lastActiveAt);
+                const lastActiveStart = new Date(lastActive.getFullYear(), lastActive.getMonth(), lastActive.getDate()).getTime();
+                
+                const msPerDay = 24 * 60 * 60 * 1000;
+                const diffDays = (todayStart - lastActiveStart) / msPerDay;
+                
+                if (diffDays === 1) {
+                    // Yesterday was active -> Increment
+                    newStreak += 1;
+                } else if (diffDays > 1) {
+                    // Gap found -> Reset to 1
+                    newStreak = 1;
+                } else if (diffDays === 0) {
+                    // Already active today -> Keep current
+                }
+            }
+            // --- END STREAK ---
+
             await tx.user.update({
                 where: { id: userId },
                 data: {
                     updatedAt: new Date(),
                     lastActiveAt: new Date(),
+                    currentStreak: newStreak,
                     progress: Math.round(percentage),
                     totalAttempts: { increment: 1 },
                     highestScore: newHighestScore,
                     averageScore: newAverage
                 }
             });
+
 
             // E. Update Class Activity
             if (currentUser?.studentClassId) {
@@ -276,15 +317,27 @@ export const submitPart = async (
                     })
                 ]).catch(() => [null, null]);
 
-                // 2. Calculate Topic Matrix for Overall AI Insight
+                // 2. Calculate Topic Matrix & Detailed Results for AI
                 const topicMatrix: Record<string, { correct: number, total: number }> = {};
+                const questionResults: any[] = [];
+
                 questions.forEach(q => {
                     const tag = q.topic_tag || 'Tổng quát';
                     if (!topicMatrix[tag]) topicMatrix[tag] = { correct: 0, total: 0 };
                     topicMatrix[tag].total++;
-                    const selected = answerMap.get(q.id);
-                    if (selected === q.correctAnswer) {
+                    const selected = (answerMap.get(q.id) || '').toString().trim().toUpperCase();
+                    const correct = (q.correctAnswer || '').toString().trim().toUpperCase();
+                    const isCorrect = selected === correct && selected.length > 0;
+                    
+                    if (isCorrect) {
                         topicMatrix[tag].correct++;
+                    } else {
+                        // Only send wrong questions to AI for efficiency/specific feedback
+                        questionResults.push({
+                            id: q.id,
+                            questionNumber: q.questionNumber,
+                            isCorrect: false
+                        });
                     }
                 });
 
@@ -295,7 +348,9 @@ export const submitPart = async (
                     user?.name || 'Học viên',
                     JSON.stringify(topicMatrix), 
                     `Part ${partData?.partNumber || 5}`,
-                    user?.targetScore || undefined
+                    user?.targetScore || undefined,
+                    false,
+                    JSON.stringify(questionResults)
                 );
 
                 const aiResultJson = JSON.stringify(finalAiResult);
@@ -318,6 +373,7 @@ export const submitPart = async (
                         content: finalAiResult, // Save full JSON for metrics
                         score: toeicScore,  // Store the actual score reached at this milestone (Corrected variable)
                         trend: 'STABLE', // Could be calculated comparing history
+                        isPublished: true, // Mặc định CÔNG BỐ để HV thấy ngay Tư vấn chiến thuật
                         createdAt: new Date()
                     }
                 }).catch((err: any) => console.error("[AI] Failed to create AiAssessment record:", err));
@@ -411,7 +467,7 @@ export const submitFullTest = async (
                 parts: {
                     include: {
                         questions: {
-                            select: { id: true, correctAnswer: true, topic_tag: true }
+                            select: { id: true, questionNumber: true, correctAnswer: true, topic_tag: true }
                         }
                     }
                 }
@@ -442,8 +498,9 @@ export const submitFullTest = async (
         const partCorrectCounts: Record<string, number> = {};
 
         allQuestions.forEach(q => {
-            const selected = answerMap.get(q.id);
-            const isCorrect = selected === q.correctAnswer;
+            const selected = (answerMap.get(q.id) || '').toString().trim().toUpperCase();
+            const correct = (q.correctAnswer || '').toString().trim().toUpperCase();
+            const isCorrect = selected === correct && selected.length > 0;
             
             if (q.partNumber <= 4) {
                 totalListening++;
@@ -465,6 +522,40 @@ export const submitFullTest = async (
 
         // 5. Transaction: Save Attempt + Update Analytics
         const result = await (prisma as any).$transaction(async (tx: any) => {
+            // Get user data for streak
+            const currentUser = await tx.user.findUnique({
+                where: { id: userId },
+                select: { 
+                    currentStreak: true, 
+                    lastActiveAt: true,
+                    totalAttempts: true,
+                    highestScore: true,
+                    averageScore: true
+                }
+            });
+
+            // --- STREAK CALCULATION ---
+            let newStreak = currentUser?.currentStreak || 0;
+            const now = new Date();
+            const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+            
+            if (!currentUser?.lastActiveAt) {
+                newStreak = 1;
+            } else {
+                const lastActive = new Date(currentUser.lastActiveAt);
+                const lastActiveStart = new Date(lastActive.getFullYear(), lastActive.getMonth(), lastActive.getDate()).getTime();
+                
+                const msPerDay = 24 * 60 * 60 * 1000;
+                const diffDays = (todayStart - lastActiveStart) / msPerDay;
+                
+                if (diffDays === 1) {
+                    newStreak += 1;
+                } else if (diffDays > 1) {
+                    newStreak = 1;
+                }
+            }
+            // --- END STREAK ---
+
             // A. Create main TestAttempt
             const attempt = await tx.testAttempt.create({
                 data: {
@@ -481,13 +572,18 @@ export const submitFullTest = async (
                 }
             });
 
+
             // B. Bulk Save AttemptDetail
-            const detailData = allQuestions.map(q => ({
-                attemptId: attempt.id,
-                questionId: q.id,
-                userAnswer: answerMap.get(q.id) || null,
-                isCorrect: answerMap.get(q.id) === q.correctAnswer
-            }));
+            const detailData = allQuestions.map(q => {
+                const uAns = (answerMap.get(q.id) || '').toString().trim().toUpperCase();
+                const cAns = (q.correctAnswer || '').toString().trim().toUpperCase();
+                return {
+                    attemptId: attempt.id,
+                    questionId: q.id,
+                    userAnswer: answerMap.get(q.id) || null,
+                    isCorrect: uAns === cAns && uAns.length > 0
+                };
+            });
 
             await tx.attemptDetail.createMany({ data: detailData });
 
@@ -543,15 +639,25 @@ export const submitFullTest = async (
                     select: { name: true, targetScore: true }
                 });
 
-                // 2. Calculate Global Topic Matrix for the whole 200 questions
+                // 2. Calculate Global Topic Matrix & Results
                 const topicMatrix: Record<string, { correct: number, total: number }> = {};
+                const questionResults: any[] = [];
+
                 allQuestions.forEach((q: any) => {
                     const tag = q.topic_tag || 'Tổng quát';
                     if (!topicMatrix[tag]) topicMatrix[tag] = { correct: 0, total: 0 };
                     topicMatrix[tag].total++;
                     const selected = answerMap.get(q.id);
-                    if (selected === q.correctAnswer) {
+                    const isCorrect = selected === q.correctAnswer;
+
+                    if (isCorrect) {
                         topicMatrix[tag].correct++;
+                    } else {
+                        questionResults.push({
+                            id: q.id,
+                            questionNumber: q.questionNumber,
+                            isCorrect: false
+                        });
                     }
                 });
 
@@ -564,7 +670,8 @@ export const submitFullTest = async (
                     JSON.stringify(topicMatrix),
                     test.title,
                     user?.targetScore || undefined,
-                    true // isFullTest = true
+                    true, // isFullTest = true
+                    JSON.stringify(questionResults)
                 );
 
                 const aiResultJson = JSON.stringify(finalAiResult);
@@ -585,12 +692,15 @@ export const submitFullTest = async (
                         content: finalAiResult,
                         score: totalScore,
                         trend: 'STABLE',
+                        isPublished: true, // Mặc định CÔNG BỐ để HV thấy ngay Tư vấn chiến thuật
                         createdAt: new Date()
                     }
                 });
 
                 // Update User aggregate if needed
                 if (user) {
+                    // Update lastActiveAt and potentially other stats if not already updated in transaction
+                    // (Actually we updated in transaction above, but let's ensure lastActiveAt is fresh)
                     await prisma.user.update({
                         where: { id: userId },
                         data: {
@@ -598,6 +708,7 @@ export const submitFullTest = async (
                         }
                     });
                 }
+
 
             } catch (err) {
                 console.error("[FullTest AI] Background error:", err);
@@ -621,8 +732,19 @@ export const getPartHistory = async (
     try {
         const { userId, partId } = req.params;
 
+        // Tìm partNumber để lấy lịch sử toàn cục
+        const targetPart = await (prisma as any).part.findUnique({
+            where: { id: partId },
+            select: { partNumber: true }
+        });
+
         const history = await prisma.testAttempt.findMany({
-            where: { userId, partId },
+            where: { 
+                userId, 
+                part: {
+                    partNumber: targetPart?.partNumber || 0
+                }
+            },
             orderBy: { createdAt: 'desc' },
             select: {
                 id: true,

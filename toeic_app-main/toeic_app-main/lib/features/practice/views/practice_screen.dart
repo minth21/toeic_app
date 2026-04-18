@@ -326,6 +326,24 @@ class _PracticeScreenState extends State<PracticeScreen> {
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     _buildDifficultyBadge(test.difficulty),
+                    if (test.status == 'PENDING')
+                      Container(
+                        margin: const EdgeInsets.only(left: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.amber.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: Colors.amber.withValues(alpha: 0.5)),
+                        ),
+                        child: Text(
+                          'SẮP RA MẮT',
+                          style: GoogleFonts.inter(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.amber.shade800,
+                          ),
+                        ),
+                      ),
                     const Spacer(),
                     Icon(
                       Icons.timer_outlined,
@@ -344,7 +362,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  test.title,
+                  test.title.isNotEmpty ? test.title : 'Unknown Test',
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.inter(
@@ -383,17 +401,19 @@ class _PracticeScreenState extends State<PracticeScreen> {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => TestDetailScreen(test: test),
-                        ),
-                      );
-                    },
+                    onPressed: test.status == 'PENDING' 
+                      ? null 
+                      : () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => TestDetailScreen(test: test),
+                            ),
+                          );
+                        },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
+                      backgroundColor: test.status == 'PENDING' ? Colors.grey.shade300 : AppColors.primary,
+                      foregroundColor: test.status == 'PENDING' ? Colors.grey.shade600 : Colors.white,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -401,9 +421,11 @@ class _PracticeScreenState extends State<PracticeScreen> {
                       elevation: 0,
                     ),
                     child: Text(
-                      test.progress == 0
-                          ? context.tr('start_now')
-                          : (test.progress < 100 ? context.tr('continue') : context.tr('practice_again')),
+                      test.status == 'PENDING' 
+                          ? 'SẮP MỞ'
+                          : (test.progress == 0
+                              ? context.tr('start_now')
+                              : (test.progress < 100 ? context.tr('continue') : context.tr('practice_again'))),
                       style: GoogleFonts.inter(fontWeight: FontWeight.bold),
                     ),
                   ),

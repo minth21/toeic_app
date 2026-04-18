@@ -55,10 +55,6 @@ class _TestSimulationScreenState extends State<TestSimulationScreen> {
       } catch (e) {
         // Part not found
       }
-
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        context.read<PracticeViewModel>().loadQuestions(widget.partId!);
-      });
     } else {
       _showInstruction = false;
     }

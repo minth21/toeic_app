@@ -5,15 +5,24 @@ import '../../../constants/app_constants.dart';
 
 class ActivityHeatmap extends StatelessWidget {
   final Map<DateTime, int> datasets;
+  final Map<DateTime, String> milestones;
+  final int streak;
 
-  const ActivityHeatmap({super.key, required this.datasets});
+  const ActivityHeatmap({
+    super.key, 
+    required this.datasets, 
+    required this.milestones,
+    required this.streak,
+  });
+
 
   @override
   Widget build(BuildContext context) {
-    final now = DateTime.now();
-    // Show current month's calendar starting from 1st
-    final startDate = DateTime(now.year, now.month, 1);
-    final endDate = DateTime(now.year, now.month + 1, 0); // last day of month
+    // Merge datasets: Historical Milestones take priority with value 100
+    final combinedDatasets = Map<DateTime, int>.from(datasets);
+    milestones.forEach((date, _) {
+       combinedDatasets[date] = 100;
+    });
 
     return Container(
       margin: const EdgeInsets.fromLTRB(20, 0, 20, 20),
@@ -40,105 +49,124 @@ class ActivityHeatmap extends StatelessWidget {
                       fontSize: 11,
                       fontWeight: FontWeight.w800,
                       letterSpacing: 1.3,
-                      color: AppColors.primary.withValues(alpha: 0.8),
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Tháng ${now.month}/${now.year} 🚀',
-                    style: GoogleFonts.inter(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary,
+                      color: AppColors.primary,
                     ),
                   ),
                 ],
               ),
               // Stats badge
-              _buildStatsBadge(),
+              _buildStatsBadge(streak),
+
             ],
           ),
 
           const SizedBox(height: 20),
 
           // ── Heatmap ─────────────────────────────────────────────
-          HeatMap(
-            datasets: datasets,
-            startDate: startDate,
-            endDate: endDate,
-            colorMode: ColorMode.color,
-            showText: true,
-            scrollable: false,
-            size: 32,
-            fontSize: 9,
-            textColor: AppColors.textSecondary,
-            defaultColor: const Color(0xFFF8FAFF),
-            showColorTip: false,
-            colorsets: const {
-              1: Color(0xFFDDD6FE), // violet-200 – nhẹ nhàng
-              2: Color(0xFFA78BFA), // violet-400
-              3: Color(0xFF7C3AED), // violet-600
-              5: Color(0xFF5B21B6), // violet-800
-              7: Color(0xFF3B0764), // violet-950 – cực đậm
-            },
-            onClick: (date) {
-              final count = datasets[date] ?? 0;
-              if (count > 0) {
-                _showDayTooltip(context, date, count);
-              }
-            },
+          SizedBox(
+            width: double.infinity,
+            child: HeatMapCalendar(
+              datasets: combinedDatasets,
+              colorMode: ColorMode.color,
+              size: 37,
+              fontSize: 12,
+              margin: const EdgeInsets.all(3),
+              textColor: AppColors.textSecondary,
+              defaultColor: const Color(0xFFF1F5F9), // Light grey for no activity
+              showColorTip: false,
+              colorsets: const {
+                1: Color(0xFFF5F3FF),
+                2: Color(0xFFEDE9FE),
+                3: Color(0xFFDDD6FE),
+                4: Color(0xFFC4B5FD),
+                5: Color(0xFFA78BFA),
+                6: Color(0xFF8B5CF6),
+                7: Color(0xFF7C3AED),
+                100: Color(0xFF6D28D9), // Milestone
+              },
+              onClick: (date) {
+                final milestoneLabel = milestones[date];
+                if (milestoneLabel != null) {
+                  _showMilestoneTooltip(context, date, milestoneLabel);
+                } else {
+                  final count = datasets[date] ?? 0;
+                  if (count > 0) {
+                    _showDayTooltip(context, date, count);
+                  }
+                }
+              },
+            ),
           ),
 
           const SizedBox(height: 16),
 
           // ── Legend ──────────────────────────────────────────────
-          Row(
+          Column(
             children: [
-              Text(
-                'Ít hơn',
-                style: GoogleFonts.inter(
-                  fontSize: 11,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-              const SizedBox(width: 6),
-              ...const [
-                Color(0xFFF8FAFF),
-                Color(0xFFDDD6FE),
-                Color(0xFFA78BFA),
-                Color(0xFF7C3AED),
-                Color(0xFF5B21B6),
-              ].map(
-                (c) => Container(
-                  width: 14,
-                  height: 14,
-                  margin: const EdgeInsets.only(right: 4),
-                  decoration: BoxDecoration(
-                    color: c,
-                    borderRadius: BorderRadius.circular(3),
-                    border: Border.all(
-                      color: Colors.black.withValues(alpha: 0.04),
+              Row(
+                children: [
+                  Text(
+                    'Ít hơn',
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      color: AppColors.textSecondary,
                     ),
                   ),
-                ),
+                  const SizedBox(width: 6),
+                  ...const [
+                    Color(0xFFF5F3FF),
+                    Color(0xFFEDE9FE),
+                    Color(0xFFDDD6FE),
+                    Color(0xFFC4B5FD),
+                    Color(0xFFA78BFA),
+                    Color(0xFF8B5CF6),
+                    Color(0xFF7C3AED),
+                    Color(0xFF6D28D9),
+                  ].map(
+                    (c) => Container(
+                      width: 14,
+                      height: 14,
+                      margin: const EdgeInsets.only(right: 4),
+                      decoration: BoxDecoration(
+                        color: c,
+                        borderRadius: BorderRadius.circular(3),
+                        border: Border.all(
+                          color: Colors.black.withValues(alpha: 0.04),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 2),
+                  Text(
+                    'Nhiều hơn',
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 2),
-              Text(
-                'Nhiều hơn',
-                style: GoogleFonts.inter(
-                  fontSize: 11,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-              const Spacer(),
-              // Total this month
-              Text(
-                '${_totalThisMonth()} bài tháng này',
-                style: GoogleFonts.inter(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.primary,
-                ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Container(
+                    width: 14,
+                    height: 14,
+                    decoration: BoxDecoration(
+                      color: Colors.amber,
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Mốc kỷ niệm & Kỷ lục',
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.amber[800],
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -147,20 +175,19 @@ class ActivityHeatmap extends StatelessWidget {
     );
   }
 
-  Widget _buildStatsBadge() {
-    final activeDays = datasets.values.where((v) => v > 0).length;
+  Widget _buildStatsBadge(int streakValue) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFF7C3AED), Color(0xFF4F46E5)],
+          colors: [Colors.amber, Color(0xFFB45309)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF7C3AED).withValues(alpha: 0.3),
+            color: Colors.amber.withValues(alpha: 0.3),
             blurRadius: 8,
             offset: const Offset(0, 3),
           ),
@@ -169,24 +196,69 @@ class ActivityHeatmap extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.local_fire_department_rounded,
-              color: Colors.amberAccent, size: 16),
+          const Icon(Icons.star_rounded,
+              color: Colors.white, size: 16),
           const SizedBox(width: 4),
           Text(
-            '$activeDays ngày',
+            '$streakValue ngày cày',
             style: GoogleFonts.inter(
               color: Colors.white,
               fontWeight: FontWeight.bold,
               fontSize: 13,
             ),
           ),
+
         ],
       ),
     );
   }
 
-  int _totalThisMonth() {
-    return datasets.values.fold(0, (sum, v) => sum + v);
+
+  void _showMilestoneTooltip(BuildContext context, DateTime date, String label) {
+    final dayLabels = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+    final dow = dayLabels[date.weekday % 7];
+    final formatted = '$dow ${date.day}/${date.month}';
+
+    ScaffoldMessenger.of(context).clearSnackBars();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.stars_rounded, color: Colors.amberAccent, size: 20),
+                const SizedBox(width: 8),
+                Text(
+                  'THÀNH TỰU CÀY CUỐC',
+                  style: GoogleFonts.inter(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white.withValues(alpha: 0.9),
+                    letterSpacing: 1.1,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '$formatted: $label',
+              style: GoogleFonts.inter(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: Colors.amber[900],
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 3),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        margin: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+      ),
+    );
   }
 
   void _showDayTooltip(BuildContext context, DateTime date, int count) {
@@ -199,15 +271,15 @@ class ActivityHeatmap extends StatelessWidget {
       SnackBar(
         content: Row(
           children: [
-            const Icon(Icons.check_circle, color: Colors.amberAccent, size: 18),
+            const Icon(Icons.auto_awesome, color: Colors.amberAccent, size: 18),
             const SizedBox(width: 8),
             Text(
-              '$formatted: $count bài luyện tập',
+              '$formatted: Bạn đã cày $count phần cực sung!',
               style: GoogleFonts.inter(fontWeight: FontWeight.w600),
             ),
           ],
         ),
-        backgroundColor: const Color(0xFF5B21B6),
+        backgroundColor: Colors.amber[900],
         behavior: SnackBarBehavior.floating,
         duration: const Duration(seconds: 2),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

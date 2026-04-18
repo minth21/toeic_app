@@ -78,6 +78,10 @@ class _ClassFeedbackScreenState extends State<ClassFeedbackScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+          onPressed: () => Navigator.pop(context),
+        ),
         title: const Text('Ý kiến Giáo viên'),
         elevation: 0,
       ),

@@ -124,6 +124,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+          onPressed: () => Navigator.pop(context),
+        ),
         title: Text(
           'Chỉnh sửa thông tin',
           style: GoogleFonts.inter(fontWeight: FontWeight.bold),

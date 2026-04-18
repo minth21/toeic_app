@@ -1,13 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Table, Button, Space, message, Drawer, Tag, Row, Col, Input, Avatar, Tabs, Progress, Statistic } from 'antd';
-import { TeamOutlined, DownloadOutlined, EyeOutlined, ReloadOutlined, BookOutlined, UserOutlined } from '@ant-design/icons';
-import { classApi } from '../services/api';
+import {
+    Table, Card, Button, Input, Space, Tag, Typography,
+    Row, Col, Statistic, Progress, Drawer, Tabs,
+    Avatar, message, Divider
+} from 'antd';
+import {
+    SearchOutlined, UserOutlined, BookOutlined,
+    HistoryOutlined,
+    BulbOutlined, EditOutlined, SaveOutlined,
+    PlusOutlined, DeleteOutlined, SendOutlined, TeamOutlined, DownloadOutlined, EyeOutlined, ReloadOutlined
+} from '@ant-design/icons';
+import { useForm, useFieldArray, Controller } from 'react-hook-form';
+import { classApi, teacherApi, aiApi } from '../services/api';
 import type { Class } from '../services/api';
-
-const { Search } = Input;
-import { SearchOutlined, HistoryOutlined, BulbOutlined } from '@ant-design/icons';
 import { useTheme } from '../hooks/useThemeContext';
 import AiTimelineView from '../components/AiTimelineView';
+
+const { Search } = Input;
 
 export default function TeacherClasses() {
     const [classes, setClasses] = useState<Class[]>([]);
@@ -19,13 +28,47 @@ export default function TeacherClasses() {
     const [students, setStudents] = useState<any[]>([]);
     const [loadingStudents, setLoadingStudents] = useState(false);
 
-    // Dành cho xem lịch sử chi tiết học viên
     const [historyVisible, setHistoryVisible] = useState(false);
     const [selectedStudent, setSelectedStudent] = useState<any>(null);
     const [studentHistory, setStudentHistory] = useState<any[]>([]);
     const [loadingHistory, setLoadingHistory] = useState(false);
     const [activeHistoryTab, setActiveHistoryTab] = useState('1');
+
+    const [selectedRoadmapId, setSelectedRoadmapId] = useState<string | null>(null);
+    const [currentRoadmap, setCurrentRoadmap] = useState<any>(null);
     const [roadmapRefreshTrigger, setRoadmapRefreshTrigger] = useState(0);
+    const [publishing, setPublishing] = useState(false);
+    const [savingDraft, setSavingDraft] = useState(false);
+    const [teacherNote, setTeacherNote] = useState('');
+    const [analyzingRoadmap, setAnalyzingRoadmap] = useState(false);
+
+    // Tính toán thống kê
+    const stats = {
+        totalClasses: classes.length,
+        totalStudents: classes.reduce((acc: number, c: Class) => acc + (c.studentCount || 0), 0)
+    };
+
+    // Lọc lớp học theo tìm kiếm
+    const filteredClasses = classes.filter(c =>
+        c.className.toLowerCase().includes(searchText.toLowerCase()) ||
+        (c.classCode && c.classCode.toLowerCase().includes(searchText.toLowerCase()))
+    );
+
+    const { control, handleSubmit, reset } = useForm({
+        defaultValues: {
+            summary: '',
+            roadmap: [] as any[]
+        }
+    });
+
+    const { fields, append, remove } = useFieldArray({
+        control,
+        name: "roadmap"
+    });
+
+    const [attemptModalVisible, setAttemptModalVisible] = useState(false);
+    const [selectedAttempt, setSelectedAttempt] = useState<any>(null);
+    const [loadingAttempt, setLoadingAttempt] = useState(false);
 
     useEffect(() => {
         fetchMyClasses();
@@ -51,18 +94,6 @@ export default function TeacherClasses() {
         }
     };
 
-    // Tính toán thống kê
-    const stats = {
-        totalClasses: classes.length,
-        totalStudents: classes.reduce((acc: number, c: Class) => acc + (c.studentCount || 0), 0)
-    };
-
-    // Lọc lớp học theo tìm kiếm
-    const filteredClasses = classes.filter(c =>
-        c.className.toLowerCase().includes(searchText.toLowerCase()) ||
-        (c.classCode && c.classCode.toLowerCase().includes(searchText.toLowerCase()))
-    );
-
     const handleViewStudents = async (record: Class) => {
         setSelectedClass(record);
         setDrawerVisible(true);
@@ -86,9 +117,17 @@ export default function TeacherClasses() {
         setSelectedStudent(student);
         setHistoryVisible(true);
         setLoadingHistory(true);
-        setActiveHistoryTab('1'); // Reset to history tab when opening
+        setActiveHistoryTab('1');
         try {
-            const { teacherApi } = await import('../services/api');
+            // Reset form và roadmap state trước khi load học viên mới
+            reset({
+                summary: '',
+                roadmap: []
+            });
+            setSelectedRoadmapId(null);
+            setCurrentRoadmap(null);
+            setTeacherNote('');
+
             const response = await teacherApi.getStudentProgress(student.id);
             if (response.success) {
                 setStudentHistory(response.data);
@@ -103,17 +142,64 @@ export default function TeacherClasses() {
         }
     };
 
-    const [analyzingRoadmap, setAnalyzingRoadmap] = useState(false);
+    const handlePublishRoadmap = async (data: any) => {
+        if (!selectedRoadmapId) return;
+        setPublishing(true);
+        try {
+            const res = await aiApi.publishRoadmap(selectedRoadmapId, {
+                teacherNote,
+                summary: data.summary,
+                content: {
+                    ...currentRoadmap?.content,
+                    summary: data.summary,
+                    roadmap: data.roadmap.map((r: any) => ({
+                        ...r,
+                        focus: typeof r.focus === 'string' ? r.focus.split(',').map((s: string) => s.trim()).filter((s: string) => s !== '') : r.focus
+                    }))
+                }
+            });
+            if (res.success) {
+                message.success('Đã gửi lộ trình cho học viên thành công!');
+                setSelectedRoadmapId(null);
+                setRoadmapRefreshTrigger(prev => prev + 1);
+            }
+        } catch (error) {
+            message.error('Lỗi khi gửi lộ trình');
+        } finally {
+            setPublishing(false);
+        }
+    };
+
+    const handleViewAttemptDetail = async (attemptId: string) => {
+        setLoadingAttempt(true);
+        setAttemptModalVisible(true);
+        try {
+            const response = await teacherApi.getAttemptDetail(attemptId);
+            if (response.success) {
+                setSelectedAttempt(response.data);
+            } else {
+                message.error('Không thể tải chi tiết bài làm');
+            }
+        } catch (error) {
+            console.error(error);
+            message.error('Lỗi khi tải chi tiết bài làm');
+        } finally {
+            setLoadingAttempt(false);
+        }
+    };
+
     const handleGenerateRoadmap = async (userId: string) => {
         setAnalyzingRoadmap(true);
+        // Reset sạch sẽ dữ liệu cũ của học viên trước đó
+        setSelectedRoadmapId(null);
+        setCurrentRoadmap(null);
+        setTeacherNote('');
+        reset({ summary: '', roadmap: [] });
+
         try {
-            const { aiApi } = await import('../services/api');
             const response = await aiApi.assessRoadmap(userId);
             if (response.success) {
                 message.success('Phân tích lộ trình thành công!');
-                // Reload timeline
-                window.dispatchEvent(new CustomEvent('reloadTimeline'));
-                // Auto switch to roadmap tab
                 setRoadmapRefreshTrigger(prev => prev + 1);
                 setActiveHistoryTab('2');
             } else {
@@ -126,7 +212,32 @@ export default function TeacherClasses() {
         }
     };
 
-
+    const handleSaveDraft = async (data: any) => {
+        if (!selectedRoadmapId) return;
+        setSavingDraft(true);
+        try {
+            const res = await aiApi.updateRoadmap(selectedRoadmapId, {
+                teacherNote,
+                summary: data.summary,
+                content: {
+                    ...currentRoadmap?.content,
+                    summary: data.summary,
+                    roadmap: data.roadmap.map((r: any) => ({
+                        ...r,
+                        focus: typeof r.focus === 'string' ? r.focus.split(',').map((s: string) => s.trim()).filter((s: string) => s !== '') : r.focus
+                    }))
+                }
+            });
+            if (res.success) {
+                message.success('Lưu bản nháp thành công!');
+                setRoadmapRefreshTrigger(prev => prev + 1);
+            }
+        } catch (error) {
+            message.error('Lỗi khi lưu bản nháp');
+        } finally {
+            setSavingDraft(false);
+        }
+    };
 
     const handleExportStudentPdf = async (studentId: string, studentName: string) => {
         try {
@@ -150,7 +261,7 @@ export default function TeacherClasses() {
 
     const handleExportExcel = async (classId: string, className: string) => {
         try {
-            const messageHide = message.loading('Đang xuất báo cáo Excel...', 0);
+            const messageHide = message.loading('Đang xuất file Excel...', 0);
             const blob = await classApi.exportClassPerformance(classId);
             messageHide();
 
@@ -166,10 +277,10 @@ export default function TeacherClasses() {
             link.parentNode?.removeChild(link);
             window.URL.revokeObjectURL(url);
 
-            message.success('Xuất báo cáo thành công!');
+            message.success('Xuất file Excel thành công!');
         } catch (error) {
             console.error(error);
-            message.error('Lỗi khi xuất báo cáo Excel');
+            message.error('Lỗi khi xuất file Excel');
         }
     };
 
@@ -351,6 +462,21 @@ export default function TeacherClasses() {
             align: 'center' as const,
             render: (val: number) => <Tag color="blue" style={{ fontWeight: 'bold' }}>{val || 0}</Tag>
         },
+        {
+            title: 'Hành động',
+            key: 'action',
+            width: 120,
+            align: 'center' as const,
+            render: (record: any) => (
+                <Button
+                    type="link"
+                    icon={<EyeOutlined />}
+                    onClick={() => handleViewAttemptDetail(record.id)}
+                >
+                    Chi tiết
+                </Button>
+            )
+        }
     ];
 
     return (
@@ -373,7 +499,7 @@ export default function TeacherClasses() {
                                 boxShadow: 'var(--card-shadow)',
                                 transition: 'all 0.3s ease'
                             }}
-                            bodyStyle={{ padding: '24px' }}
+                            styles={{ body: { padding: '24px' } }}
                         >
                             <div style={{ display: 'flex', alignItems: 'center', gap: 20, justifyContent: 'center' }}>
                                 <div style={{
@@ -413,7 +539,7 @@ export default function TeacherClasses() {
                     background: isDark ? '#1E293B' : '#FFFFFF',
                     boxShadow: 'var(--card-shadow)'
                 }}
-                bodyStyle={{ padding: '20px 24px' }}
+                styles={{ body: { padding: '20px 24px' } }}
             >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
                     <Search
@@ -442,7 +568,7 @@ export default function TeacherClasses() {
             </Card>
 
             {/* Table Card */}
-            <Card style={{ borderRadius: 24, border: 'none', boxShadow: 'var(--card-shadow)', overflow: 'hidden', background: 'var(--bg-surface)' }} bodyStyle={{ padding: 0 }}>
+            <Card style={{ borderRadius: 24, border: 'none', boxShadow: 'var(--card-shadow)', overflow: 'hidden', background: 'var(--bg-surface)' }} styles={{ body: { padding: 0 } }}>
                 <Table
                     columns={classColumns}
                     dataSource={filteredClasses}
@@ -472,15 +598,15 @@ export default function TeacherClasses() {
                                 boxShadow: '0 4px 14px rgba(16, 185, 129, 0.35)'
                             }}
                         >
-                            Xuất báo cáo Excel lớp
+                            Xuất file  Excel lớp
                         </Button>
                     </div>
                 }
                 placement="right"
-                width={900}
+                size="large"
                 onClose={() => setDrawerVisible(false)}
                 open={drawerVisible}
-                headerStyle={{ borderBottom: '1px solid #F1F5F9' }}
+                styles={{ header: { borderBottom: '1px solid #F1F5F9' } }}
             >
                 <Tabs
                     defaultActiveKey="students"
@@ -549,16 +675,23 @@ export default function TeacherClasses() {
                                     boxShadow: '0 4px 14px rgba(239, 68, 68, 0.35)'
                                 }}
                             >
-                                Xuất báo cáo & Lộ trình
+                                Xuất file PDF
                             </Button>
                         </Space>
                     </div>
                 }
                 placement="right"
                 width={700}
-                onClose={() => setHistoryVisible(false)}
+                onClose={() => {
+                    setHistoryVisible(false);
+                    // Dọn dẹp dữ liệu để không bị "leak" sang học viên khác
+                    setSelectedRoadmapId(null);
+                    setCurrentRoadmap(null);
+                    setTeacherNote('');
+                    reset({ summary: '', roadmap: [] });
+                }}
                 open={historyVisible}
-                headerStyle={{ borderBottom: '1px solid #F1F5F9', padding: '16px 24px' }}
+                styles={{ header: { borderBottom: '1px solid #F1F5F9', padding: '16px 24px' } }}
             >
                 {/* TOEIC Burn Down Analysis Card - Linear Header */}
                 {selectedStudent?.targetScore > 0 && (
@@ -598,16 +731,16 @@ export default function TeacherClasses() {
 
                         <Row gutter={24}>
                             <Col span={8}>
-                                <Statistic title="Điểm tổng" value={selectedStudent.estimatedScore || 0} suffix="/ 990" valueStyle={{ color: 'var(--text-primary)', fontWeight: 800, fontSize: 20 }} />
+                                <Statistic title="Điểm tổng" value={selectedStudent.estimatedScore || 0} suffix={`/ ${selectedStudent?.targetScore || 990}`} styles={{ content: { color: 'var(--text-primary)', fontWeight: 800, fontSize: 20 } }} />
                             </Col>
                             <Col span={8}>
-                                <Statistic title="Số bài làm" value={selectedStudent.totalAttempts || 0} valueStyle={{ color: '#6366F1', fontWeight: 800, fontSize: 20 }} />
+                                <Statistic title="Số bài làm" value={selectedStudent.totalAttempts || 0} styles={{ content: { color: '#6366F1', fontWeight: 800, fontSize: 20 } }} />
                             </Col>
                             <Col span={8}>
                                 <Statistic
                                     title="Khoảng cách đích"
                                     value={selectedStudent?.targetScore > 0 ? Math.max(0, selectedStudent.targetScore - (selectedStudent.estimatedScore || 0)) : 'N/A'}
-                                    valueStyle={{ color: '#EF4444', fontWeight: 800, fontSize: 20 }}
+                                    styles={{ content: { color: '#EF4444', fontWeight: 800, fontSize: 20 } }}
                                     prefix={<BulbOutlined style={{ marginRight: 4, fontSize: 16 }} />}
                                 />
                             </Col>
@@ -651,17 +784,369 @@ export default function TeacherClasses() {
                             ),
                             children: (
                                 <div style={{ marginTop: 16 }}>
-                                    <AiTimelineView 
-                                        userId={selectedStudent?.id} 
-                                        isDark={isDark} 
-                                        hideHeader={true} 
+                                    <AiTimelineView
+                                        userId={selectedStudent?.id}
+                                        isDark={isDark}
+                                        hideHeader={true}
                                         refreshTrigger={roadmapRefreshTrigger}
+                                        onDataLoaded={(latestRoadmap: any) => {
+                                            // Nếu roadmap mới nhất chưa public, hiện form duyệt
+                                            if (latestRoadmap && !latestRoadmap.isPublished) {
+                                                setSelectedRoadmapId(latestRoadmap.id);
+                                                setCurrentRoadmap(latestRoadmap);
+                                                setTeacherNote(latestRoadmap.teacherNote || '');
+
+                                                // Initialize form with existing data
+                                                const content = latestRoadmap.content;
+                                                reset({
+                                                    summary: latestRoadmap.summary || content?.summary || '',
+                                                    roadmap: (content?.roadmap || []).map((step: any) => ({
+                                                        ...step,
+                                                        // Convert array focus to comma string for easy editing
+                                                        focus: Array.isArray(step.focus) ? step.focus.join(', ') : step.focus
+                                                    }))
+                                                });
+                                            } else {
+                                                setSelectedRoadmapId(null);
+                                                setCurrentRoadmap(null);
+                                            }
+                                        }}
                                     />
+
+                                    {selectedRoadmapId && (
+                                        <Card
+                                            title={
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#4338CA' }}>
+                                                    <EditOutlined />
+                                                    <span>BIÊN TẬP & PHÊ DUYỆT LỘ TRÌNH (BẢN NHÁP)</span>
+                                                </div>
+                                            }
+                                            style={{
+                                                marginTop: 24,
+                                                borderRadius: 20,
+                                                border: '2px solid #6366F1',
+                                                background: '#FFFFFF',
+                                                boxShadow: '0 20px 25px -5px rgba(99, 102, 241, 0.1)'
+                                            }}
+                                            styles={{ body: { padding: '24px' } }}
+                                        >
+                                            <Space direction="vertical" size="large" style={{ width: '100%' }}>
+                                                {/* Summary Section */}
+                                                <div>
+                                                    <Typography.Text strong style={{ display: 'block', marginBottom: 8, color: '#1E293B' }}>
+                                                        1. Nhận xét tổng quan (Học viên sẽ thấy phần này đầu tiên)
+                                                    </Typography.Text>
+                                                    <Controller
+                                                        name="summary"
+                                                        control={control}
+                                                        render={({ field: { value, onChange, onBlur } }) => (
+                                                            <Input.TextArea
+                                                                value={value}
+                                                                onChange={onChange}
+                                                                onBlur={onBlur}
+                                                                placeholder="Nhập nhận xét tổng quan kỹ năng của học viên..."
+                                                                rows={4}
+                                                                style={{ borderRadius: 12, border: '1px solid #E2E8F0' }}
+                                                            />
+                                                        )}
+                                                    />
+                                                </div>
+
+                                                <Divider style={{ margin: '8px 0' }} />
+
+                                                {/* Phases Section */}
+                                                <div>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                                                        <Typography.Text strong style={{ color: '#1E293B' }}>
+                                                            2. Các giai đoạn lộ trình (Phases)
+                                                        </Typography.Text>
+                                                        <Button
+                                                            type="dashed"
+                                                            icon={<PlusOutlined />}
+                                                            onClick={() => append({ phase: 'Giai đoạn mới', duration: '4 tuần', focus: '', expertTips: '' })}
+                                                            style={{ borderRadius: 8 }}
+                                                        >
+                                                            Thêm giai đoạn
+                                                        </Button>
+                                                    </div>
+
+                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                                                        {fields.map((fieldItem: any, index: number) => (
+                                                            <Card
+                                                                key={fieldItem.id}
+                                                                size="small"
+                                                                style={{
+                                                                    borderRadius: 12,
+                                                                    border: '1px solid #F1F5F9',
+                                                                    background: '#F8FAFC'
+                                                                }}
+                                                                title={`Giai đoạn ${index + 1}`}
+                                                                extra={
+                                                                    <Button
+                                                                        type="text"
+                                                                        danger
+                                                                        icon={<DeleteOutlined />}
+                                                                        onClick={() => remove(index)}
+                                                                    />
+                                                                }
+                                                            >
+                                                                <Row gutter={[16, 16]}>
+                                                                    <Col span={16}>
+                                                                        <Typography.Text type="secondary" style={{ fontSize: 12 }}>Tên giai đoạn</Typography.Text>
+                                                                        <Controller
+                                                                            name={`roadmap.${index}.phase` as any}
+                                                                            control={control}
+                                                                            render={({ field: { value, onChange } }) => (
+                                                                                <Input value={value} onChange={onChange} placeholder="Ví dụ: Bức phá kỹ năng Listening" style={{ borderRadius: 8, marginTop: 4 }} />
+                                                                            )}
+                                                                        />
+                                                                    </Col>
+                                                                    <Col span={8}>
+                                                                        <Typography.Text type="secondary" style={{ fontSize: 12 }}>Thời lượng</Typography.Text>
+                                                                        <Controller
+                                                                            name={`roadmap.${index}.duration` as any}
+                                                                            control={control}
+                                                                            render={({ field: { value, onChange } }) => (
+                                                                                <Input value={value} onChange={onChange} placeholder="Ví dụ: 4-6 tuần" style={{ borderRadius: 8, marginTop: 4 }} />
+                                                                            )}
+                                                                        />
+                                                                    </Col>
+                                                                    <Col span={24}>
+                                                                        <Typography.Text type="secondary" style={{ fontSize: 12 }}>Nội dung trọng tâm (Phân cách bằng dấu phẩy)</Typography.Text>
+                                                                        <Controller
+                                                                            name={`roadmap.${index}.focus` as any}
+                                                                            control={control}
+                                                                            render={({ field: { value, onChange } }) => (
+                                                                                <Input.TextArea value={value} onChange={onChange} placeholder="Ví dụ: Nghe chép chính tả, Học từ vựng Part 1, ..." rows={2} style={{ borderRadius: 8, marginTop: 4 }} />
+                                                                            )}
+                                                                        />
+                                                                    </Col>
+                                                                </Row>
+                                                            </Card>
+                                                        ))}
+                                                    </div>
+                                                </div>
+
+                                                <Divider style={{ margin: '8px 0' }} />
+
+                                                {/* Teacher Note Component */}
+                                                <div>
+                                                    <Typography.Text strong style={{ display: 'block', marginBottom: 8, color: '#1E293B' }}>
+                                                        3. Lời nhắn nhủ riêng từ Giáo viên (Teacher Note)
+                                                    </Typography.Text>
+                                                    <Input.TextArea
+                                                        placeholder="Ví dụ: Thầy thấy em làm Part 5 rất tốt, nhưng hãy tập trung thêm từ vựng chuyên ngành trong giai đoạn 1 nhé..."
+                                                        rows={3}
+                                                        value={teacherNote}
+                                                        onChange={(e) => setTeacherNote(e.target.value)}
+                                                        style={{ borderRadius: 12, border: '1px solid #E2E8F0' }}
+                                                    />
+                                                </div>
+
+                                                <Row gutter={16}>
+                                                    <Col span={12}>
+                                                        <Button
+                                                            icon={<SaveOutlined />}
+                                                            block
+                                                            size="large"
+                                                            loading={savingDraft}
+                                                            onClick={handleSubmit(handleSaveDraft)}
+                                                            style={{ height: 48, borderRadius: 12, fontWeight: 600 }}
+                                                        >
+                                                            LƯU BẢN NHÁP
+                                                        </Button>
+                                                    </Col>
+                                                    <Col span={12}>
+                                                        <Button
+                                                            type="primary"
+                                                            icon={<SendOutlined />}
+                                                            block
+                                                            size="large"
+                                                            loading={publishing}
+                                                            onClick={handleSubmit(handlePublishRoadmap)}
+                                                            style={{
+                                                                height: 48,
+                                                                borderRadius: 12,
+                                                                background: 'linear-gradient(135deg, #6366F1 0%, #4F46E5 100%)',
+                                                                border: 'none',
+                                                                fontWeight: 700,
+                                                                boxShadow: '0 4px 14px rgba(99, 102, 241, 0.35)'
+                                                            }}
+                                                        >
+                                                            DUYỆT & GỬI HỌC VIÊN
+                                                        </Button>
+                                                    </Col>
+                                                </Row>
+                                            </Space>
+                                        </Card>
+                                    )}
                                 </div>
                             )
                         }
                     ]}
                 />
+            </Drawer>
+
+            {/* Modal Chi tiết lượt làm bài */}
+            <Drawer
+                title={
+                    <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        width: '100%',
+                    }}>
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            <span style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '1px' }}>Chi tiết kết quả</span>
+                            <strong style={{ fontSize: 18, color: '#1E293B' }}>{selectedAttempt?.test?.title || selectedAttempt?.part?.partName}</strong>
+                        </div>
+                        {selectedAttempt && (
+                            <div style={{
+                                background: 'linear-gradient(135deg, #EEF2FF 0%, #E0E7FF 100%)',
+                                padding: '8px 16px',
+                                borderRadius: 12,
+                                border: '1px solid #C7D2FE',
+                                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                            }}>
+                                <span style={{ color: '#4338CA', fontWeight: 700, fontSize: 14 }}>
+                                    {selectedAttempt.totalScore} Điểm | {selectedAttempt.correctCount}/{selectedAttempt.totalQuestions} Câu
+                                </span>
+                            </div>
+                        )}
+                    </div>
+                }
+                placement="right"
+                width={850}
+                onClose={() => setAttemptModalVisible(false)}
+                open={attemptModalVisible}
+                loading={loadingAttempt}
+                headerStyle={{
+                    background: 'linear-gradient(to right, #F8FAFC, #FFFFFF)',
+                    borderBottom: '1px solid #E2E8F0',
+                    padding: '20px 24px'
+                }}
+                bodyStyle={{ background: '#FDFDFD' }}
+            >
+                {selectedAttempt && (
+                    <div style={{ padding: '0 4px' }}>
+                        {/* AI Insight Card with Premium Shadow */}
+                        <div style={{
+                            marginBottom: 32,
+                            padding: '24px',
+                            background: isDark ? '#1E293B' : '#FFFFFF',
+                            borderRadius: 24,
+                            border: '1px solid rgba(191, 219, 254, 0.5)',
+                            boxShadow: '0 20px 25px -5px rgba(59, 130, 246, 0.08), 0 10px 10px -5px rgba(59, 130, 246, 0.04)',
+                            position: 'relative',
+                            overflow: 'hidden'
+                        }}>
+                            <div style={{
+                                position: 'absolute',
+                                top: 0,
+                                left: 0,
+                                width: '4px',
+                                height: '100%',
+                                background: 'linear-gradient(to bottom, #6366F1, #A855F7)'
+                            }} />
+
+                            <Row gutter={24} align="middle">
+                                <Col span={7} style={{ borderRight: '1px solid #F1F5F9', textAlign: 'center' }}>
+                                    <div style={{ color: 'var(--text-muted)', fontSize: 12, fontWeight: 600, marginBottom: 8, textTransform: 'uppercase' }}>Thời gian làm</div>
+                                    <div style={{ fontSize: 32, fontWeight: 800, color: '#1E293B' }}>
+                                        {Math.floor((selectedAttempt.durationSeconds || 0) / 60)}<span style={{ fontSize: 16, fontWeight: 500, color: 'var(--text-muted)', marginLeft: 4 }}>phút</span>
+                                    </div>
+                                </Col>
+                                <Col span={17} style={{ paddingLeft: 24 }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                                        <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#6366F1' }} />
+                                        <span style={{ fontSize: 13, color: '#6366F1', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Nhận xét của AI</span>
+                                    </div>
+                                    <div style={{ fontSize: 15, lineHeight: '1.6', color: '#475569', fontStyle: 'italic' }}>
+                                        "{selectedAttempt.aiAnalysis ? JSON.parse(selectedAttempt.aiAnalysis).shortFeedback : 'Hệ thống đang phân tích chi tiết bài làm của bạn...'}"
+                                    </div>
+                                </Col>
+                            </Row>
+                        </div>
+
+                        <h4 style={{ marginBottom: 16, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <BookOutlined /> DANH SÁCH CÂU HỎI & ĐÁP ÁN
+                        </h4>
+
+                        <Table
+                            dataSource={selectedAttempt.details || []}
+                            rowKey="id"
+                            pagination={false}
+                            size="small"
+                            columns={[
+                                {
+                                    title: 'Câu',
+                                    dataIndex: ['question', 'questionNumber'],
+                                    key: 'num',
+                                    width: 60,
+                                    render: (num) => <strong>#{num}</strong>
+                                },
+                                {
+                                    title: 'Kiến thức trọng tâm',
+                                    key: 'type',
+                                    width: 160,
+                                    render: (record: any) => (
+                                        <Tag
+                                            color="blue"
+                                            style={{
+                                                fontSize: 11,
+                                                borderRadius: 6,
+                                                border: 'none',
+                                                background: '#EFF6FF',
+                                                color: '#1D4ED8',
+                                                fontWeight: 600
+                                            }}
+                                        >
+                                            {record.question?.topic_tag || 'Tổng hợp'}
+                                        </Tag>
+                                    )
+                                },
+                                {
+                                    title: 'Học viên',
+                                    dataIndex: 'userAnswer',
+                                    key: 'userAnswer',
+                                    align: 'center',
+                                    width: 100,
+                                    render: (ans: string, record: any) => {
+                                        const isCorrect = ans?.trim().toUpperCase() === record.question?.correctAnswer?.trim().toUpperCase();
+                                        return (
+                                            <div style={{
+                                                width: 32,
+                                                height: 32,
+                                                borderRadius: '50%',
+                                                background: isCorrect ? '#DCFCE7' : '#FEE2E2',
+                                                color: isCorrect ? '#15803D' : '#B91C1C',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                fontWeight: 800,
+                                                fontSize: 14,
+                                                margin: '0 auto',
+                                                boxShadow: isCorrect ? '0 2px 4px rgba(22, 163, 74, 0.1)' : '0 2px 4px rgba(220, 38, 38, 0.1)'
+                                            }}>
+                                                {ans || '-'}
+                                            </div>
+                                        )
+                                    }
+                                },
+                                {
+                                    title: 'Chuẩn',
+                                    dataIndex: ['question', 'correctAnswer'],
+                                    key: 'correct',
+                                    align: 'center',
+                                    width: 80,
+                                    render: (ans) => (
+                                        <span style={{ color: '#3B82F6', fontWeight: 700, fontSize: 15 }}>{ans}</span>
+                                    )
+                                }
+                            ]}
+                        />
+                    </div>
+                )}
             </Drawer>
         </div>
     );

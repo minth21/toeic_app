@@ -53,32 +53,40 @@ class QuestionModel {
   });
 
   factory QuestionModel.fromJson(Map<String, dynamic> json) {
+    // Helper for safe int parsing
+    int parseInt(dynamic value) {
+      if (value == null) return 0;
+      if (value is int) return value;
+      return int.tryParse(value.toString()) ?? 0;
+    }
+
     return QuestionModel(
-      id: json['id']?.toString() ?? '',
-      partId: json['partId']?.toString() ?? '',
-      questionNumber: json['questionNumber'] ?? 0,
+      id: (json['id'] ?? json['_id'] ?? '').toString(),
+      partId: (json['partId'] ?? json['part_id'] ?? '').toString(),
+      questionNumber: parseInt(json['questionNumber'] ?? json['question_number'] ?? json['number']),
       passage: json['passage'],
-      passageTitle: json['passageTitle'],
-      passageImageUrl: json['passageImageUrl'],
-      passageTranslationData: json['passageTranslationData'],
-      questionText: json['questionText'],
-      questionTranslation: json['questionTranslation'],
-      optionTranslations: json['optionTranslations'],
-      keyVocabulary: json['keyVocabulary'],
-      imageUrl: json['imageUrl'],
-      optionA: json['optionA'],
-      optionB: json['optionB'],
-      optionC: json['optionC'],
-      optionD: json['optionD'],
-      correctAnswer: json['correctAnswer'],
-      explanation: json['explanation'],
-      analysis: json['analysis'],
-      evidence: json['evidence'],
-      audioUrl: json['audioUrl'],
-      transcript: json['transcript'],
-      topicTag: json['topic_tag'] ?? json['topicTag'],
+      passageTitle: json['passageTitle'] ?? json['passage_title'],
+      passageImageUrl: (json['passageImageUrl'] ?? json['passage_image_url'])?.toString(),
+      passageTranslationData: (json['passageTranslationData'] ?? json['passage_translation_data'])?.toString(),
+      questionText: (json['questionText'] ?? json['question_text'])?.toString(),
+      questionTranslation: (json['questionTranslation'] ?? json['question_translation'])?.toString(),
+      optionTranslations: (json['optionTranslations'] ?? json['option_translations'])?.toString(),
+      keyVocabulary: (json['keyVocabulary'] ?? json['key_vocabulary'])?.toString(),
+      imageUrl: (json['imageUrl'] ?? json['image_url'])?.toString(),
+      optionA: (json['optionA'] ?? json['option_a'])?.toString(),
+      optionB: (json['optionB'] ?? json['option_b'])?.toString(),
+      optionC: (json['optionC'] ?? json['option_c'])?.toString(),
+      optionD: (json['optionD'] ?? json['option_d'])?.toString(),
+      correctAnswer: (json['correctAnswer'] ?? json['correct_answer'])?.toString(),
+      explanation: (json['explanation'] ?? json['explanationText'])?.toString(),
+      analysis: json['analysis']?.toString(),
+      evidence: json['evidence']?.toString(),
+      audioUrl: (json['audioUrl'] ?? json['audio_url'])?.toString(),
+      transcript: json['transcript']?.toString(),
+      topicTag: (json['topic_tag'] ?? json['topicTag'] ?? json['topic'])?.toString(),
     );
   }
+
 
   // Helper to parse the JSON translation data
   // Handles:

@@ -9,6 +9,7 @@ class PartModel {
   final String? audioUrl;
   final int? timeLimit; // in seconds
   final int? userProgress; // AI Score or Percentage
+  final String status;
 
   PartModel({
     required this.id,
@@ -21,20 +22,23 @@ class PartModel {
     this.audioUrl,
     this.timeLimit,
     this.userProgress,
+    this.status = 'ACTIVE',
   });
 
   factory PartModel.fromJson(Map<String, dynamic> json) {
+    final partNumber = int.tryParse((json['partNumber'] ?? '0').toString()) ?? 0;
     return PartModel(
-      id: json['id'] ?? '',
-      partNumber: json['partNumber'] ?? 0,
-      partName: json['partName'] ?? _getDefaultPartName(json['partNumber']),
-      totalQuestions: json['totalQuestions'] ?? 0,
-      completedQuestions: json['_count']?['questions'] ?? 0,
-      instructionImgUrl: json['instructionImgUrl'],
-      instructions: json['instructions'],
-      audioUrl: json['audioUrl'],
-      timeLimit: json['timeLimit'],
-      userProgress: json['userProgress'],
+      id: (json['id'] ?? '').toString(),
+      partNumber: partNumber,
+      partName: (json['partName'] ?? _getDefaultPartName(partNumber)).toString(),
+      totalQuestions: int.tryParse((json['totalQuestions'] ?? '0').toString()) ?? 0,
+      completedQuestions: int.tryParse((json['_count']?['questions'] ?? '0').toString()) ?? 0,
+      instructionImgUrl: json['instructionImgUrl']?.toString(),
+      instructions: json['instructions']?.toString(),
+      audioUrl: json['audioUrl']?.toString(),
+      timeLimit: json['timeLimit'] != null ? int.tryParse(json['timeLimit'].toString()) : null,
+      userProgress: json['userProgress'] != null ? int.tryParse(json['userProgress'].toString()) : null,
+      status: (json['status'] ?? 'ACTIVE').toString(),
     );
   }
 

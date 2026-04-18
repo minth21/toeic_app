@@ -7,15 +7,17 @@ import 'package:provider/provider.dart';
 import '../../../constants/app_constants.dart';
 import '../viewmodels/practice_viewmodel.dart';
 import '../models/part_model.dart';
-import 'reading_review_screen.dart';
 import 'part1_simulation_screen.dart';
+import 'part2_simulation_screen.dart';
 import 'test_simulation_screen.dart';
+import 'reading_review_screen.dart';
 import '../models/exam_model.dart';
 import '../models/question_model.dart';
 import 'widgets/vocab_flashcard_panel.dart';
 import '../../auth/viewmodels/auth_viewmodel.dart';
 import '../../home/viewmodels/dashboard_viewmodel.dart';
 import 'class_feedback_screen.dart';
+
 
 class PracticeResultScreen extends StatefulWidget {
   final Map<String, dynamic> resultData;
@@ -40,7 +42,6 @@ class _PracticeResultScreenState extends State<PracticeResultScreen> {
   Map<String, dynamic>? _aiData;
   bool _isLoadingDetail = false;
   List<Map<String, dynamic>> _recommendations = [];
-  Map<String, Map<String, int>> _topicStats = {}; // topic -> {correct, total}
   Map<String, dynamic>? _attemptDetail;
   final ScrollController _aiScrollController = ScrollController();
   String _loadingMessage = 'AI đang tổng hợp kết quả...';
@@ -131,7 +132,6 @@ class _PracticeResultScreenState extends State<PracticeResultScreen> {
   void _processAttemptDetails(List<dynamic> details) {
     if (!mounted) return;
 
-    final Map<String, Map<String, int>> stats = {};
     final List<dynamic> aggregatedVocab = [];
     final List<Map<String, dynamic>> wrongQuestions = [];
     final Set<String> seenWords = {};
@@ -141,23 +141,25 @@ class _PracticeResultScreenState extends State<PracticeResultScreen> {
       final qMap = Map<String, dynamic>.from(d['question'] as Map);
       
       // Robust ID extraction
-      final String qId = (d['questionId'] ?? d['question_id'] ?? qMap['id'] ?? '').toString();
+      final String qId = (d['questionId'] ?? d['question_id'] ?? qMap['id'] ?? '').toString().trim();
       qMap['id'] = qId;
 
-      // 1. Parse topic stats using DB-calculated isCorrect
-      final tag = qMap['topic_tag'] ?? qMap['topicTag'] ?? 'Tổng quát';
-      final bool isCorrect = d['isCorrect'] == true || d['is_correct'] == true;
+      // 1. Process wrong questions
+      // ROBUST PARSING (String, Num, Bool)
+      bool parseBool(dynamic v) {
+        if (v == null) return false;
+        if (v is bool) return v;
+        if (v is num) return v == 1;
+        final s = v.toString().toLowerCase().trim();
+        return s == 'true' || s == '1' || s == 'yes';
+      }
+      
+      final bool isCorrect = parseBool(d['isCorrect'] ?? d['is_correct']);
       
       final String userAnswer = (d['userAnswer'] ?? d['user_answer'] ?? d['selectedOption'] ?? '').toString();
 
       if (!isCorrect) {
         wrongQuestions.add({'question': qMap, 'userAnswer': userAnswer});
-      }
-
-      final topicData = stats.putIfAbsent(tag, () => {'correct': 0, 'total': 0});
-      topicData['total'] = (topicData['total'] ?? 0) + 1;
-      if (isCorrect) {
-        topicData['correct'] = (topicData['correct'] ?? 0) + 1;
       }
 
       // 2. Aggregate keyVocabulary
@@ -195,7 +197,6 @@ class _PracticeResultScreenState extends State<PracticeResultScreen> {
     }
 
     setState(() {
-      _topicStats = stats;
       _attemptDetail = {'details': details}; // Store for review screen
 
       // Seed _aiData with local vocab immediately so it shows up before AI finishes
@@ -253,47 +254,188 @@ class _PracticeResultScreenState extends State<PracticeResultScreen> {
     final user = context.watch<AuthViewModel>().currentUser;
 
     return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(color: AppColors.background),
-        child: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              children: [
-                Row(
-                  children: [
-                    IconButton(
-                      onPressed: _onBack,
-                      icon: const Icon(Icons.arrow_back_ios_new, size: 20),
+      backgroundColor: AppColors.background,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(), // Cuộn mượt mà hơn
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Header Row - Tự phẳng hóa
+              Row(
+                children: [
+                  IconButton(
+                    onPressed: _onBack,
+                    icon: const Icon(Icons.arrow_back_ios_new, size: 20),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  const Text(
+                    'Kết quả luyện tập',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
                     ),
-                    Text(
-                      'Kết quả luyện tập',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              
+              // Score Area
+              _buildScoreHeader(score, total, percentage, toeicScore),
+              const SizedBox(height: 24),
+              
+              // Spreads all analysis widgets directly into main Column
+              ..._buildAnalysisContentList(isListening),
+              
+              const SizedBox(height: 16),
+              
+              // Topic Stats Area flattened - REMOVED per user request
+              if (_isLoadingDetail)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 20),
+                  child: Center(child: CircularProgressIndicator()),
                 ),
-                const SizedBox(height: 4),
-                _buildScoreHeader(score, total, percentage, toeicScore),
-                const SizedBox(height: 16),
-                AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 800),
-                  child: _buildAnalysisContent(isListening),
-                ),
-                const SizedBox(height: 16),
-                if (_isLoadingDetail)
-                  const CircularProgressIndicator()
-                else if (_topicStats.isNotEmpty)
-                  _buildTopicStatsSection(),
-                const SizedBox(height: 16),
-                _buildActionButtons(user?.classId),
-                const SizedBox(height: 16), // Bottom padding
-              ],
-            ),
+                
+              const SizedBox(height: 160), // Khoảng đệm rộng rãi để không bao giờ bị che
+            ],
           ),
         ),
+      ),
+      bottomNavigationBar: _buildBottomActions(user?.classId),
+    );
+  }
+
+  Widget _buildBottomActions(String? classId) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            offset: const Offset(0, -4),
+            blurRadius: 10,
+          ),
+        ],
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              // Nút Danh sách (Icon only or small)
+              Expanded(
+                flex: 1,
+                child: SizedBox(
+                  height: 54,
+                  child: OutlinedButton(
+                    onPressed: _onBack,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.textSecondary,
+                      side: const BorderSide(color: Color(0xFFE2E8F0), width: 1.5),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      padding: EdgeInsets.zero,
+                    ),
+                    child: const Icon(Icons.list_alt_rounded, size: 24),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                flex: 3,
+                child: SizedBox(
+                  height: 54,
+                  child: ElevatedButton.icon(
+                    onPressed: _handleReview,
+                    icon: _isLoadingDetail
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Icon(Icons.visibility_rounded, size: 18),
+                    label: Text(
+                      _isLoadingDetail ? 'TẢI...' : 'LỜI GIẢI',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 12,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      elevation: 0,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                flex: 2,
+                child: SizedBox(
+                  height: 54,
+                  child: OutlinedButton.icon(
+                    onPressed: _showRetryConfirmation,
+                    icon: const Icon(Icons.refresh_rounded, size: 18),
+                    label: const Text(
+                      'LÀM LẠI',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.primary,
+                      side: const BorderSide(color: Color(0xFFE2E8F0), width: 1.5),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (classId != null) ...[
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: TextButton.icon(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const ClassFeedbackScreen(),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.chat_bubble_outline_rounded, size: 18),
+                label: const Text(
+                  'Ý KIẾN GIÁO VIÊN',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                style: TextButton.styleFrom(foregroundColor: AppColors.primary),
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -463,216 +605,207 @@ class _PracticeResultScreenState extends State<PracticeResultScreen> {
     );
   }
 
-  Widget _buildAnalysisContent(bool isListening) {
+  List<Widget> _buildAnalysisContentList(bool isListening) {
     final skills =
         _aiData?['skills'] ??
         {'grammar': 5, 'vocabulary': 5, 'inference': 5, 'mainIdea': 5};
 
-    return Column(
-      key: ValueKey(_isAnalyzing ? 'ai_analyzing' : 'ai_data_ready'),
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (!isListening) ...[
-          _buildSectionTitle('Phân tích kỹ năng'),
-          const SizedBox(height: 8),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(24),
-              boxShadow: AppShadows.softShadow,
-            ),
-            child: Container(
-              constraints: const BoxConstraints(maxHeight: 220),
-              child: AspectRatio(
-                aspectRatio: 1.5,
-                child: RadarChart(
-                  RadarChartData(
-                    radarShape: RadarShape.polygon,
-                    ticksTextStyle: const TextStyle(color: Colors.transparent),
-                    gridBorderData: const BorderSide(
-                      color: Colors.grey,
-                      width: 0.5,
-                    ),
-                    radarBorderData: const BorderSide(color: Colors.transparent),
-                    titlePositionPercentageOffset: 0.2,
-                    titleTextStyle: const TextStyle(
-                      color: Colors.black87,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                    ),
-                    dataSets: [
-                      RadarDataSet(
-                        fillColor: AppColors.primary.withValues(alpha: 0.3),
-                        borderColor: AppColors.primary,
-                        entryRadius: 3,
-                        dataEntries: [
-                          RadarEntry(value: (skills['grammar'] ?? 0).toDouble()),
-                          RadarEntry(
-                            value: (skills['vocabulary'] ?? 0).toDouble(),
-                          ),
-                          RadarEntry(
-                            value: (skills['inference'] ?? 0).toDouble(),
-                          ),
-                          RadarEntry(value: (skills['mainIdea'] ?? 0).toDouble()),
-                        ],
-                      ),
-                    ],
-                    getTitle: (index, angle) {
-                      switch (index) {
-                        case 0:
-                          return RadarChartTitle(text: 'Ngữ pháp', angle: angle);
-                        case 1:
-                          return RadarChartTitle(text: 'Từ vựng', angle: angle);
-                        case 2:
-                          return RadarChartTitle(text: 'Suy luận', angle: angle);
-                        case 3:
-                          return RadarChartTitle(text: 'Ý chính', angle: angle);
-                        default:
-                          return const RadarChartTitle(text: '');
-                      }
-                    },
+    return [
+      if (!isListening) ...[
+        _buildSectionTitle('Phân tích kỹ năng'),
+        const SizedBox(height: 12),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: AppShadows.softShadow,
+            border: Border.all(color: const Color(0xFFF1F5F9)),
+          ),
+          child: Container(
+            constraints: const BoxConstraints(maxHeight: 220),
+            child: AspectRatio(
+              aspectRatio: 1.5,
+              child: RadarChart(
+                RadarChartData(
+                  radarShape: RadarShape.polygon,
+                  ticksTextStyle: const TextStyle(color: Colors.transparent),
+                  gridBorderData: const BorderSide(
+                    color: Colors.grey,
+                    width: 0.5,
                   ),
+                  radarBorderData: const BorderSide(color: Colors.transparent),
+                  titlePositionPercentageOffset: 0.2,
+                  titleTextStyle: const TextStyle(
+                    color: Colors.black87,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                  ),
+                  dataSets: [
+                    RadarDataSet(
+                      fillColor: AppColors.primary.withValues(alpha: 0.3),
+                      borderColor: AppColors.primary,
+                      entryRadius: 3,
+                      dataEntries: [
+                        RadarEntry(value: (skills['grammar'] ?? 0).toDouble()),
+                        RadarEntry(
+                          value: (skills['vocabulary'] ?? 0).toDouble(),
+                        ),
+                        RadarEntry(
+                          value: (skills['inference'] ?? 0).toDouble(),
+                        ),
+                        RadarEntry(value: (skills['mainIdea'] ?? 0).toDouble()),
+                      ],
+                    ),
+                  ],
+                  getTitle: (index, angle) {
+                    switch (index) {
+                      case 0:
+                        return RadarChartTitle(text: 'Ngữ pháp', angle: angle);
+                      case 1:
+                        return RadarChartTitle(text: 'Từ vựng', angle: angle);
+                      case 2:
+                        return RadarChartTitle(text: 'Suy luận', angle: angle);
+                      case 3:
+                        return RadarChartTitle(text: 'Ý chính', angle: angle);
+                      default:
+                        return const RadarChartTitle(text: '');
+                    }
+                  },
                 ),
               ),
             ),
           ),
-          const SizedBox(height: 16),
-        ],
+        ),
+        const SizedBox(height: 24),
+      ],
 
-        if (_aiData?['strengths'] != null ||
-            _aiData?['weaknesses'] != null) ...[
-          _buildStrengthsWeaknesses(
-            _aiData?['strengths'],
-            _aiData?['weaknesses'],
-          ),
-          const SizedBox(height: 16),
-        ],
-        _buildSectionTitle('Nhận xét từ AI'),
-        const SizedBox(height: 8),
-        _isAnalyzing
-            ? _buildAIAssessmentShimmer()
-            : Container(
-                key: const ValueKey('ai_result_container'),
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: AppShadows.softShadow,
-                  border: Border.all(color: const Color(0xFFF1F5F9)),
-                ),
-                child: _aiData == null
-                    ? Column(
-                        children: [
-                          const Icon(
-                            Icons.info_outline_rounded,
-                            color: Colors.orange,
-                            size: 32,
+      if (_aiData?['strengths'] != null ||
+          _aiData?['weaknesses'] != null) ...[
+        _buildStrengthsWeaknesses(
+          _aiData?['strengths'],
+          _aiData?['weaknesses'],
+        ),
+        const SizedBox(height: 24),
+      ],
+      
+      _buildSectionTitle('Nhận xét từ AI'),
+      const SizedBox(height: 12),
+      
+      _isAnalyzing
+          ? _buildAIAssessmentShimmer()
+          : Container(
+              key: const ValueKey('ai_result_container'),
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: AppShadows.softShadow,
+                border: Border.all(color: const Color(0xFFF1F5F9)),
+              ),
+              child: _aiData == null
+                  ? Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.info_outline_rounded,
+                          color: Colors.orange,
+                          size: 32,
+                        ),
+                        const SizedBox(height: 8),
+                        const Text(
+                          'AI đang bận hoặc cần thêm thời gian để phân tích bài làm của bạn.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Color(0xFF64748B),
+                            fontSize: 12,
                           ),
-                          const SizedBox(height: 8),
-                          const Text(
-                            'AI đang bận hoặc cần thêm thời gian để phân tích bài làm của bạn.',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: Color(0xFF64748B),
-                              fontSize: 12,
-                            ),
+                        ),
+                        const SizedBox(height: 8),
+                        TextButton.icon(
+                          onPressed: _fetchAIData,
+                          icon: const Icon(Icons.refresh_rounded, size: 16),
+                          label: const Text('Thử tải lại'),
+                          style: TextButton.styleFrom(
+                            foregroundColor: AppColors.primary,
                           ),
-                          const SizedBox(height: 8),
-                          TextButton.icon(
-                            onPressed: _fetchAIData,
-                            icon: const Icon(Icons.refresh_rounded, size: 16),
-                            label: const Text('Thử tải lại'),
-                            style: TextButton.styleFrom(
-                              foregroundColor: AppColors.primary,
-                            ),
-                          ),
-                        ],
-                      )
-                    : Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          if (_aiData?['shortFeedback'] != null)
-                            Container(
-                              padding: const EdgeInsets.all(12),
-                              margin: const EdgeInsets.only(bottom: 12),
-                              decoration: BoxDecoration(
-                                color: AppColors.indigo50,
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: AppColors.primary.withValues(
-                                    alpha: 0.1,
-                                  ),
-                                ),
+                        ),
+                      ],
+                    )
+                  : Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (_aiData?['shortFeedback'] != null)
+                          Container(
+                            padding: const EdgeInsets.all(14),
+                            margin: const EdgeInsets.only(bottom: 16),
+                            decoration: BoxDecoration(
+                              color: AppColors.indigo50,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: AppColors.primary.withValues(alpha: 0.1),
                               ),
-                              child: Row(
-                                children: [
-                                  const Icon(
-                                    Icons.auto_awesome,
-                                    color: AppColors.primary,
-                                    size: 22,
-                                  ),
-                                  const SizedBox(width: 6),
-                                  const Icon(
-                                    Icons.verified_user_rounded,
-                                    color: Color(0xFF2563EB),
-                                    size: 18,
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Flexible(
-                                    child: Text(
-                                      (_aiData?['shortFeedback']?.toString() ?? "").isEmpty
-                                          ? "AI đang tổng hợp đánh giá chi tiết cho bạn..."
-                                          : _aiData!['shortFeedback'].toString(),
-                                      softWrap: true,
-                                      overflow: TextOverflow.visible,
-                                      style: const TextStyle(
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.bold,
-                                        color: Color(0xFF1E3A8A),
-                                        fontStyle: FontStyle.italic,
-                                        height: 1.5,
-                                      ),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.auto_awesome,
+                                  color: AppColors.primary,
+                                  size: 22,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    (_aiData?['shortFeedback']?.toString() ?? "").isEmpty
+                                        ? "AI đang tổng hợp đánh giá chi tiết cho bạn..."
+                                        : _aiData!['shortFeedback'].toString(),
+                                    style: const TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFF1E3A8A),
+                                      fontStyle: FontStyle.italic,
+                                      height: 1.5,
                                     ),
                                   ),
-                                ],
-                              ),
-                            ),
-                          HtmlWidget(
-                            (_aiData?['detailedAssessment'] ??
-                                    '<p>Hệ thống ghi nhận kết quả bài làm thành công.</p>')
-                                .toString(),
-                            textStyle: const TextStyle(
-                              fontSize: 15,
-                              height: 1.8,
-                              color: Color(0xFF334155),
+                                ),
+                              ],
                             ),
                           ),
-                          const SizedBox(height: 4),
+                        HtmlWidget(
+                          (_aiData?['detailedAssessment'] ??
+                                  '<p>Hệ thống ghi nhận kết quả bài làm thành công.</p>')
+                              .toString(),
+                          textStyle: const TextStyle(
+                            fontSize: 15,
+                            height: 1.8,
+                            color: Color(0xFF334155),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                      ],
+                    ),
+            ),
 
-                          // Quick Action: View Detailed Explanation
-                        ],
-                      ),
-              ),
-        if (_aiData?['wrongQuestions'] != null &&
-            (_aiData?['wrongQuestions'] as List).isNotEmpty) ...[
-          const SizedBox(height: 24),
-          _buildQuickReviewPortal(_aiData?['wrongQuestions'] as List),
-        ],
-        if (_aiData?['vocabularyFlashcards'] != null &&
-            (_aiData?['vocabularyFlashcards'] as List).isNotEmpty) ...[
-          const SizedBox(height: 40),
-          _buildVocabularySection(_aiData?['vocabularyFlashcards'] as List),
-        ],
-
-        if (_recommendations.isNotEmpty) ...[
-          const SizedBox(height: 40),
-          _buildRecommendationsSection(),
-        ],
+      if (_aiData?['wrongQuestions'] != null &&
+          (_aiData?['wrongQuestions'] as List).isNotEmpty) ...[
+        const SizedBox(height: 32),
+        _buildQuickReviewPortal(_aiData?['wrongQuestions'] as List),
       ],
-    );
+
+      if (_aiData?['vocabularyFlashcards'] != null &&
+          (_aiData?['vocabularyFlashcards'] as List).isNotEmpty) ...[
+        const SizedBox(height: 40),
+        _buildVocabularySection(_aiData?['vocabularyFlashcards'] as List),
+      ],
+
+      if (_recommendations.isNotEmpty) ...[
+        const SizedBox(height: 40),
+        _buildRecommendationsSection(),
+      ],
+    ];
   }
 
   Widget _buildStrengthsWeaknesses(dynamic strengths, dynamic weaknesses) {
@@ -846,28 +979,51 @@ class _PracticeResultScreenState extends State<PracticeResultScreen> {
         // 1. Build robust userAnswers map and correctQuestionIds Set
         final Map<String, String> userAnswers = {};
         final Set<String> correctQuestionIds = {};
+        final Set<int> correctQuestionNumbers = {};
         
         for (var d in details) {
           // Precise ID extraction helper
-          final String qId = (d['questionId'] ?? d['question_id'] ?? (d['question'] != null ? d['question']['id'] : '')).toString();
+          final String qId = (d['questionId'] ?? d['question_id'] ?? (d['question'] != null ? d['question']['id'] : '')).toString().trim();
           if (qId.isEmpty) continue;
           
+          final qMap = d['question'] as Map<String, dynamic>?;
+          
+          // ROBUST NUMBER EXTRACTION
+          int parseInt(dynamic value) {
+            if (value == null) return -1;
+            if (value is int) return value;
+            return int.tryParse(value.toString()) ?? -1;
+          }
+          final int qNum = parseInt(qMap?['questionNumber'] ?? qMap?['question_number'] ?? qMap?['number']);
+          
           // Answer extraction
-          String answer = (d['userAnswer'] ?? d['user_answer'] ?? d['selectedOption'] ?? '').toString();
+          String answer = (d['userAnswer'] ?? d['user_answer'] ?? d['selectedOption'] ?? '').toString().trim();
           
           // isCorrect check
-          final bool isCorrect = d['isCorrect'] == true || d['is_correct'] == true;
+          // isCorrect check - ROBUST PARSING (String, Num, Bool)
+          bool parseBool(dynamic v) {
+            if (v == null) return false;
+            if (v is bool) return v;
+            if (v is num) return v == 1;
+            final s = v.toString().toLowerCase().trim();
+            return s == 'true' || s == '1' || s == 'yes';
+          }
+          final bool isCorrect = parseBool(d['isCorrect'] ?? d['is_correct']);
           if (isCorrect) {
             correctQuestionIds.add(qId);
+            if (qNum != -1 && qNum != 0) {
+              correctQuestionNumbers.add(qNum);
+            }
+            
             // Fallback: If backend says correct but no answer, suggest the correctAnswer
             if (answer.isEmpty) {
-              final qMap = d['question'] as Map<String, dynamic>?;
-              answer = (qMap?['correctAnswer'] ?? qMap?['correct_answer'] ?? '').toString();
+              answer = (qMap?['correctAnswer'] ?? qMap?['correct_answer'] ?? '').toString().trim();
             }
           }
           
           userAnswers[qId] = answer;
         }
+
 
         // 2. Map questions using the SAME ID extraction and defensive filtering
         final List<QuestionModel> questions = details
@@ -881,7 +1037,7 @@ class _PracticeResultScreenState extends State<PracticeResultScreen> {
             })
             .map((d) {
               final qMap = Map<String, dynamic>.from(d['question'] as Map);
-              qMap['id'] = (d['questionId'] ?? d['question_id'] ?? qMap['id'] ?? '').toString();
+              qMap['id'] = (d['questionId'] ?? d['question_id'] ?? qMap['id'] ?? '').toString().trim();
               return QuestionModel.fromJson(qMap);
             })
             .toList();
@@ -907,7 +1063,24 @@ class _PracticeResultScreenState extends State<PracticeResultScreen> {
                 partId: widget.part.id,
                 isReviewMode: true,
                 initialUserAnswers: userAnswers,
+                correctQuestionIds: correctQuestionIds,
+                correctQuestionNumbers: correctQuestionNumbers, // 🟢 Dual-Check
                 aiFeedbacks: _aiData?['questionFeedbacks'],
+              ),
+            ),
+          );
+        } else if (widget.part.partNumber == 2) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => Part2SimulationScreen(
+                questions: questions,
+                isReviewMode: true,
+                userAnswers: userAnswers,
+                correctQuestionIds: correctQuestionIds,
+                correctQuestionNumbers: correctQuestionNumbers, // 🟢 Dual-Check
+                aiFeedbacks: _aiData?['questionFeedbacks'],
+                partAudioUrl: widget.part.audioUrl,
               ),
             ),
           );
@@ -919,7 +1092,8 @@ class _PracticeResultScreenState extends State<PracticeResultScreen> {
                 questions: questions,
                 userAnswers: userAnswers,
                 flaggedQuestions: (widget.resultData['flaggedQuestions'] as List?)?.cast<String>() ?? [],
-                correctQuestionIds: correctQuestionIds, // PRE-CALCULATED FROM DB
+                correctQuestionIds: correctQuestionIds,
+                correctQuestionNumbers: correctQuestionNumbers, // 🟢 Dual-Check
                 partNumber: widget.part.partNumber,
                 aiFeedbacks: _aiData?['questionFeedbacks'],
               ),
@@ -965,139 +1139,6 @@ class _PracticeResultScreenState extends State<PracticeResultScreen> {
     );
   }
 
-  Widget _buildActionButtons(String? classId) {
-    return Column(
-      children: [
-        Row(
-          children: [
-            Expanded(
-              flex: 3,
-              child: Container(
-                height: 56,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: AppShadows.premiumShadow,
-                ),
-                child: ElevatedButton.icon(
-                  onPressed: _handleReview,
-                  icon: _isLoadingDetail
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Icon(Icons.visibility_rounded),
-                  label: Text(
-                    _isLoadingDetail ? 'ĐANG TẢI...' : 'XEM LỜI GIẢI',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w900,
-                      fontSize: 13,
-                      letterSpacing: 0.5,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    elevation: 0,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              flex: 2,
-              child: Container(
-                height: 56,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: OutlinedButton.icon(
-                  onPressed: _showRetryConfirmation,
-                  icon: const Icon(Icons.refresh_rounded, size: 20),
-                  label: const Text(
-                    'LÀM LẠI',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.primary,
-                    side: const BorderSide(color: Color(0xFFE2E8F0), width: 2),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    backgroundColor: Colors.white,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-        if (classId != null) ...[
-          const SizedBox(height: 12),
-          Container(
-            width: double.infinity,
-            height: 52,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              color: Colors.white,
-              border: Border.all(
-                color: AppColors.primary.withValues(alpha: 0.2),
-              ),
-            ),
-            child: TextButton.icon(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const ClassFeedbackScreen(),
-                  ),
-                );
-              },
-              icon: const Icon(
-                Icons.chat_bubble_outline_rounded,
-                size: 20,
-                color: AppColors.primary,
-              ),
-              label: const FittedBox(
-                child: Text(
-                  'Ý KIẾN GIÁO VIÊN',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                    color: AppColors.primary,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-        const SizedBox(height: 24),
-        TextButton(
-          onPressed: _onBack,
-          child: const Text(
-            'Quay lại danh sách bài tập',
-            style: TextStyle(
-              color: AppColors.textSecondary,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
 
   Widget _buildRecommendationsSection() {
     return Column(
@@ -1120,150 +1161,7 @@ class _PracticeResultScreenState extends State<PracticeResultScreen> {
     );
   }
 
-  Widget _buildTopicStatsSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildSectionTitle('Điểm mạnh theo chủ đề'),
-        const SizedBox(height: 16),
-        ..._topicStats.entries.map((entry) {
-          final String topic = entry.key == 'Tổng quát'
-              ? 'Kỹ năng tổng hợp'
-              : entry.key;
-          final int correct = entry.value['correct'] ?? 0;
-          final int total = entry.value['total'] ?? 0;
-          final double percent = total > 0 ? correct / total : 0;
 
-          final Color themeColor = percent >= 0.7
-              ? AppColors.success
-              : (percent >= 0.4 ? Colors.orange : AppColors.error);
-
-          return Container(
-            margin: const EdgeInsets.only(bottom: 12),
-            child: Material(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              elevation: 0,
-              child: InkWell(
-                onTap: () => _handleReview(filterTopic: entry.key),
-                borderRadius: BorderRadius.circular(20),
-                child: Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: themeColor.withValues(alpha: 0.1),
-                    ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color: themeColor.withValues(alpha: 0.1),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: Icon(
-                                  _getTopicIcon(entry.key),
-                                  size: 18,
-                                  color: themeColor,
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Text(
-                                  topic,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 15,
-                                    color: AppColors.textPrimary,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: themeColor.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text(
-                              '$correct/$total',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w900,
-                                color: themeColor,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(5),
-                        child: LinearProgressIndicator(
-                          value: percent,
-                          minHeight: 10,
-                          backgroundColor: AppColors.background,
-                          valueColor: AlwaysStoppedAnimation<Color>(themeColor),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            percent >= 0.7
-                                ? 'Hoàn thành tốt'
-                                : (percent >= 0.4
-                                      ? 'Cần cố gắng'
-                                      : 'Cần xem lại ngay'),
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                              color: themeColor,
-                            ),
-                          ),
-                          const Icon(
-                            Icons.arrow_forward_ios,
-                            size: 12,
-                            color: AppColors.textSecondary,
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          );
-        }),
-      ],
-    );
-  }
-
-  IconData _getTopicIcon(String topic) {
-    String t = topic.toLowerCase();
-    if (t.contains('ngữ pháp') || t.contains('grammar')) {
-      return Icons.architecture;
-    }
-    if (t.contains('từ vựng') || t.contains('vocab')) return Icons.translate;
-    if (t.contains('suy luận')) return Icons.psychology;
-    if (t.contains('ý chính')) return Icons.summarize;
-    return Icons.lightbulb_outline;
-  }
 
   Widget _buildRecommendationCard(Map<String, dynamic> rec) {
     return GestureDetector(

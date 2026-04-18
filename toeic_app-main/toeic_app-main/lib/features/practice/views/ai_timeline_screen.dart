@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:timelines/timelines.dart';
+import 'package:timelines_plus/timelines_plus.dart';
+import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
 import 'package:intl/intl.dart';
 import '../../../constants/app_constants.dart';
 import '../models/ai_assessment.dart';
 import '../viewmodels/ai_timeline_viewmodel.dart';
 import '../../auth/viewmodels/auth_viewmodel.dart';
+import 'ai_assessment_detail_screen.dart';
 
 class AiTimelineScreen extends StatefulWidget {
   const AiTimelineScreen({super.key});
@@ -52,12 +54,17 @@ class _AiTimelineScreenState extends State<AiTimelineScreen> {
           ? AppColors.background 
           : AppColors.darkBackground,
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+          onPressed: () => Navigator.pop(context),
+        ),
         title: const Text('Lộ trình tư vấn AI'),
         flexibleSpace: Container(
           decoration: const BoxDecoration(
             gradient: AppColors.premiumGradient,
           ),
         ),
+        foregroundColor: Colors.white,
       ),
       body: Consumer<AiTimelineViewModel>(
         builder: (context, viewModel, child) {
@@ -197,6 +204,10 @@ class _AiTimelineScreenState extends State<AiTimelineScreen> {
         color = AppColors.secondary;
         icon = Icons.book_outlined;
         break;
+      case AiAssessmentType.roadmap:
+        color = Colors.green;
+        icon = Icons.flag;
+        break;
     }
 
     return DotIndicator(
@@ -215,6 +226,7 @@ class _AiTimelineScreenState extends State<AiTimelineScreen> {
       case AiAssessmentType.performance: accentColor = AppColors.info; break;
       case AiAssessmentType.coaching: accentColor = AppColors.warning; break;
       case AiAssessmentType.explanation: accentColor = AppColors.secondary; break;
+      case AiAssessmentType.roadmap: accentColor = Colors.green; break;
     }
 
     return Padding(
@@ -235,7 +247,12 @@ class _AiTimelineScreenState extends State<AiTimelineScreen> {
             color: Colors.transparent,
             child: InkWell(
               onTap: () {
-                // Future Detail View
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => AiAssessmentDetailScreen(assessment: assessment),
+                  ),
+                );
               },
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
@@ -273,15 +290,14 @@ class _AiTimelineScreenState extends State<AiTimelineScreen> {
                       ],
                     ),
                     const SizedBox(height: 8),
-                    Text(
+                    HtmlWidget(
                       assessment.summary,
-                      style: TextStyle(
+                      textStyle: TextStyle(
+                        fontSize: 14,
                         color: Theme.of(context).brightness == Brightness.light
                             ? AppColors.textSecondary
                             : Colors.white70,
                       ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 12),
                     Row(

@@ -1,19 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import {
     Table, Button, Card, Typography, Space, Modal, Form,
-    Input, Select, message, Popconfirm, Tag, Tooltip, Avatar,
+    Input, Select, message, Tag, Tooltip, Avatar,
     Row, Col, Drawer
 } from 'antd';
 import {
     PlusOutlined, EditOutlined,
     UserOutlined, TeamOutlined, BookOutlined,
-    SearchOutlined, ReloadOutlined, LockOutlined,
-    EyeOutlined, DownloadOutlined
+    SearchOutlined, ReloadOutlined,
+    EyeOutlined, DownloadOutlined,
+    LockOutlined, UnlockOutlined
 } from '@ant-design/icons';
 import { classApi, userApi } from '../services/api';
 import type { Class, User } from '../services/api';
 
-const { Text } = Typography;
+const { Text, Title } = Typography;
 
 const modernShadow = '0 10px 30px -5px rgba(15, 23, 42, 0.05)';
 
@@ -29,6 +30,11 @@ const ClassManagement: React.FC = () => {
     const [selectedClass, setSelectedClass] = useState<Class | null>(null);
     const [students, setStudents] = useState<any[]>([]);
     const [loadingStudents, setLoadingStudents] = useState(false);
+
+    // HR Management states
+    const [availableStudents, setAvailableStudents] = useState<any[]>([]);
+    const [searchingStudents, setSearchingStudents] = useState(false);
+    const [selectedStudentToAdd, setSelectedStudentToAdd] = useState<string | null>(null);
 
     // Fetch data
     const fetchData = async () => {
@@ -59,7 +65,9 @@ const ClassManagement: React.FC = () => {
                 className: record.className,
                 classCode: record.classCode,
                 description: record.description,
-                teacherId: record.teacher?.id || record.teacherId
+                teacherId: record.teacher?.id || record.teacherId,
+                maxCapacity: record.maxCapacity || 30,
+                status: record.status
             });
         } else {
             setEditingClass(null);
@@ -91,19 +99,17 @@ const ClassManagement: React.FC = () => {
         }
     };
 
-    const handleToggleStatus = async (id: string, currentStatus: string) => {
-        const newStatus = currentStatus === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
+    const handleUpdateStatus = async (id: string, status: string, className: string) => {
         try {
-            const res = await classApi.toggleStatus(id, newStatus as any);
+            const res = await classApi.toggleStatus(id, status as any);
             if (res.success) {
-                message.success(res.message);
-                setSearchText(''); // Clear search
+                message.success(`Đã chuyển trạng thái lớp ${className} thành ${status}`);
                 fetchData();
             } else {
-                message.error(res.message || 'Có lỗi xảy ra');
+                message.error(res.message || 'Lỗi khi cập nhật trạng thái');
             }
         } catch (error) {
-            message.error('Lỗi khi cập nhật trạng thái lớp học');
+            message.error('Lỗi hệ thống');
         }
     };
 
@@ -128,7 +134,7 @@ const ClassManagement: React.FC = () => {
 
     const handleExportExcel = async (classId: string, className: string) => {
         try {
-            const messageHide = message.loading('Đang xuất báo cáo Excel...', 0);
+            const messageHide = message.loading('Đang xuất file Excel...', 0);
             const blob = await classApi.exportClassPerformance(classId);
             messageHide();
 
@@ -141,10 +147,57 @@ const ClassManagement: React.FC = () => {
             link.parentNode?.removeChild(link);
             window.URL.revokeObjectURL(url);
 
-            message.success('Xuất báo cáo thành công!');
+            message.success('Xuất file thành công!');
         } catch (error) {
             console.error(error);
-            message.error('Lỗi khi xuất báo cáo Excel');
+            message.error('Lỗi khi xuất file Excel');
+        }
+    };
+
+    const fetchAvailableStudents = async (search: string = '') => {
+        setSearchingStudents(true);
+        try {
+            const res = await classApi.getAvailableStudents(search);
+            if (res.success) {
+                setAvailableStudents(res.data);
+            }
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setSearchingStudents(false);
+        }
+    };
+
+    const handleAddStudent = async () => {
+        if (!selectedStudentToAdd || !selectedClass) return;
+        try {
+            const res = await classApi.addStudent(selectedClass.id, selectedStudentToAdd);
+            if (res.success) {
+                message.success('Đã thêm học viên vào lớp');
+                setSelectedStudentToAdd(null);
+                handleViewStudents(selectedClass); // Refresh student list
+                fetchData(); // Refresh class list to update counts
+            } else {
+                message.error(res.message);
+            }
+        } catch (error) {
+            message.error('Lỗi khi thêm học viên');
+        }
+    };
+
+    const handleRemoveStudent = async (studentId: string) => {
+        if (!selectedClass) return;
+        try {
+            const res = await classApi.removeStudent(selectedClass.id, studentId);
+            if (res.success) {
+                message.success('Đã mời học viên ra khỏi lớp');
+                handleViewStudents(selectedClass); // Refresh list
+                fetchData(); // Refresh counts
+            } else {
+                message.error(res.message);
+            }
+        } catch (error) {
+            message.error('Lỗi hệ thống');
         }
     };
 
@@ -172,10 +225,10 @@ const ClassManagement: React.FC = () => {
             key: 'teacher',
             render: (_: any, record: Class) => (
                 <Space>
-                    <Avatar 
-                        size="small" 
+                    <Avatar
+                        size="small"
                         src={record.teacher?.avatarUrl ? (record.teacher.avatarUrl.startsWith('http') ? record.teacher.avatarUrl : `http://localhost:3000${record.teacher.avatarUrl}`) : undefined}
-                        icon={<UserOutlined />} 
+                        icon={<UserOutlined />}
                     />
                     <span>{record.teacher?.name || 'Chưa gán'}</span>
                 </Space>
@@ -197,12 +250,18 @@ const ClassManagement: React.FC = () => {
             title: 'Trạng thái',
             dataIndex: 'status',
             key: 'status',
-            width: 130,
-            render: (status: string) => (
-                <Tag color={status === 'ACTIVE' ? 'success' : 'default'} style={{ borderRadius: 6, fontWeight: 500 }}>
-                    {status === 'ACTIVE' ? 'Đang hoạt động' : 'Tạm dừng'}
-                </Tag>
-            ),
+            width: 150,
+            render: (status: string) => {
+                let color = 'default';
+                let text = 'N/A';
+                switch (status) {
+                    case 'ACTIVE': color = 'success'; text = 'Đang hoạt động'; break;
+                    case 'INACTIVE': color = 'default'; text = 'Tạm dừng'; break;
+                    case 'LOCKED': color = 'warning'; text = 'Đã khóa'; break;
+                    case 'ARCHIVED': color = 'error'; text = 'Đã lưu trữ'; break;
+                }
+                return <Tag color={color} style={{ borderRadius: 6, fontWeight: 500 }}>{text}</Tag>;
+            },
         },
         {
             title: 'Hành động',
@@ -225,27 +284,24 @@ const ClassManagement: React.FC = () => {
                             onClick={() => handleOpenModal(record)}
                         />
                     </Tooltip>
-                    <Popconfirm
-                        title={record.status === 'ACTIVE' ? "Tạm dừng lớp học này?" : "Kích hoạt lại lớp học này?"}
-                        description={`Bạn có chắc muốn ${record.status === 'ACTIVE' ? 'tạm dừng' : 'kích hoạt'} lớp ${record.className}?`}
-                        onConfirm={() => handleToggleStatus(record.id, record.status)}
-                        okText="Xác nhận"
-                        cancelText="Hủy"
-                        okButtonProps={{ danger: record.status === 'ACTIVE' }}
-                    >
-                        <Tooltip title={record.status === 'ACTIVE' ? "Tạm dừng" : "Kích hoạt"}>
-                            <Button
-                                type="text"
-                                danger={record.status === 'ACTIVE'}
-                                style={{ 
-                                    background: record.status === 'ACTIVE' ? '#FEE2E2' : '#EFF6FF', 
-                                    color: record.status === 'ACTIVE' ? '#DC2626' : '#2563EB',
-                                    borderRadius: '8px' 
-                                }}
-                                icon={record.status === 'ACTIVE' ? <LockOutlined /> : <ReloadOutlined />}
-                            />
-                        </Tooltip>
-                    </Popconfirm>
+                    <Tooltip title={record.status === 'LOCKED' ? "Mở khóa lớp" : "Khóa lớp"}>
+                        <Button
+                            type="text"
+                            style={{
+                                background: record.status === 'LOCKED' ? '#FEF3C7' : '#FFEDD5',
+                                borderRadius: '8px'
+                            }}
+                            icon={record.status === 'LOCKED' ?
+                                <UnlockOutlined style={{ color: '#D97706' }} /> :
+                                <LockOutlined style={{ color: '#EA580C' }} />
+                            }
+                            onClick={() => handleUpdateStatus(
+                                record.id,
+                                record.status === 'LOCKED' ? 'ACTIVE' : 'LOCKED',
+                                record.className
+                            )}
+                        />
+                    </Tooltip>
                 </Space>
             ),
             width: 150,
@@ -261,10 +317,10 @@ const ClassManagement: React.FC = () => {
         },
         {
             title: 'Mã HV',
-            dataIndex: 'username', // In User schema it is username
+            dataIndex: 'username',
             key: 'username',
             width: 120,
-            render: (text: string) => <Tag color="blue" style={{ borderRadius: 6, fontWeight: 500, border: 'none', padding: '2px 10px' }}>{text || '-'}</Tag>
+            render: (text: string) => <Tag color="blue" style={{ borderRadius: 6, fontWeight: 500 }}>{text || '-'}</Tag>
         },
         {
             title: 'Họ và tên',
@@ -292,68 +348,145 @@ const ClassManagement: React.FC = () => {
             key: 'estimatedScore',
             align: 'center' as const,
             render: (val: number) => <Tag color="volcano" style={{ fontWeight: 'bold' }}>{val || 0}</Tag>
+        },
+        {
+            title: 'Hành động',
+            key: 'action',
+            width: 80,
+            render: (_: any, record: any) => (
+                <Tooltip title="Xóa">
+                    <Button
+                        type="link"
+                        danger
+                        style={{ padding: 0, fontWeight: 600 }}
+                        onClick={() => {
+                            Modal.confirm({
+                                title: 'Xác nhận mời học viên ra khỏi lớp?',
+                                content: `Bạn có chắc chắn muốn xóa học viên ${record.name} khỏi lớp này không?`,
+                                okText: 'Đồng ý',
+                                okType: 'danger',
+                                cancelText: 'Hủy',
+                                onOk: () => handleRemoveStudent(record.id)
+                            });
+                        }}
+                    />
+                </Tooltip>
+            )
         }
     ];
 
     const stats = {
         totalClasses: classes.length,
-        totalStudents: classes.reduce((acc, c: any) => acc + (c.studentCount || 0), 0),
-        activeTeachers: new Set(classes.map((c: any) => c.teacher?.id).filter(id => id)).size
+        totalStudents: classes.reduce((acc: number, c: any) => acc + (c.studentCount || 0), 0),
+        activeTeachers: new Set(classes.map((c: any) => c.teacher?.id).filter(id => id)).size,
+        activeClasses: classes.filter(c => c.status === 'ACTIVE').length,
     };
+
+    const teacherMetrics = teachers.map((t: any) => {
+        const myClasses = classes.filter(c => c.teacherId === t.id || c.teacher?.id === t.id);
+        const totalStudents = myClasses.reduce((acc: number, c) => acc + (c.studentCount || 0), 0);
+        return {
+            ...t,
+            classCount: myClasses.length,
+            studentCount: totalStudents
+        };
+    }).sort((a: any, b: any) => b.classCount - a.classCount);
+
+    const teacherColumns = [
+        {
+            title: 'Giáo viên',
+            key: 'teacher',
+            render: (t: any) => (
+                <Space>
+                    <Avatar src={t.avatarUrl} icon={<UserOutlined />} />
+                    <Text strong>{t.name}</Text>
+                </Space>
+            )
+        },
+        {
+            title: 'Số lớp',
+            dataIndex: 'classCount',
+            key: 'classCount',
+            align: 'center' as const,
+            render: (count: number) => <Tag color="blue">{count} lớp</Tag>
+        },
+        {
+            title: 'Tổng học viên',
+            dataIndex: 'studentCount',
+            key: 'studentCount',
+            align: 'center' as const,
+            render: (count: number) => <Tag color="green">{count} HV</Tag>
+        }
+    ];
 
     return (
         <div style={{ padding: '24px', background: '#F8FAFC', minHeight: '100vh' }}>
-
             {/* Statistics Cards */}
             <Row gutter={24} style={{ marginBottom: 32 }}>
-                {[
-                    { title: 'Tổng số lớp', value: stats.totalClasses, icon: <BookOutlined />, color: '#1D4ED8', bg: 'linear-gradient(135deg, #DBEAFE 0%, #EFF6FF 100%)' },
-                    { title: 'Tổng học viên', value: stats.totalStudents, icon: <TeamOutlined />, color: '#047857', bg: 'linear-gradient(135deg, #D1FAE5 0%, #ECFDF5 100%)' },
-                    { title: 'Giáo viên phụ trách', value: stats.activeTeachers, icon: <UserOutlined />, color: '#B91C1C', bg: 'linear-gradient(135deg, #FEE2E2 0%, #FEF2F2 100%)' },
-                ].map((item, index) => (
-                    <Col xs={24} sm={12} md={8} key={index}>
-                        <Card
-                            hoverable
-                            style={{
-                                borderRadius: 24,
-                                border: 'none',
-                                background: '#FFFFFF',
-                                boxShadow: modernShadow,
-                                transition: 'all 0.3s ease'
-                            }}
-                            bodyStyle={{ padding: '24px' }}
-                        >
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-                                <div style={{
-                                    width: 64,
-                                    height: 64,
-                                    borderRadius: 18,
-                                    background: item.bg,
-                                    color: item.color,
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    fontSize: 28,
-                                    boxShadow: 'inset 0 2px 4px rgba(255,255,255,0.5)'
-                                }}>
-                                    {item.icon}
-                                </div>
-                                <div>
-                                    <div style={{ fontWeight: 600, color: '#64748B', textTransform: 'uppercase', fontSize: 12, letterSpacing: '0.5px', marginBottom: 4 }}>
-                                        {item.title}
-                                    </div>
-                                    <div style={{ color: '#0F172A', fontWeight: 700, fontSize: 28, lineHeight: 1 }}>
-                                        {item.value}
+                <Col xs={24} lg={16}>
+                    <Card
+                        title={<span style={{ fontWeight: 800, color: '#1E293B' }}>📊 TỔNG QUAN HỆ THỐNG</span>}
+                        styles={{ body: { padding: '24px' } }}
+                        style={{ borderRadius: 24, border: 'none', boxShadow: modernShadow, height: '100%' }}
+                    >
+                        <Row gutter={24}>
+                            <Col span={8}>
+                                <div style={{ textAlign: 'center' }}>
+                                    <div style={{ color: '#64748B', fontSize: 12, fontWeight: 600, marginBottom: 8 }}>TỔNG LỚP HỌC</div>
+                                    <div style={{ fontSize: 32, fontWeight: 800, color: '#2563EB' }}>{stats.totalClasses}</div>
+                                    <div style={{ marginTop: 8 }}>
+                                        <Tag color="success" style={{ borderRadius: 10 }}>{stats.activeClasses} đang mở</Tag>
                                     </div>
                                 </div>
-                            </div>
-                        </Card>
-                    </Col>
-                ))}
+                            </Col>
+                            <Col span={8}>
+                                <div style={{ textAlign: 'center', borderLeft: '1px solid #E2E8F0', borderRight: '1px solid #E2E8F0' }}>
+                                    <div style={{ color: '#64748B', fontSize: 12, fontWeight: 600, marginBottom: 8 }}>TỔNG HỌC VIÊN</div>
+                                    <div style={{ fontSize: 32, fontWeight: 800, color: '#059669' }}>{stats.totalStudents}</div>
+                                    <div style={{ marginTop: 8 }}>
+                                        <Text type="secondary" style={{ fontSize: 12 }}>~{(stats.totalStudents / (stats.totalClasses || 1)).toFixed(1)} HV/lớp</Text>
+                                    </div>
+                                </div>
+                            </Col>
+                            <Col span={8}>
+                                <div style={{ textAlign: 'center' }}>
+                                    <div style={{ color: '#64748B', fontSize: 12, fontWeight: 600, marginBottom: 8 }}>ĐỘI NGŨ GV</div>
+                                    <div style={{ fontSize: 32, fontWeight: 800, color: '#DC2626' }}>{stats.activeTeachers}</div>
+                                    <div style={{ marginTop: 8 }}>
+                                        {teacherMetrics.length > 0 && (
+                                            <Tooltip title={`GV bận nhất: ${teacherMetrics[0].name}`}>
+                                                <Avatar.Group size="small">
+                                                    {teacherMetrics.slice(0, 3).map((t: any) => (
+                                                        <Avatar key={t.id} src={t.avatarUrl} icon={<UserOutlined />} />
+                                                    ))}
+                                                    {teacherMetrics.length > 3 && <Avatar style={{ backgroundColor: '#f56a00' }}>+{teacherMetrics.length - 3}</Avatar>}
+                                                </Avatar.Group>
+                                            </Tooltip>
+                                        )}
+                                    </div>
+                                </div>
+                            </Col>
+                        </Row>
+                    </Card>
+                </Col>
+                <Col xs={24} lg={8}>
+                    <Card
+                        title={<span style={{ fontWeight: 800, color: '#1E293B' }}>👩‍🏫 HIỆU SUẤT GIÁO VIÊN</span>}
+                        styles={{ body: { padding: 0 } }}
+                        style={{ borderRadius: 24, border: 'none', boxShadow: modernShadow, height: '100%' }}
+                    >
+                        <Table
+                            dataSource={teacherMetrics.slice(0, 4)}
+                            columns={teacherColumns}
+                            pagination={false}
+                            size="small"
+                            rowKey="id"
+                        />
+                    </Card>
+                </Col>
             </Row>
 
-            {/* Primary Action */}
-            <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'flex-start' }}>
+            <div style={{ marginBottom: 16 }}>
                 <Button
                     type="primary"
                     icon={<PlusOutlined />}
@@ -373,40 +506,36 @@ const ClassManagement: React.FC = () => {
                 </Button>
             </div>
 
-            {/* Actions & Filters */}
             <Card
                 style={{
                     marginBottom: 24,
                     borderRadius: 20,
                     border: 'none',
-                    background: '#FFFFFF',
                     boxShadow: modernShadow
                 }}
-                bodyStyle={{ padding: '20px 24px' }}
+                styles={{ body: { padding: '20px 24px' } }}
             >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
-                    <Space size="middle" wrap>
-                        <Input
-                            placeholder="Tìm kiếm theo tên lớp hoặc mã lớp..."
-                            prefix={<SearchOutlined style={{ color: '#94A3B8' }} />}
-                            size="large"
-                            onChange={e => setSearchText(e.target.value)}
-                            style={{ width: 320, borderRadius: 8 }}
-                        />
-                        <Button
-                            size="large"
-                            icon={<ReloadOutlined />}
-                            onClick={fetchData}
-                            loading={loading}
-                            style={{ borderRadius: '10px', color: '#475569', fontWeight: 600 }}
-                        >
-                            Làm mới
-                        </Button>
-                    </Space>
-                </div>
+                <Space size="middle">
+                    <Input
+                        placeholder="Tìm kiếm theo tên lớp hoặc mã lớp..."
+                        prefix={<SearchOutlined style={{ color: '#94A3B8' }} />}
+                        size="large"
+                        allowClear
+                        onChange={e => setSearchText(e.target.value)}
+                        style={{ width: 320, borderRadius: 8 }}
+                    />
+                    <Button
+                        size="large"
+                        icon={<ReloadOutlined />}
+                        onClick={fetchData}
+                        loading={loading}
+                        style={{ borderRadius: '10px' }}
+                    >
+                        Làm mới
+                    </Button>
+                </Space>
             </Card>
 
-            {/* Table Area */}
             <Card
                 style={{
                     borderRadius: 20,
@@ -414,103 +543,56 @@ const ClassManagement: React.FC = () => {
                     boxShadow: modernShadow,
                     overflow: 'hidden'
                 }}
-                bodyStyle={{ padding: 0 }}
+                styles={{ body: { padding: 0 } }}
             >
                 <Table
                     columns={columns}
                     dataSource={filteredClasses}
                     rowKey="id"
                     loading={loading}
-                    pagination={{
-                        pageSize: 10,
-                        showSizeChanger: true,
-                        showTotal: (total) => <span style={{ fontWeight: 600 }}>Tổng {total} lớp học</span>,
-                        style: { padding: '16px 24px', margin: 0 }
-                    }}
+                    pagination={{ pageSize: 10 }}
                     scroll={{ x: 'max-content' }}
                 />
             </Card>
 
             <Modal
-                title={
-                    <Space style={{ marginBottom: 8 }}>
-                        <div style={{
-                            width: 36,
-                            height: 36,
-                            borderRadius: 10,
-                            background: editingClass ? 'linear-gradient(135deg, #10B981 0%, #059669 100%)' : 'linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            color: '#fff',
-                            fontSize: 18,
-                            boxShadow: editingClass ? '0 4px 10px rgba(16, 185, 129, 0.2)' : '0 4px 10px rgba(59, 130, 246, 0.2)'
-                        }}>
-                            {editingClass ? <EditOutlined /> : <PlusOutlined />}
-                        </div>
-                        <span style={{ fontSize: 20, color: '#1E293B', fontWeight: 800 }}>{editingClass ? 'Chỉnh sửa lớp học' : 'Thêm lớp học mới'}</span>
-                    </Space>
-                }
+                title={<Title level={4}>{editingClass ? 'Chỉnh sửa lớp học' : 'Thêm lớp học mới'}</Title>}
                 open={modalVisible}
                 onOk={handleSubmit}
                 onCancel={() => setModalVisible(false)}
                 okText={editingClass ? 'Cập nhật' : 'Tạo mới'}
                 cancelText="Hủy"
-                centered
-                width={850}
-                okButtonProps={{
-                    style: {
-                        borderRadius: 10,
-                        background: editingClass ? 'linear-gradient(135deg, #10B981 0%, #059669 100%)' : 'linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)',
-                        border: 'none',
-                        height: 40,
-                        padding: '0 24px',
-                        fontWeight: 600,
-                        boxShadow: editingClass ? '0 4px 14px rgba(16, 185, 129, 0.35)' : '0 4px 14px rgba(59, 130, 246, 0.35)'
-                    }
-                }}
-                cancelButtonProps={{ style: { borderRadius: 10, height: 40 } }}
+                width={800}
             >
-                <Form
-                    form={form}
-                    layout="vertical"
-                    style={{ marginTop: 24 }}
-                >
-                    <Row gutter={24}>
+                <Form form={form} layout="vertical">
+                    <Row gutter={16}>
                         <Col span={12}>
-                            <Form.Item
-                                label={<span style={{ fontWeight: 600, color: '#475569' }}>Tên lớp học</span>}
-                                name="className"
-                                rules={[{ required: true, message: 'Vui lòng nhập tên lớp' }]}
-                            >
-                                <Input 
-                                    placeholder="Ví dụ: TOEIC 650+ Target" 
-                                    size="large" 
-                                    prefix={<BookOutlined style={{ color: '#94A3B8' }} />}
-                                    style={{ borderRadius: 10 }} 
-                                />
+                            <Form.Item label="Tên lớp học" name="className" rules={[{ required: true }]}>
+                                <Input prefix={<BookOutlined />} placeholder="Ví dụ: TOEIC 650+" />
                             </Form.Item>
                         </Col>
                         <Col span={12}>
-                            <Form.Item
-                                label={<span style={{ fontWeight: 600, color: '#475569' }}>Giáo viên phụ trách</span>}
-                                name="teacherId"
-                                rules={[{ required: true, message: 'Vui lòng chọn giáo viên' }]}
-                            >
-                                <Select 
-                                    placeholder="Chọn giáo viên" 
-                                    size="large" 
-                                    style={{ borderRadius: 10 }}
-                                    showSearch
-                                    optionFilterProp="label"
-                                    filterOption={(input, option) =>
-                                        (String(option?.label) ?? '').toLowerCase().includes(input.toLowerCase())
-                                    }
-                                    options={teachers.map(t => ({
-                                        value: t.id,
-                                        label: `${t.name} (${t.username || 'N/A'})`
-                                    }))}
-                                />
+                            <Form.Item label="Giáo viên" name="teacherId" rules={[{ required: true }]}>
+                                <Select placeholder="Chọn giáo viên">
+                                    {teachers.map(t => (
+                                        <Select.Option key={t.id} value={t.id}>{t.name}</Select.Option>
+                                    ))}
+                                </Select>
+                            </Form.Item>
+                        </Col>
+                    </Row>
+                    <Row gutter={16}>
+                        <Col span={12}>
+                            <Form.Item label="Sĩ số tối đa" name="maxCapacity" rules={[{ required: true }]}>
+                                <Input type="number" prefix={<TeamOutlined />} />
+                            </Form.Item>
+                        </Col>
+                        <Col span={12}>
+                            <Form.Item label="Trạng thái" name="status">
+                                <Select>
+                                    <Select.Option value="ACTIVE">Đang hoạt động</Select.Option>
+                                    <Select.Option value="LOCKED">Khóa</Select.Option>
+                                </Select>
                             </Form.Item>
                         </Col>
                     </Row>
@@ -525,18 +607,52 @@ const ClassManagement: React.FC = () => {
                             type="primary"
                             icon={<DownloadOutlined />}
                             onClick={() => selectedClass && handleExportExcel(selectedClass.id, selectedClass.className)}
-                            style={{ background: '#10B981', borderColor: '#10B981', borderRadius: 8, marginRight: 24, height: 40, fontWeight: 600 }}
+                            style={{ background: '#10B981', borderRadius: 8 }}
                         >
-                            Xuất báo cáo Excel
+                            Xuất Excel
                         </Button>
                     </div>
                 }
                 placement="right"
-                width={850}
+                size="large"
                 onClose={() => setDrawerVisible(false)}
                 open={drawerVisible}
-                headerStyle={{ borderBottom: '1px solid #F1F5F9' }}
+                styles={{ body: { padding: '24px' } }}
             >
+                <Card
+                    variant="borderless"
+                    style={{ background: '#F8FAFC', borderRadius: 16, marginBottom: 24 }}
+                    styles={{ body: { padding: '20px' } }}
+                >
+                    <Title level={5} style={{ marginBottom: 16, fontSize: 14 }}>THÊM HỌC VIÊN</Title>
+                    <Space.Compact style={{ width: '100%' }}>
+                        <Select
+                            showSearch
+                            allowClear
+                            placeholder="Nhập tên học viên..."
+                            style={{ flex: 1 }}
+                            size="large"
+                            value={selectedStudentToAdd}
+                            onChange={setSelectedStudentToAdd}
+                            onSearch={fetchAvailableStudents}
+                            onFocus={() => fetchAvailableStudents()}
+                            loading={searchingStudents}
+                            filterOption={false}
+                        >
+                            {availableStudents.map(s => (
+                                <Select.Option key={s.id} value={s.id}>
+                                    <Space>
+                                        <Avatar size="small" src={s.avatarUrl} icon={<UserOutlined />} />
+                                        <span>{s.name} ({s.username})</span>
+                                    </Space>
+                                </Select.Option>
+                            ))}
+                        </Select>
+                        <Button type="primary" size="large" onClick={handleAddStudent} disabled={!selectedStudentToAdd}>Thêm</Button>
+                    </Space.Compact>
+                </Card>
+
+                <Title level={5} style={{ fontSize: 14, marginBottom: 16 }}>HỌC VIÊN HIỆN TẠI</Title>
                 <Table
                     columns={studentColumns}
                     dataSource={students}

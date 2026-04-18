@@ -12,7 +12,11 @@ import {
     enrichPart5Question,
     enrichPart5Batch,
     getAiTimeline,
-    assessStudentRoadmap
+    assessStudentRoadmap,
+    publishRoadmap,
+    updateRoadmap,
+    exportRoadmapPdf,
+    getAllRoadmaps
 } from '../controllers/ai.controller';
 import { authMiddleware } from '../middlewares/auth.middleware';
 import multer from 'multer';
@@ -40,5 +44,9 @@ router.post('/translate-word', authMiddleware, translateWord);
 // AI Timeline & Coaching Journey
 router.get('/timeline/:userId', authMiddleware, getAiTimeline);
 router.post('/assess-roadmap/:userId', authMiddleware, assessStudentRoadmap);
+router.patch('/update-roadmap/:id', authMiddleware, updateRoadmap);
+router.post('/publish-roadmap/:id', authMiddleware, publishRoadmap);
+router.get('/export-roadmap-pdf/:id', authMiddleware, exportRoadmapPdf);
+router.get('/roadmaps/admin/all', authMiddleware, getAllRoadmaps);
 
 export default router;

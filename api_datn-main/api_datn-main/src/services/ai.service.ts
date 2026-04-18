@@ -272,7 +272,8 @@ export const evaluateProgress = async (
     topicMatrixJson: string = '{}', 
     partName: string = 'Part 5',
     targetScore?: number,
-    isFullTest: boolean = false
+    isFullTest: boolean = false,
+    questionResultsJson: string = '[]' // NEW: Mapping of { id, questionNumber, isCorrect }
 ) => {
     const currentPercentage = Math.round((currentScore / totalQuestions) * 100);
     const timeMinutes = (timeTakenSeconds / 60).toFixed(1);
@@ -285,23 +286,21 @@ export const evaluateProgress = async (
             Bài thi: ${partName} ${isFullTest ? '(TOÀN BỘ ĐỀ THI - 200 CÂU)' : ''}
             Kết quả: ${currentScore}/${totalQuestions} (${currentPercentage}%) | Thời gian: ${timeMinutes}p
             MA TRẬN KIẾN THỨC (JSON): ${topicMatrixJson}
+            CHI TIẾT CÂU SAI (JSON): ${questionResultsJson}
         `;
 
         let prompt = `
             ${commonPromptContext}
             VAI TRÒ: Bạn là "Mentor Expert" - Huấn luyện viên TOEIC chuyên gia.
             
-            NHIỆM VỤ: ${isFullTest 
-                ? 'PHÂN TÍCH CHIẾN THUẬT TOÀN DIỆN. Dựa trên ma trận kiến thức, hãy lọc ra TOP 5 CHỦ ĐIỂM (Topic Tags) YẾU NHẤT của học viên trong bài thi này để tư vấn hành động.' 
-                : `Phân tích bài làm và đưa ra lời khuyên "chạm đúng chỗ ngứa" của học viên về ${isListening ? 'khả năng phản xạ âm thanh' : 'kỹ năng đọc hiểu'}.`}
+            NHIỆM VỤ: 
+            1. PHÂN TÍCH CHIẾN THUẬT: ${isFullTest 
+                ? 'Dựa trên ma trận kiến thức, hãy lọc ra TOP 5 CHỦ ĐIỂM (Topic Tags) YẾU NHẤT.' 
+                : `Phân tích khả năng ${isListening ? 'phản xạ âm thanh' : 'đọc hiểu'} và đưa ra lời khuyên "chạm đúng chỗ ngứa".`}
+            2. CÁ NHÂN HÓA PHẢN HỒI (BẮT BUỘC): Trả về mảng "questionFeedbacks" chứa các gợi ý cụ thể cho những câu học viên làm SAI.
             
             NGUYÊN TẮC "VOICE & TONE":
-            1. Ngôn ngữ: Tiếng Việt, chuyên nghiệp nhưng gần gũi.
-            2. "detailedAssessment": 
-               ${isFullTest 
-                 ? '- Nhận xét về sự phân bổ điểm giữa Listening/Reading.\n- Liệt kê rõ TOP 5 chủ điểm cần cải thiện ngay lập tức.\n- Đưa ra lộ trình ngắn hạn để bứt phá.' 
-                 : '- Sử dụng công thức "Sandwich" (Khen ngợi -> Chỉ ra lỗ hổng -> Hành động cụ thể). Viết 2-3 câu.'}
-            3. "weaknesses" & "strengths": Trả về tối đa 3-5 mục cụm từ ngắn < 5 chữ.
+            ... (giữ nguyên)
             
             OUTPUT JSON THUẦN TÚY:
             {
@@ -310,6 +309,9 @@ export const evaluateProgress = async (
                 "skills": { "grammar": 0-10, "vocabulary": 0-10, "inference": 0-10, "mainIdea": 0-10 },
                 "strengths": ["...", "...", "..."],
                 "weaknesses": ["...", "...", "..."],
+                "questionFeedbacks": [
+                   { "questionId": "ID_CÂU_HỎI", "questionNumber": 123, "comment": "Gửi lời khuyên cực ngắn cho câu này", "isCorrect": false }
+                ],
                 "vocabularyFlashcards": [],
                 "detailedAssessment": "..."
             }
@@ -333,6 +335,7 @@ export const evaluateProgress = async (
             skills: aiData.skills ?? { grammar: 5, vocabulary: 5, inference: 5, mainIdea: 5 },
             strengths: aiData.strengths?.slice(0, 3) ?? ["Nỗ lực bền bỉ"],
             weaknesses: aiData.weaknesses?.slice(0, 3) ?? (isPerfect ? ["Không có lỗi sai"] : ["Thiếu tập trung"]),
+            questionFeedbacks: aiData.questionFeedbacks ?? [],
             vocabularyFlashcards: aiData.vocabularyFlashcards ?? [],
             detailedAssessment: aiData.detailedAssessment ?? `<p>Bạn đã hoàn thành tốt <b>${partName}</b>. Hãy duy trì sự tập trung này nhé!</p>`
         };
@@ -845,33 +848,34 @@ export const generatePersonalizedRoadmapService = async (
     attemptHistory: any[]
 ) => {
     const prompt = `
-    VAI TRÒ: Bạn là một chuyên gia giáo dục TOEIC AI bậc cao.
-    NHIỆM VỤ: Phân tích lịch sử của học viên "${studentName}" và thiết kế một LỘ TRÌNH CÁ NHÂN HÓA (Personalized Study Plan) để đạt được mục tiêu ${targetScore} điểm.
+    VAI TRÒ: Bạn là một chuyên gia khảo thí và tư vấn lộ trình học thuật TOEIC AI.
+    
+    NHIỆM VỤ: Phân tích sâu sắc lịch sử học tập của học viên "${studentName}" để thiết kế một LỘ TRÌNH CÁ NHÂN HÓA (Strategic Roadmap) đạt mục tiêu ${targetScore} điểm.
 
     DỮ LIỆU ĐẦU VÀO:
-    - Điểm mục tiêu: ${targetScore}
-    - Điểm hiện tại (trung bình): ${currentScore}
-    - Lịch sử bài làm gần đây (JSON): ${JSON.stringify(attemptHistory.slice(0, 10))}
+    - Mục tiêu: ${targetScore}
+    - Năng lực hiện tại (Ước lượng tổng): ${currentScore}
+    - DỮ LIỆU ĐẦU VÀO (Lần làm bài mới nhất của từng Part 1-7): ${JSON.stringify(attemptHistory)}
 
-    YÊU CẦU PHÂN TÍCH:
-    1. Xác định 3 điểm mạnh nổi bật (Strengths).
-    2. Xác định 3 điểm yếu chí mạng cần khắc phục ngay (Weaknesses).
-    3. Đánh giá khoảng cách (Gap) tới mục tiêu: "Near", "Medium", "Far".
-    4. Thiết kế lộ trình gồm 3 GIAI ĐOẠN (Phases), mỗi giai đoạn ghi rõ:
-       - Tên giai đoạn (vd: "Củng cố nền tảng", "Tăng tốc Listening", "Luyện đề thực chiến").
-       - Thời gian dự kiến.
-       - Các chủ điểm (Topics) cần tập trung.
-       - Lời khuyên cụ thể từ chuyên gia.
+    YÊU CẦU PHÂN TÍCH CHUYÊN SÂU:
+    1. PHÂN TÍCH DIỆN MẠO NĂNG LỰC (Part-by-Part Analysis): Dựa vào bài làm mới nhất của từng Part, hãy chỉ rõ học viên đang mạnh/yếu ở Part nào. So sánh sự cân bằng giữa Khối Nghe (Part 1-4) và Khối Đọc (Part 5-7).
+    2. ĐIỂM MẠNH & ĐIỂM YẾU: Liệt kê tối thiểu 3 điểm mỗi loại. Điểm yếu phải chỉ rõ kỹ năng (vd: Part 5 ngữ pháp thì chia động từ, hay Part 7 đọc hiểu tìm thông tin chi tiết).
+    3. ĐO KHOẢNG CÁCH (Gap Analysis): Đánh giá học viên còn thiếu bao nhiêu % năng lực để chạm mục tiêu.
+
+    YÊU CẦU LỘ TRÌNH 3 GIAI ĐOẠN (The Success Roadmap):
+    - Giai đoạn 1 (Nền tảng): Tập trung vá các lỗ hổng chí mạng nhất từ lịch sử bài làm.
+    - Giai đoạn 2 (Tăng tốc): Mở rộng từ vựng và kỹ thuật làm bài theo các Part còn yếu.
+    - Giai đoạn 3 (Về đích): Chiến thuật quản lý thời gian và mẹo tránh bẫy để đạt mục tiêu.
+    *Mỗi giai đoạn phải có: Tên, Thời gian, Chủ điểm trọng tâm, và Lời khuyên "xương máu".*
 
     YÊU CẦU ĐỊNH DẠNG:
-    - Trả về JSON THUẦN TÚY.
-    - Ngôn ngữ: Tiếng Việt. Chuyên nghiệp, học thuật.
-    - TUYỆT ĐỐI KHÔNG sử dụng Emoji màu sắc. Sử dụng các ký tự đặc biệt như '•', '→', '【', '】' để nhấn mạnh.
+    - Trả về JSON THUẦN TÚY. Ngôn ngữ: Tiếng Việt (Học thuật, khích lệ).
+    - TUYỆT ĐỐI không dùng emoji màu sắc. Dùng các ký tự chuyên nghiệp: '•', '→', '【', '】'.
 
     SCHEMA JSON:
     {
-      "summary": "...", 
-      "gapStatus": "...", 
+      "summary": "Nhận xét tổng quan về xu hướng tiến bộ dựa trên lịch sử (tối thiểu 50 chữ)", 
+      "gapStatus": "Near | Medium | Far", 
       "strengths": ["...", "...", "..."],
       "weaknesses": ["...", "...", "..."],
       "roadmap": [
@@ -882,7 +886,8 @@ export const generatePersonalizedRoadmapService = async (
           "expertTips": "..."
         }
       ],
-      "estimatedTimeToTarget": "..."
+      "estimatedTimeToTarget": "...",
+      "targetScore": ${targetScore}
     }`;
 
     const result = await executeAITaskWithRetry({

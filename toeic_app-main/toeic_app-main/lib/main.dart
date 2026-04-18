@@ -18,6 +18,8 @@ import 'features/practice/viewmodels/feedback_viewmodel.dart';
 import 'features/class/viewmodels/class_material_viewmodel.dart';
 import 'l10n/app_localizations.dart';
 
+import 'features/notifications/viewmodels/notification_viewmodel.dart';
+
 void main() {
   runApp(const MyApp());
 }
@@ -40,6 +42,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => NavigationViewModel()),
         ChangeNotifierProvider(create: (_) => FeedbackViewModel()),
         ChangeNotifierProvider(create: (_) => ClassMaterialViewModel()),
+        ChangeNotifierProvider(create: (_) => NotificationViewModel()),
       ],
       child: Consumer2<ThemeViewModel, LanguageViewModel>(
         builder: (context, themeViewModel, languageViewModel, child) {

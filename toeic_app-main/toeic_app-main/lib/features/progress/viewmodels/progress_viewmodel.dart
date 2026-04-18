@@ -100,4 +100,39 @@ class ProgressViewModel extends ChangeNotifier {
       notifyListeners();
     }
   }
+
+  List<dynamic> _partHistory = [];
+  List<dynamic> get partHistory => _partHistory;
+
+  /// Tải lịch sử làm bài của một Part cụ thể
+  Future<void> loadPartHistory(String partId) async {
+    _isLoading = true;
+    _partHistory = [];
+    notifyListeners();
+
+    try {
+      final token = await _storageService.getToken();
+      if (token == null) throw Exception('Unauthorized');
+
+      final userId = await _storageService.getUserId();
+      if (userId == null) throw Exception('User ID not found');
+
+      final response = await _apiService.get(
+        '/practice/history/$userId/$partId',
+        headers: ApiConfig.headersWithAuth(token),
+      );
+
+      if (response['success'] == true) {
+        _partHistory = response['data'] ?? [];
+      } else {
+        throw Exception(response['message'] ?? 'Failed to fetch part history');
+      }
+    } catch (e) {
+      debugPrint('Error loading part history: $e');
+      _error = e.toString();
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
 }

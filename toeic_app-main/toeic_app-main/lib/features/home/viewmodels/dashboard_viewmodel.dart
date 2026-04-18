@@ -21,30 +21,49 @@ class DashboardViewModel extends ChangeNotifier {
   int get readingScore => _dashboardData?['user']?['estimatedReading'] ?? 0;
   int get streak => _dashboardData?['streak'] ?? 0;
   List<dynamic> get recentActivities => _dashboardData?['recentActivities'] ?? [];
+  List<dynamic> get learningTimeline => _dashboardData?['learningTimeline'] ?? [];
   List<dynamic> get recommendations => _dashboardData?['recommendations'] ?? [];
   Map<String, dynamic>? get resumeLearning => _dashboardData?['resumeLearning'];
   List<dynamic> get activityStats => _dashboardData?['activityStats'] ?? [];
 
-  /// Converts activityStats (last 7 days) → `Map<DateTime, int>` for heatmap.
-  /// Reconstructs real DateTime by counting back from today.
   Map<DateTime, int> get heatmapData {
     final stats = activityStats;
     if (stats.isEmpty) return {};
 
     final result = <DateTime, int>{};
-    final today = DateTime.now();
 
-    // activityStats is ordered oldest → newest (index 0 = 6 days ago)
-    for (int i = 0; i < stats.length; i++) {
-      final count = (stats[i]['count'] as num?)?.toInt() ?? 0;
-      if (count > 0) {
-        final daysAgo = stats.length - 1 - i;
-        final date = DateTime(
-          today.year,
-          today.month,
-          today.day - daysAgo,
-        );
-        result[date] = count;
+    for (var entry in stats) {
+      final dateStr = entry['date'] as String?;
+      final count = (entry['count'] as num?)?.toInt() ?? 0;
+      
+      if (dateStr != null && count > 0) {
+        try {
+          final date = DateTime.parse(dateStr);
+          final cleanDate = DateTime(date.year, date.month, date.day);
+          result[cleanDate] = count;
+        } catch (e) {
+          debugPrint('Error parsing dashboard date: $dateStr - $e');
+        }
+      }
+    }
+    return result;
+  }
+
+  Map<DateTime, String> get milestoneData {
+    final milestones = _dashboardData?['milestones'] as List? ?? [];
+    final result = <DateTime, String>{};
+
+    for (var m in milestones) {
+      final dateStr = m['date'] as String?;
+      final label = m['label'] as String? ?? 'Cột mốc';
+      if (dateStr != null) {
+        try {
+          final date = DateTime.parse(dateStr);
+          final cleanDate = DateTime(date.year, date.month, date.day);
+          result[cleanDate] = label;
+        } catch (e) {
+          debugPrint('Error parsing milestone date: $dateStr - $e');
+        }
       }
     }
     return result;
@@ -57,6 +76,10 @@ class DashboardViewModel extends ChangeNotifier {
 
     try {
       _dashboardData = await _apiService.getStudentDashboard();
+      debugPrint('--- RAW DASHBOARD DATA ---');
+      debugPrint(_dashboardData.toString());
+      debugPrint('Activity Stats Count: ${activityStats.length}');
+      debugPrint('Heatmap Data: $heatmapData');
     } catch (e) {
       _error = e.toString();
     } finally {

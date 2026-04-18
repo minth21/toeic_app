@@ -1,26 +1,16 @@
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient } from '@prisma/client';
+const prisma = new PrismaClient();
 
-const prisma = new PrismaClient()
-
-async function main() {
-  const userCount = await prisma.user.count()
-  console.log(`Total users in DB: ${userCount}`)
-  
-  const testCount = await prisma.test.count()
-  console.log(`Total tests in DB: ${testCount}`)
-
-  const partCount = await prisma.part.count()
-  console.log(`Total parts in DB: ${partCount}`)
-
-  const questionCount = await prisma.question.count()
-  console.log(`Total questions in DB: ${questionCount}`)
+async function run() {
+    const userId = '5b909ee0-f003-4ee6-8db5-a8a3ef82b0d6';
+    const assessments = await (prisma as any).aiAssessment.findMany({
+        where: { userId }
+    });
+    
+    console.log(`Found ${assessments.length} assessments for user ${userId}`);
+    assessments.forEach((a: any) => {
+        console.log(`- ID: ${a.id}, Type: ${a.type}, Published: ${a.isPublished}, Title: ${a.title}`);
+    });
 }
 
-main()
-  .catch((e) => {
-    console.error(e)
-    process.exit(1)
-  })
-  .finally(async () => {
-    await prisma.$disconnect()
-  })
+run().catch(console.error).finally(() => prisma.$disconnect());

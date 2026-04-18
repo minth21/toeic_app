@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Form, Input, Button, Card, message, Typography, ConfigProvider, theme as antdTheme } from 'antd';
+import { Form, Input, Button, Card, Typography, ConfigProvider, theme as antdTheme, App } from 'antd';
 import { UserOutlined, LockOutlined, LoginOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { authApi } from '../services/api';
@@ -7,6 +7,7 @@ import { authApi } from '../services/api';
 const { Title, Text } = Typography;
 
 export default function Login() {
+    const { message } = App.useApp();
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
 

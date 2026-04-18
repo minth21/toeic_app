@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/exam_model.dart';
@@ -22,6 +23,8 @@ class Part1SimulationScreen extends StatefulWidget {
   final PartModel? part;
   final List<dynamic>? aiFeedbacks;
   final String? overallFeedback;
+  final Set<String>? correctQuestionIds;
+  final Set<int>? correctQuestionNumbers; // 🟢 NEW: Fallback for duplicate tests
 
   const Part1SimulationScreen({
     super.key,
@@ -32,6 +35,8 @@ class Part1SimulationScreen extends StatefulWidget {
     this.part,
     this.aiFeedbacks,
     this.overallFeedback,
+    this.correctQuestionIds,
+    this.correctQuestionNumbers,
   });
 
   @override
@@ -71,10 +76,6 @@ class _Part1SimulationScreenState extends State<Part1SimulationScreen> {
       } catch (e) {
         debugPrint("Part not found: $e");
       }
-
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        context.read<PracticeViewModel>().loadQuestions(widget.partId!);
-      });
     }
   }
 
@@ -134,8 +135,10 @@ class _Part1SimulationScreenState extends State<Part1SimulationScreen> {
     final questions = viewModel.currentQuestions;
 
     int correctCount = 0;
+    String clean(String? s) => (s ?? '').trim().toUpperCase();
+
     for (int i = 0; i < questions.length; i++) {
-      if (_userAnswers[questions[i].id] == questions[i].correctAnswer) {
+      if (clean(_userAnswers[questions[i].id]) == clean(questions[i].correctAnswer)) {
         correctCount++;
       }
     }
@@ -226,61 +229,86 @@ class _Part1SimulationScreenState extends State<Part1SimulationScreen> {
 
   // ── Palette Helpers ───────────────────────────────────────────────────────
 
-  // Xác định màu palette cho từng ô câu hỏi.
-  // Khi ở chế độ Review (_isSubmitted = true): phân biệt Đúng/Sai.
-  // Khi đang thi: chỉ phân biệt Đang xem / Chưa trả lời.
-  Map<String, dynamic> _getPaletteColorInfo(
-    int i,
-    List<QuestionModel> questions,
-  ) {
-    final qId = questions[i].id;
+  Map<String, dynamic> _getPaletteColorInfo(int i, List<QuestionModel> questions) {
+    final qId = questions[i].id.trim();
     final bool isActive = i == _currentIndex;
     final bool isFlagged = _flaggedQuestions.contains(qId);
     final String? userAnswer = _userAnswers[qId];
-    final bool isAnswered = userAnswer != null && userAnswer.isNotEmpty;
+    final bool isAnswered = userAnswer != null && userAnswer.trim().isNotEmpty;
 
-    // Default
-    Map<String, dynamic> info = {
+    final Map<String, dynamic> info = {
       'bg': Colors.white,
-      'border': AppColors.divider,
-      'text': AppColors.textSecondary,
+      'border': const Color(0xFFE2E8F0),
+      'text': const Color(0xFF64748B),
       'shadow': false,
       'borderWidth': 1.5,
     };
 
-    // 1. Result mode - Prioritize Correct/Incorrect if submitted
-    if (_isSubmitted && isAnswered) {
-      final bool isCorrect = userAnswer == questions[i].correctAnswer;
-      if (isCorrect) {
-        info['bg'] = const Color(0xFF10B981);
-        info['border'] = const Color(0xFF059669);
-        info['text'] = Colors.white;
+    if (widget.isReviewMode) {
+      // 🟢 Aggressive answer normalization: extract only the first A, B, C, or D character
+      String clean(String? s) {
+        if (s == null || s.isEmpty) return '';
+        final match = RegExp(r'[A-D]').firstMatch(s.trim().toUpperCase());
+        return match?.group(0) ?? s.trim().toUpperCase();
+      }
+
+      // 🟢 Dual-Check: Prioritize DB correct status (ID match OR Question Number match)
+      bool isCorrect = false;
+      if (widget.correctQuestionIds != null || widget.correctQuestionNumbers != null) {
+        final inIdSet = widget.correctQuestionIds?.contains(qId) ?? false;
+        final qNum = questions[i].questionNumber;
+        final inNumSet = widget.correctQuestionNumbers?.contains(qNum) ?? false;
+        isCorrect = inIdSet || inNumSet;
+        
+        // ✅ Diagnostic Log: Log cho câu hỏi đầu tiên
+        if (qNum == 1) {
+          debugPrint('[Part1 Palette Audit] Checking Q#$qNum (ID: $qId): CorrectIds=${widget.correctQuestionIds?.length}, CorrectNums=${widget.correctQuestionNumbers?.length}, MatchID=$inIdSet, MatchNum=$inNumSet -> Final=$isCorrect');
+        }
       } else {
-        info['bg'] = const Color(0xFFEF4444);
-        info['border'] = const Color(0xFFDC2626);
+        // Fallback to manual comparison (Using robust normalization)
+        isCorrect = isAnswered && clean(userAnswer) == clean(questions[i].correctAnswer);
+      }
+
+
+
+      // High-contrast colors for Review Mode
+      if (isAnswered) {
+        if (isCorrect) {
+          info['bg'] = const Color(0xFF10B981); // Emerald 500
+          info['border'] = const Color(0xFF059669);
+          info['text'] = Colors.white;
+        } else {
+          info['bg'] = const Color(0xFFEF4444); // Red 500
+          info['border'] = const Color(0xFFDC2626);
+          info['text'] = Colors.white;
+        }
+      } else {
+        // Not answered but in review mode = treated as wrong (Red)
+        info['bg'] = const Color(0xFFEF4444).withValues(alpha: 0.1);
+        info['border'] = const Color(0xFFEF4444).withValues(alpha: 0.3);
+        info['text'] = const Color(0xFFEF4444);
+      }
+    } else {
+      // Practice Mode
+      if (isAnswered) {
+        info['bg'] = const Color(0xFF3B82F6); // Blue 500
+        info['border'] = const Color(0xFF1E3A8A);
         info['text'] = Colors.white;
       }
-    } else if (isAnswered && !_isSubmitted) {
-      // Only show "Answered" purple base if NOT submitted
-      info['bg'] = AppColors.primary;
-      info['border'] = const Color(0xFF1E3A8A);
-      info['text'] = Colors.white;
+      if (isFlagged) {
+        info['bg'] = const Color(0xFFF59E0B); // Amber 500
+        info['border'] = const Color(0xFFD97706);
+        info['text'] = Colors.white;
+      }
     }
 
-    // 2. Flag override (Show flag color if not submitted OR overwrite if flagged)
-    if (isFlagged && !_isSubmitted) {
-      info['bg'] = const Color(0xFFF59E0B);
-      info['border'] = const Color(0xFFD97706);
-      info['text'] = Colors.white;
-    }
-
-    // 3. Current indicator
+    // Active state indicator
     if (isActive) {
-      info['border'] = _isSubmitted ? (info['text'] == Colors.white ? Colors.white : AppColors.primary) : AppColors.primary;
-      info['borderWidth'] = 3.5;
+      info['border'] = AppColors.primary;
+      info['borderWidth'] = 3.0;
       info['shadow'] = true;
       if (info['bg'] == Colors.white) {
-        info['bg'] = AppColors.indigo50;
+        info['bg'] = const Color(0xFFEFF6FF); // Blue 50
         info['text'] = AppColors.primary;
       }
     }
@@ -1505,14 +1533,30 @@ class _Part1SimulationScreenState extends State<Part1SimulationScreen> {
             padding: EdgeInsets.symmetric(vertical: 16),
             child: Divider(color: Color(0xFFF59E0B), thickness: 0.5),
           ),
-          HtmlWidget(
-            widget.overallFeedback!,
-            textStyle: GoogleFonts.inter(
-              fontSize: 15,
-              height: 1.6,
-              color: const Color(0xFF92400E),
-              fontWeight: FontWeight.w500,
-            ),
+          Builder(
+            builder: (context) {
+              String displayContent = widget.overallFeedback!;
+              
+              // Kiểm tra và parse nếu là JSON
+              if (displayContent.trim().startsWith('{')) {
+                try {
+                  final decoded = jsonDecode(displayContent);
+                  displayContent = decoded['detailedAssessment'] ?? decoded['shortFeedback'] ?? displayContent;
+                } catch (e) {
+                  debugPrint("Error parsing AI feedback: $e");
+                }
+              }
+
+              return HtmlWidget(
+                displayContent,
+                textStyle: GoogleFonts.inter(
+                  fontSize: 15,
+                  height: 1.6,
+                  color: const Color(0xFF92400E),
+                  fontWeight: FontWeight.w500,
+                ),
+              );
+            },
           ),
         ],
       ),
