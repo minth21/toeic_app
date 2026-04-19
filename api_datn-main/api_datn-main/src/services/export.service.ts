@@ -1,25 +1,23 @@
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../config/prisma';
 import * as ExcelJS from 'exceljs';
-import PdfPrinter from 'pdfmake';
+import pdfmake from 'pdfmake';
 import { TDocumentDefinitions, Alignment } from 'pdfmake/interfaces';
-
-const prisma = new PrismaClient();
+import * as path from 'path';
 
 export class ExportService {
-    private printer: any;
-
     constructor() {
         // Standard fonts configuration for pdfmake with Vietnamese support
+        // Use path.resolve to ensure fonts are found regardless of the process CWD
         const fonts = {
             Roboto: {
-                normal: 'node_modules/pdfmake/fonts/Roboto/Roboto-Regular.ttf',
-                bold: 'node_modules/pdfmake/fonts/Roboto/Roboto-Medium.ttf',
-                italics: 'node_modules/pdfmake/fonts/Roboto/Roboto-Italic.ttf',
-                bolditalics: 'node_modules/pdfmake/fonts/Roboto/Roboto-MediumItalic.ttf'
+                normal: path.resolve(process.cwd(), 'node_modules/pdfmake/fonts/Roboto/Roboto-Regular.ttf'),
+                bold: path.resolve(process.cwd(), 'node_modules/pdfmake/fonts/Roboto/Roboto-Medium.ttf'),
+                italics: path.resolve(process.cwd(), 'node_modules/pdfmake/fonts/Roboto/Roboto-Italic.ttf'),
+                bolditalics: path.resolve(process.cwd(), 'node_modules/pdfmake/fonts/Roboto/Roboto-MediumItalic.ttf')
             }
         };
-        // @ts-ignore
-        this.printer = new (PdfPrinter as any)(fonts);
+        // Configure pdfmake instance with fonts
+        pdfmake.setFonts(fonts);
     }
 
     /**
@@ -64,7 +62,7 @@ export class ExportService {
         });
 
         // Data Rows
-        history.forEach((attempt, index) => {
+        history.forEach((attempt: any, index: number) => {
             const row = worksheet.addRow([
                 index + 1,
                 attempt.createdAt.toLocaleDateString('vi-VN'),
@@ -155,10 +153,10 @@ export class ExportService {
                                 { text: 'Ngày làm', style: 'tableHeader' },
                                 { text: 'Nội dung bài làm', style: 'tableHeader' },
                                 { text: 'Kết quả', style: 'tableHeader' },
-                                { text: 'Điểm', style: 'tableHeader' }
+                                {text: 'Điểm', style: 'tableHeader'}
                             ],
-                            ...history.map((a, i) => [
-                                { text: (i + 1).toString(), alignment: centerAlign, fontSize: 10 },
+                            ...history.map((a: any, i: number) => [
+                                {text: (i + 1).toString(), alignment: centerAlign, fontSize: 10},
                                 { text: a.createdAt.toLocaleDateString('vi-VN'), fontSize: 10 },
                                 { text: a.test?.title || a.part?.partName || 'Luyện tập lẻ', fontSize: 10 },
                                 { text: `${a.correctCount}/${a.totalQuestions}`, alignment: centerAlign, fontSize: 10 },
@@ -179,7 +177,7 @@ export class ExportService {
                 { text: 'II. LỘ TRÌNH PHÁT TRIỂN NĂNG LỰC CÁ NHÂN HÓA (AI COACHING)', style: 'sectionHeader', margin: [0, 30, 0, 10] },
                 aiAssessments.length === 0 
                   ? { text: 'Chưa có phân tích lộ trình AI cho học viên này.', italics: true, color: '#6B7280' }
-                  : aiAssessments.map(item => ({
+                  : aiAssessments.map((item: any) => ({
                       stack: [
                         {
                             columns: [
@@ -220,7 +218,8 @@ export class ExportService {
             }
         };
 
-        return this.printer.createPdfKitDocument(docDefinition);
+        const output = pdfmake.createPdf(docDefinition);
+        return await output.getStream();
     }
 
     /**
@@ -324,7 +323,7 @@ export class ExportService {
                 lineHeight: 1.2
             }
         };
-
-        return this.printer.createPdfKitDocument(docDefinition);
+        const output = pdfmake.createPdf(docDefinition);
+        return await output.getStream();
     }
 }

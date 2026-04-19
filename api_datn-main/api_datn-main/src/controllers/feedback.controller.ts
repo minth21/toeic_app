@@ -1,11 +1,10 @@
 import { Request, Response } from 'express';
-import { PrismaClient, NotificationType } from '@prisma/client';
+import { NotificationType } from '@prisma/client';
+import { prisma } from '../config/prisma';
 import { NotificationService } from '../services/notification.service';
 import { successResponse, errorResponse } from '../utils/response';
 import { HTTP_STATUS } from '../config/constants';
 import { logger } from '../utils/logger';
-
-const prisma = new PrismaClient();
 
 export class FeedbackController {
     /**

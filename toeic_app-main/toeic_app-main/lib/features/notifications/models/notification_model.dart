@@ -7,7 +7,8 @@ enum NotificationType {
   testPending,
   system,
   studentFeedback,
-  testSubmitted
+  testSubmitted,
+  roadmapReceived
 }
 
 extension NotificationTypeExtension on NotificationType {
@@ -67,6 +68,8 @@ class NotificationModel {
         return NotificationType.studentFeedback;
       case 'TEST_SUBMITTED':
         return NotificationType.testSubmitted;
+      case 'ROADMAP_RECEIVED':
+        return NotificationType.roadmapReceived;
       default:
         return NotificationType.system;
     }

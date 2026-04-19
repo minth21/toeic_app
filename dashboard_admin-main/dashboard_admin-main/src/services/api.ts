@@ -454,8 +454,16 @@ export const aiApi = {
         const response = await api.patch(`/ai/update-roadmap/${id}`, data);
         return response.data;
     },
-    publishRoadmap: async (id: string, data: { teacherNote?: string; summary?: string; content?: any }): Promise<{ success: boolean; data: any; message?: string }> => {
-        const response = await api.post(`/ai/publish-roadmap/${id}`, data);
+    submitRoadmap: async (id: string, data: { teacherNote?: string; summary?: string; content?: any }): Promise<{ success: boolean; data: any; message?: string }> => {
+        const response = await api.post(`/ai/submit-roadmap/${id}`, data);
+        return response.data;
+    },
+    approveRoadmap: async (id: string, auditNote?: string): Promise<{ success: boolean; data: any; message?: string }> => {
+        const response = await api.post(`/ai/approve-roadmap/${id}`, { auditNote });
+        return response.data;
+    },
+    rejectRoadmap: async (id: string, auditNote?: string): Promise<{ success: boolean; data: any; message?: string }> => {
+        const response = await api.post(`/ai/reject-roadmap/${id}`, { auditNote });
         return response.data;
     },
     exportRoadmapPdf: async (id: string): Promise<Blob> => {

@@ -17,9 +17,8 @@ import { aiApi, userApi, authApi } from '../services/api';
 import dayjs from 'dayjs';
 import 'dayjs/locale/vi';
 import { Line } from '@ant-design/plots';
-import { message, Input } from 'antd';
+import { message } from 'antd';
 
-const { TextArea } = Input;
 
 const { Text, Title } = Typography;
 
@@ -78,9 +77,6 @@ export default function AiTimelineView({
     const [hasMore, setHasMore] = useState(true);
     const [myRole, setMyRole] = useState<string>('');
     
-    // Ghi chú và trạng thái xuất bản
-    const [notes, setNotes] = useState<Record<string, string>>({});
-    const [publishingId, setPublishingId] = useState<string | null>(null);
 
     const checkRole = useCallback(async () => {
         try {
@@ -185,23 +181,6 @@ export default function AiTimelineView({
         fetchTimeline(nextPage, true);
     };
 
-    const handlePublish = async (assessment: any) => {
-        const note = notes[assessment.id] || assessment.teacherNote || '';
-        setPublishingId(assessment.id);
-        try {
-            const res = await aiApi.publishRoadmap(assessment.id, { teacherNote: note });
-            if (res.success) {
-                message.success('Đã gửi lộ trình và thông báo cho học viên!');
-                fetchTimeline(1); // Reload
-            } else {
-                message.error(res.message || 'Lỗi khi xuất bản');
-            }
-        } catch (error: any) {
-            message.error(error.response?.data?.message || 'Lỗi hệ thống');
-        } finally {
-            setPublishingId(null);
-        }
-    };
 
     const handleDownloadPdf = async (id: string, title: string) => {
         try {
@@ -317,25 +296,26 @@ export default function AiTimelineView({
             <div style={{ 
                 background: isDark ? '#0F172A' : '#F8FAFC', 
                 borderRadius: 12, 
-                padding: '16px 20px', 
-                marginBottom: 20,
-                border: isDark ? '1px solid #334155' : '1px solid #E2E8F0'
+                padding: '12px 16px', 
+                marginBottom: 16,
+                border: isDark ? '1px solid #334155' : '1px solid #E2E8F0',
+                width: '100%'
             }}>
-                <Text strong style={{ fontSize: 12, color: 'var(--text-muted)', display: 'block', marginBottom: 12, textTransform: 'uppercase' }}>
+                <Text strong style={{ fontSize: 11, color: 'var(--text-muted)', display: 'block', marginBottom: 10, textTransform: 'uppercase' }}>
                     📈 Bảng điểm phân tích tại thời điểm này
                 </Text>
-                <Row gutter={16}>
+                <Row gutter={12}>
                     <Col span={6}>
-                        <Statistic title="Mục tiêu" value={scoreDetails.targetScore} valueStyle={{ fontSize: 16, fontWeight: 700 }} />
+                        <Statistic title={<span style={{fontSize: 11}}>Mục tiêu</span>} value={scoreDetails.targetScore} valueStyle={{ fontSize: 16, fontWeight: 700 }} />
                     </Col>
                     <Col span={6}>
-                        <Statistic title="Listening" value={scoreDetails.estimatedListening} valueStyle={{ fontSize: 16, fontWeight: 700, color: '#3B82F6' }} />
+                        <Statistic title={<span style={{fontSize: 11}}>Listening</span>} value={scoreDetails.estimatedListening} valueStyle={{ fontSize: 16, fontWeight: 700, color: '#3B82F6' }} />
                     </Col>
                     <Col span={6}>
-                        <Statistic title="Reading" value={scoreDetails.estimatedReading} valueStyle={{ fontSize: 16, fontWeight: 700, color: '#8B5CF6' }} />
+                        <Statistic title={<span style={{fontSize: 11}}>Reading</span>} value={scoreDetails.estimatedReading} valueStyle={{ fontSize: 16, fontWeight: 700, color: '#8B5CF6' }} />
                     </Col>
                     <Col span={6}>
-                        <Statistic title="Tổng điểm" value={scoreDetails.estimatedScore} valueStyle={{ fontSize: 16, fontWeight: 700, color: '#10B981' }} />
+                        <Statistic title={<span style={{fontSize: 11}}>Tổng điểm</span>} value={scoreDetails.estimatedScore} valueStyle={{ fontSize: 18, fontWeight: 800, color: '#10B981' }} />
                     </Col>
                 </Row>
             </div>
@@ -343,7 +323,7 @@ export default function AiTimelineView({
     };
 
     return (
-        <div style={{ padding: '10px 20px' }}>
+        <div style={{ padding: '10px 40px' }}>
             {/* Header Statistics & Burn Down Chart */}
             {!hideHeader && (
                 <Card 
@@ -433,13 +413,16 @@ export default function AiTimelineView({
                 />
             ) : (
                 <Timeline 
-                    mode="start" 
-                    style={{ marginTop: 32 }} 
+                    mode="left" 
+                    style={{ marginTop: 24 }} 
                     items={Object.keys(grouped).map((date) => ({
-                        dot: <ClockCircleOutlined style={{ fontSize: '18px', color: isDark ? '#94A3B8' : '#64748B' }} />,
-                        label: <Text strong style={{ color: isDark ? '#94A3B8' : '#64748B' }}>{date}</Text>,
+                        dot: <ClockCircleOutlined style={{ fontSize: '16px', color: isDark ? '#94A3B8' : '#64748B' }} />,
                         children: (
-                            <div style={{ marginBottom: 32 }}>
+                            <div style={{ marginBottom: 40, paddingLeft: 8 }}>
+                                <div style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+                                    <Text strong style={{ color: isDark ? '#94A3B8' : '#64748B', fontSize: 13 }}>{date}</Text>
+                                    <ClockCircleOutlined style={{ fontSize: '14px', color: isDark ? '#94A3B8' : '#64748B' }} />
+                                </div>
                                 {grouped[date].map((item: any) => {
                                     const theme = ASSESSMENT_THEMES[item.type] || ASSESSMENT_THEMES.PERFORMANCE;
                                     const trend = item.trend ? TREND_THEMES[item.trend] : null;
@@ -456,7 +439,7 @@ export default function AiTimelineView({
                                                 overflow: 'hidden',
                                                 transition: 'all 0.3s ease'
                                             }}
-                                            styles={{ body: { padding: '20px 24px' } }}
+                                            styles={{ body: { padding: '24px 32px' } }}
                                             className="assessment-card"
                                         >
                                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
@@ -518,10 +501,10 @@ export default function AiTimelineView({
                                                             </Button>
                                                         )}
                                                         <Tag 
-                                                            color={item.isPublished ? 'processing' : 'warning'}
+                                                            color={item.status === 'PUBLISHED' ? 'success' : item.status === 'PENDING' ? 'warning' : item.status === 'REJECTED' ? 'error' : 'default'}
                                                             style={{ borderRadius: 8, fontWeight: 700, margin: 0 }}
                                                         >
-                                                            {item.isPublished ? 'ĐÃ GỬI HV' : 'BẢN NHÁP'}
+                                                            {item.status === 'PUBLISHED' ? 'ĐÃ CÔNG BỐ' : item.status === 'PENDING' ? 'CHỜ DUYỆT' : item.status === 'REJECTED' ? 'BỊ TỪ CHỐI' : 'BẢN NHÁP'}
                                                         </Tag>
                                                     </Space>
                                                 )}
@@ -537,7 +520,8 @@ export default function AiTimelineView({
                                                         fontSize: 15, 
                                                         marginBottom: 20, 
                                                         lineHeight: '1.8',
-                                                        wordBreak: 'break-word'
+                                                        wordBreak: 'break-word',
+                                                        width: '100%'
                                                     }}
                                                     className="assessment-summary"
                                                     dangerouslySetInnerHTML={{ __html: item.summary || item.content?.detailedAssessment || 'Học viên đã hoàn thành tốt bài luyện tập này.' }}
@@ -554,7 +538,7 @@ export default function AiTimelineView({
                                                     marginBottom: 16
                                                 }}>
                                                     <div style={{ color: '#6366F1', fontWeight: 700, fontSize: 11, marginBottom: 4 }}>
-                                                        💡 GHI CHÚ CỦA GIÁO VIÊN:
+                                                        💡 LỜI KHUYÊN CỦA GIÁO VIÊN:
                                                     </div>
                                                     <div 
                                                         style={{ color: isDark ? '#E2E8F0' : '#1E293B', fontSize: 13, whiteSpace: 'pre-wrap' }}
@@ -563,36 +547,27 @@ export default function AiTimelineView({
                                                 </div>
                                             )}
 
-                                            {/* Publishing UI (Draft Mode for Teachers) */}
-                                            {(myRole === 'ADMIN' || myRole === 'TEACHER') && !item.isPublished && (
+                                            {/* Audit Note Display (if rejected or has feedback) */}
+                                            {item.auditNote && (
                                                 <div style={{ 
-                                                    marginTop: 16, 
-                                                    padding: 16, 
-                                                    background: isDark ? '#0F172A' : '#F8FAFC', 
-                                                    borderRadius: 12,
-                                                    border: '1px dashed #6366F1'
+                                                    background: isDark ? 'rgba(245, 158, 11, 0.1)' : '#FFF7ED',
+                                                    borderLeft: '4px solid #F59E0B',
+                                                    padding: '12px 16px',
+                                                    borderRadius: '0 8px 8px 0',
+                                                    marginBottom: 16
                                                 }}>
-                                                    <Text strong style={{ fontSize: 12, display: 'block', marginBottom: 8, color: '#6366F1' }}>
-                                                        KÍNH GỬI GIÁO VIÊN: Thêm lời khuyên và gửi lộ trình cho học viên
-                                                    </Text>
-                                                    <TextArea 
-                                                        rows={3}
-                                                        placeholder="Nhập ghi chú cá nhân hóa cho học viên (Hỗ trợ định dạng văn bản)..."
-                                                        value={notes[item.id] !== undefined ? notes[item.id] : (item.teacherNote || '')}
-                                                        onChange={(e) => setNotes(prev => ({...prev, [item.id]: e.target.value}))}
-                                                        style={{ marginBottom: 12, borderRadius: 8 }}
-                                                    />
-                                                    <Button 
-                                                        type="primary" 
-                                                        block
-                                                        loading={publishingId === item.id}
-                                                        onClick={() => handlePublish(item)}
-                                                        style={{ borderRadius: 8, background: '#6366F1', height: 40, fontWeight: 600 }}
+                                                    <div style={{ color: '#F59E0B', fontWeight: 700, fontSize: 11, marginBottom: 4 }}>
+                                                        🛡️ PHẢN HỒI TỪ HỆ THỐNG / ADMIN:
+                                                    </div>
+                                                    <div 
+                                                        style={{ color: isDark ? '#E2E8F0' : '#1E293B', fontSize: 13, whiteSpace: 'pre-wrap' }}
                                                     >
-                                                        Gửi lộ trình & Thông báo cho HV
-                                                    </Button>
+                                                        {item.auditNote}
+                                                    </div>
                                                 </div>
                                             )}
+
+                                            {/* Legacy Publishing UI handled elsewhere now */}
 
                                             <div style={{ 
                                                 display: 'flex', 
@@ -611,7 +586,7 @@ export default function AiTimelineView({
                                                             Đạt mức: {item.score} PTS
                                                         </Tag>
                                                     )}
-                                                    {item.isPublished && (
+                                                    {item.status === 'PUBLISHED' && (
                                                         <Button 
                                                             type="link" 
                                                             size="small" 

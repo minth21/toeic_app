@@ -1,11 +1,9 @@
 import { Request, Response, NextFunction } from 'express';
-import { PrismaClient } from '@prisma/client';
 import * as path from 'path';
 import * as fs from 'fs';
 import { validateAndStandardizePassageData } from '../utils/passageValidator';
-
 import { Difficulty } from '@prisma/client';
-const prisma = new PrismaClient();
+import { prisma } from '../config/prisma';
 
 console.log('RUNTIME Difficulty Enum:', Object.values(Difficulty));
 

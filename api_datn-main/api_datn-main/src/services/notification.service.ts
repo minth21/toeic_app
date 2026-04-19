@@ -1,6 +1,4 @@
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient() as any;
+import { prisma } from '../config/prisma';
 
 export class NotificationService {
     /**
@@ -71,7 +69,41 @@ export class NotificationService {
     }
 
     /**
-     * Gửi thông báo cho TẤT CẢ học viên (Broadcast)
+     * Gửi thông báo cho TẤT CẢ học viên trong một LỚP (Class Broadcast)
+     */
+    static async notifyClass(classId: string, data: {
+        title: string;
+        content: string;
+        type: any;
+        relatedId?: string;
+    }) {
+        try {
+            // 1. Lấy danh sách ID của học viên trong lớp
+            const students = await prisma.user.findMany({
+                where: { studentClassId: classId, role: 'STUDENT', status: 'ACTIVE' },
+                select: { id: true }
+            });
+
+            if (students.length === 0) return [];
+
+            // 2. Tạo thông báo hàng loạt
+            return await prisma.notification.createMany({
+                data: students.map((s: any) => ({
+                    userId: s.id,
+                    title: data.title,
+                    content: data.content,
+                    type: data.type,
+                    relatedId: data.relatedId,
+                })),
+            });
+        } catch (error) {
+            console.error('Error notifying class:', error);
+            return null;
+        }
+    }
+
+    /**
+     * Gửi thông báo cho TẤT CẢ học viên (Full Broadcast)
      */
     static async broadcastNotification(data: {
         title: string;
@@ -89,7 +121,6 @@ export class NotificationService {
             if (students.length === 0) return [];
 
             // 2. Tạo thông báo hàng loạt
-            // Prisma createMany hiệu quả hơn vòng lặp
             return await prisma.notification.createMany({
                 data: students.map((s: any) => ({
                     userId: s.id,

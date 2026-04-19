@@ -45,6 +45,28 @@ class AiTimelineService {
     }
   }
 
+  /// Lấy chi tiết một bản ghi đánh giá/lộ trình bằng ID
+  Future<AiAssessment?> getAssessmentDetail(String id) async {
+    try {
+      final token = await _storageService.getToken();
+      if (token == null) throw Exception('Unauthorized');
+
+      final endpoint = '/ai/assessment/$id';
+      
+      final response = await _apiService.get(
+        endpoint,
+        headers: ApiConfig.headersWithAuth(token),
+      );
+
+      if (response['success'] == true && response['data'] != null) {
+        return AiAssessment.fromJson(response['data']);
+      }
+      return null;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   /// Xuất PDF lộ trình
   Future<Uint8List> exportRoadmapPdf(String id) async {
     try {

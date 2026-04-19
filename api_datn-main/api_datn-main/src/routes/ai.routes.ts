@@ -13,10 +13,13 @@ import {
     enrichPart5Batch,
     getAiTimeline,
     assessStudentRoadmap,
-    publishRoadmap,
+    submitForApproval,
+    approveRoadmap,
+    rejectRoadmap,
     updateRoadmap,
     exportRoadmapPdf,
-    getAllRoadmaps
+    getAllRoadmaps,
+    getAiAssessmentById
 } from '../controllers/ai.controller';
 import { authMiddleware } from '../middlewares/auth.middleware';
 import multer from 'multer';
@@ -45,8 +48,11 @@ router.post('/translate-word', authMiddleware, translateWord);
 router.get('/timeline/:userId', authMiddleware, getAiTimeline);
 router.post('/assess-roadmap/:userId', authMiddleware, assessStudentRoadmap);
 router.patch('/update-roadmap/:id', authMiddleware, updateRoadmap);
-router.post('/publish-roadmap/:id', authMiddleware, publishRoadmap);
+router.post('/submit-roadmap/:id', authMiddleware, submitForApproval);
+router.post('/approve-roadmap/:id', authMiddleware, approveRoadmap);
+router.post('/reject-roadmap/:id', authMiddleware, rejectRoadmap);
 router.get('/export-roadmap-pdf/:id', authMiddleware, exportRoadmapPdf);
+router.get('/assessment/:id', authMiddleware, getAiAssessmentById);
 router.get('/roadmaps/admin/all', authMiddleware, getAllRoadmaps);
 
 export default router;

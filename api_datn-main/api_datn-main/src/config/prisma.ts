@@ -1,5 +1,8 @@
+import { Pool } from 'pg';
+import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@prisma/client';
 import { logger } from '../utils/logger';
+import 'dotenv/config';
 
 /**
  * Prisma Client Singleton
@@ -14,8 +17,12 @@ class PrismaService {
 
     public static getInstance(): PrismaClient {
         if (!PrismaService.instance) {
+            const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+            const adapter = new PrismaPg(pool);
+            
             PrismaService.instance = new PrismaClient({
-                log: ['error', 'warn'],
+                adapter,
+                log: ['error', 'warn']
             });
 
 

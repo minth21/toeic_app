@@ -1,7 +1,6 @@
-import { PrismaClient, Role } from '@prisma/client';
+import { Role } from '@prisma/client';
+import { prisma } from '../config/prisma';
 import { computeLatestPartScores } from '../utils/score.utils';
-
-const prisma = new PrismaClient();
 
 /**
  * Lấy danh sách tất cả người dùng với phân trang và tìm kiếm

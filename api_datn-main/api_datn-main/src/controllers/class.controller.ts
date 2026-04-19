@@ -10,6 +10,7 @@ const p = prisma as any;
 
 import { ClassManagementService } from '../services/class-management.service';
 import { computeLatestPartScores } from '../utils/score.utils';
+import { NotificationService } from '../services/notification.service';
 
 const classManagementService = new ClassManagementService();
 
@@ -378,6 +379,23 @@ export class ClassController {
             });
 
             logger.info(`Student ${studentId} added to class ${classId} by ${(req as any).user.username}`);
+
+            // Notify Student (Async)
+            (async () => {
+                try {
+                    const classData = await p.class.findUnique({ where: { id: classId }, select: { className: true } });
+                    await NotificationService.createNotification({
+                        userId: studentId,
+                        title: '🏫 Bạn đã được thêm vào lớp học',
+                        content: `Chào mừng! Bạn đã được thêm vào lớp "${classData?.className || 'mới'}". Hãy kiểm tra tài liệu và lịch học nhé!`,
+                        type: 'SYSTEM' as any,
+                        relatedId: classId
+                    });
+                } catch (err) {
+                    console.error('Failed to notify student about class enrollment:', err);
+                }
+            })();
+
             return successResponse(res, updatedStudent, 'Đã thêm học viên vào lớp thành công');
         } catch (error) {
             logger.error('Error in addStudentToClass:', error);

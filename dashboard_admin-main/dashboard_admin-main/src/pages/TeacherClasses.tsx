@@ -146,7 +146,7 @@ export default function TeacherClasses() {
         if (!selectedRoadmapId) return;
         setPublishing(true);
         try {
-            const res = await aiApi.publishRoadmap(selectedRoadmapId, {
+            const res = await aiApi.submitRoadmap(selectedRoadmapId, {
                 teacherNote,
                 summary: data.summary,
                 content: {
@@ -159,7 +159,7 @@ export default function TeacherClasses() {
                 }
             });
             if (res.success) {
-                message.success('Đã gửi lộ trình cho học viên thành công!');
+                message.success('Đã gửi yêu cầu phê duyệt cho Admin thành công!');
                 setSelectedRoadmapId(null);
                 setRoadmapRefreshTrigger(prev => prev + 1);
             }
@@ -681,7 +681,7 @@ export default function TeacherClasses() {
                     </div>
                 }
                 placement="right"
-                width={700}
+                size="large"
                 onClose={() => {
                     setHistoryVisible(false);
                     // Dọn dẹp dữ liệu để không bị "leak" sang học viên khác
@@ -721,7 +721,7 @@ export default function TeacherClasses() {
                                 ? Math.min(100, Math.round(((selectedStudent.estimatedScore || 0) / selectedStudent.targetScore) * 100))
                                 : 0}
                             status="active"
-                            strokeWidth={14}
+                            size={['100%', 14]}
                             strokeColor={{
                                 '0%': '#4F46E5',
                                 '100%': '#10B981',
@@ -791,7 +791,7 @@ export default function TeacherClasses() {
                                         refreshTrigger={roadmapRefreshTrigger}
                                         onDataLoaded={(latestRoadmap: any) => {
                                             // Nếu roadmap mới nhất chưa public, hiện form duyệt
-                                            if (latestRoadmap && !latestRoadmap.isPublished) {
+                                            if (latestRoadmap && (latestRoadmap.status === 'DRAFT' || latestRoadmap.status === 'REJECTED')) {
                                                 setSelectedRoadmapId(latestRoadmap.id);
                                                 setCurrentRoadmap(latestRoadmap);
                                                 setTeacherNote(latestRoadmap.teacherNote || '');
@@ -818,7 +818,16 @@ export default function TeacherClasses() {
                                             title={
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#4338CA' }}>
                                                     <EditOutlined />
-                                                    <span>BIÊN TẬP & PHÊ DUYỆT LỘ TRÌNH (BẢN NHÁP)</span>
+                                                    <span style={{ marginRight: 12 }}>BIÊN TẬP LỘ TRÌNH</span>
+                                                    {currentRoadmap?.status === 'REJECTED' && (
+                                                        <Tag color="error" style={{ fontSize: 12 }}>BỊ TỪ CHỐI</Tag>
+                                                    )}
+                                                    {currentRoadmap?.status === 'DRAFT' && (
+                                                        <Tag color="cyan" style={{ fontSize: 12 }}>BẢN NHÁP</Tag>
+                                                    )}
+                                                    {currentRoadmap?.status === 'PENDING' && (
+                                                        <Tag color="processing" style={{ fontSize: 12 }}>ĐANG CHỜ DUYỆT</Tag>
+                                                    )}
                                                 </div>
                                             }
                                             style={{
@@ -831,6 +840,13 @@ export default function TeacherClasses() {
                                             styles={{ body: { padding: '24px' } }}
                                         >
                                             <Space direction="vertical" size="large" style={{ width: '100%' }}>
+                                                {currentRoadmap?.status === 'REJECTED' && currentRoadmap?.auditNote && (
+                                                    <div style={{ padding: '12px 16px', background: '#FEF2F2', border: '1px solid #FEE2E2', borderRadius: 12, marginBottom: 8 }}>
+                                                        <Typography.Text type="danger" strong>Lý do từ chối từ Admin:</Typography.Text>
+                                                        <div style={{ color: '#991B1B', fontSize: 13, marginTop: 4 }}>{currentRoadmap.auditNote}</div>
+                                                    </div>
+                                                )}
+
                                                 {/* Summary Section */}
                                                 <div>
                                                     <Typography.Text strong style={{ display: 'block', marginBottom: 8, color: '#1E293B' }}>
@@ -932,7 +948,7 @@ export default function TeacherClasses() {
                                                 {/* Teacher Note Component */}
                                                 <div>
                                                     <Typography.Text strong style={{ display: 'block', marginBottom: 8, color: '#1E293B' }}>
-                                                        3. Lời nhắn nhủ riêng từ Giáo viên (Teacher Note)
+                                                        3. Ghi chú
                                                     </Typography.Text>
                                                     <Input.TextArea
                                                         placeholder="Ví dụ: Thầy thấy em làm Part 5 rất tốt, nhưng hãy tập trung thêm từ vựng chuyên ngành trong giai đoạn 1 nhé..."
@@ -953,7 +969,7 @@ export default function TeacherClasses() {
                                                             onClick={handleSubmit(handleSaveDraft)}
                                                             style={{ height: 48, borderRadius: 12, fontWeight: 600 }}
                                                         >
-                                                            LƯU BẢN NHÁP
+                                                            Lưu bản nháp
                                                         </Button>
                                                     </Col>
                                                     <Col span={12}>
@@ -963,20 +979,29 @@ export default function TeacherClasses() {
                                                             block
                                                             size="large"
                                                             loading={publishing}
+                                                            disabled={currentRoadmap?.status === 'PENDING'}
                                                             onClick={handleSubmit(handlePublishRoadmap)}
                                                             style={{
                                                                 height: 48,
                                                                 borderRadius: 12,
-                                                                background: 'linear-gradient(135deg, #6366F1 0%, #4F46E5 100%)',
+                                                                background: currentRoadmap?.status === 'PENDING' 
+                                                                    ? '#9ca3af' 
+                                                                    : 'linear-gradient(135deg, #6366F1 0%, #4F46E5 100%)',
                                                                 border: 'none',
                                                                 fontWeight: 700,
-                                                                boxShadow: '0 4px 14px rgba(99, 102, 241, 0.35)'
+                                                                boxShadow: currentRoadmap?.status === 'PENDING' ? 'none' : '0 4px 14px rgba(99, 102, 241, 0.35)'
                                                             }}
                                                         >
-                                                            DUYỆT & GỬI HỌC VIÊN
+                                                            {currentRoadmap?.status === 'PENDING' ? 'ĐANG CHỜ DUYỆT' : 'Gửi Admin duyệt'}
                                                         </Button>
                                                     </Col>
                                                 </Row>
+
+                                                <div style={{ textAlign: 'center', marginTop: 8 }}>
+                                                    <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                                                        * Lộ trình sẽ được Admin phê duyệt trước khi gửi đến học viên.
+                                                    </Typography.Text>
+                                                </div>
                                             </Space>
                                         </Card>
                                     )}

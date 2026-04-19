@@ -1,7 +1,5 @@
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../config/prisma';
 import { calculateEstimatedScore } from '../services/user.service';
-
-const prisma = new PrismaClient();
 
 async function migrate() {
     console.log('--- STARTING SCORE MIGRATION (Cumulative Raw Logic) ---');

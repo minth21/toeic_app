@@ -1,11 +1,11 @@
 import { Request, Response, NextFunction } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../config/prisma';
 import { evaluateProgress } from '../services/ai.service';
 import { calculateEstimatedScore } from '../services/user.service';
 import { calculateRawToeicScore } from '../utils/score.util';
 import { NotificationService } from '../services/notification.service';
 
-const prisma = new PrismaClient() as any;
+const p = prisma as any;
 
 interface SubmitPartRequest {
     userId: string;
@@ -36,7 +36,7 @@ export const submitPart = async (
 
         // 1. Fetch Part & Question Correct Answers AND Topic Tags
         const [part, questionsSource] = await Promise.all([
-            prisma.part.findUnique({
+            p.part.findUnique({
                 where: { id: partId },
                 select: { partNumber: true, partName: true }
             }),
@@ -120,7 +120,7 @@ export const submitPart = async (
         });
 
         // 3. Fetch History
-        const history = await prisma.userPartProgress.findMany({
+        const history = await p.userPartProgress.findMany({
             where: { userId, partId },
             orderBy: { createdAt: 'desc' }
         });
@@ -261,7 +261,7 @@ export const submitPart = async (
         // 7. ASYNC NOTIFICATION (Do not block response)
         (async () => {
             try {
-                const student = await prisma.user.findUnique({
+                const student = await p.user.findUnique({
                     where: { id: userId },
                     include: { studentClass: true }
                 });
@@ -307,11 +307,11 @@ export const submitPart = async (
 
                 // 1. Fetch User & Part Data for context
                 const [user, partData] = await Promise.all([
-                    prisma.user.findUnique({
+                    p.user.findUnique({
                         where: { id: userId },
                         select: { name: true, targetScore: true }
                     }),
-                    prisma.part.findUnique({
+                    p.part.findUnique({
                         where: { id: partId },
                         select: { partNumber: true }
                     })
@@ -400,7 +400,7 @@ export const submitPart = async (
 
                     // Smart Notification
                     if (user) {
-                        const userData = await prisma.user.findUnique({ where: { id: userId }, select: { allowAiPushNotification: true } });
+                        const userData = await p.user.findUnique({ where: { id: userId }, select: { allowAiPushNotification: true } });
                         if (userData?.allowAiPushNotification) {
                             await NotificationService.createNotification({
                                 userId,
@@ -630,11 +630,33 @@ export const submitFullTest = async (
             }
         });
 
-        // 7. ASYNC AI Analysis (Top 5 Weakest Tags)
+        // 7. ASYNC NOTIFICATION TO TEACHER
+        (async () => {
+            try {
+                const student = await p.user.findUnique({
+                    where: { id: userId },
+                    include: { studentClass: true }
+                });
+
+                if (student?.studentClass?.teacherId) {
+                    await NotificationService.createNotification({
+                        userId: student.studentClass.teacherId,
+                        title: '🎯 Học viên nộp bài Full Test',
+                        content: `Học viên ${student.name} vừa hoàn thành đề thi "${test.title}" với tổng điểm ${totalScore}/990. Kết quả: L ${listeningScore}, R ${readingScore}.`,
+                        type: 'TEST_SUBMITTED' as any,
+                        relatedId: result.id
+                    });
+                }
+            } catch (error) {
+                console.error('Failed to send teacher notification for full test:', error);
+            }
+        })();
+
+        // 8. ASYNC AI Analysis (Top 5 Weakest Tags)
         (async () => {
             try {
                 // 1. Fetch User data for context
-                const user = await prisma.user.findUnique({
+                const user = await p.user.findUnique({
                     where: { id: userId },
                     select: { name: true, targetScore: true }
                 });

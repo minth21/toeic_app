@@ -8,15 +8,83 @@ import '../models/ai_assessment.dart';
 import '../viewmodels/ai_timeline_viewmodel.dart';
 import 'package:provider/provider.dart';
 import 'pdf_viewer_screen.dart';
+import '../services/ai_timeline_service.dart';
 import 'dart:typed_data';
 
-class AiAssessmentDetailScreen extends StatelessWidget {
-  final AiAssessment assessment;
+class AiAssessmentDetailScreen extends StatefulWidget {
+  final AiAssessment? assessment;
+  final String? assessmentId;
 
-  const AiAssessmentDetailScreen({super.key, required this.assessment});
+  const AiAssessmentDetailScreen({
+    super.key, 
+    this.assessment,
+    this.assessmentId,
+  }) : assert(assessment != null || assessmentId != null);
+
+  @override
+  State<AiAssessmentDetailScreen> createState() => _AiAssessmentDetailScreenState();
+}
+
+class _AiAssessmentDetailScreenState extends State<AiAssessmentDetailScreen> {
+  AiAssessment? _assessment;
+  bool _isLoading = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.assessment != null) {
+      _assessment = widget.assessment;
+    } else {
+      _fetchAssessment();
+    }
+  }
+
+  Future<void> _fetchAssessment() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      final service = AiTimelineService();
+      // We need a getAssessmentDetail method
+      // For now, let's assume we can fetch it or we'll add the method to service
+      final result = await service.getAssessmentDetail(widget.assessmentId!);
+      if (result != null) {
+        setState(() => _assessment = result);
+      } else {
+        setState(() => _error = 'Không tìm thấy dữ liệu lộ trình');
+      }
+    } catch (e) {
+      setState(() => _error = 'Lỗi tải dữ liệu: ${e.toString()}');
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator(color: AppColors.primary)),
+      );
+    }
+
+    if (_error != null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Lỗi')),
+        body: Center(child: Text(_error!)),
+      );
+    }
+
+    if (_assessment == null) {
+      return const Scaffold(
+        body: Center(child: Text('Không có dữ liệu')),
+      );
+    }
+
+    final assessment = _assessment!;
     final roadmapData = assessment.content['roadmap'] as List?;
     final strengths = assessment.content['strengths'] as List?;
     final weaknesses = assessment.content['weaknesses'] as List?;
@@ -251,14 +319,14 @@ class AiAssessmentDetailScreen extends StatelessWidget {
               ),
               const Spacer(),
               Text(
-                DateFormat('dd MMM, yyyy').format(assessment.createdAt),
+                DateFormat('dd MMM, yyyy').format(_assessment!.createdAt),
                 style: GoogleFonts.outfit(fontSize: 11, color: AppColors.textHint),
               ),
             ],
           ),
           const SizedBox(height: 12),
           HtmlWidget(
-            assessment.summary,
+            _assessment!.summary,
             textStyle: GoogleFonts.outfit(
               height: 1.6,
               fontSize: 15,
@@ -334,7 +402,7 @@ class AiAssessmentDetailScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
                 HtmlWidget(
-                  assessment.teacherNote!,
+                  _assessment!.teacherNote!,
                   textStyle: GoogleFonts.outfit(
                     fontSize: 15,
                     height: 1.6,
@@ -538,6 +606,7 @@ class AiAssessmentDetailScreen extends StatelessWidget {
 
   Future<void> _handlePdfExport(BuildContext context) async {
     final viewModel = context.read<AiTimelineViewModel>();
+    final assessment = _assessment!;
     
     showDialog(
       context: context,

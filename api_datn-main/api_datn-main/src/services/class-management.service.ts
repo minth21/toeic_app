@@ -3,6 +3,7 @@ const p = prisma as any;
 import { CreateClassMaterialDto, CreateClassSessionDto } from '../dto/class-management.dto';
 import { uploadFileToCloudinary, saveAssetToDb } from '../config/cloudinary.config';
 import { MaterialType } from '@prisma/client';
+import { NotificationService } from './notification.service';
 
 export class ClassManagementService {
   /**
@@ -48,7 +49,7 @@ export class ClassManagementService {
     }
 
     // 3. Create Record
-    return prisma.classMaterial.create({
+    const material = await prisma.classMaterial.create({
       data: {
         title: dto.title,
         description: dto.description,
@@ -58,6 +59,22 @@ export class ClassManagementService {
         classId,
       },
     });
+
+    // 4. Notify Students (Async)
+    (async () => {
+      try {
+        await NotificationService.notifyClass(classId, {
+          title: '📍 Tài liệu học tập mới',
+          content: `Giáo viên vừa thêm tài liệu "${dto.title}" vào lớp của bạn.`,
+          type: 'SYSTEM' as any,
+          relatedId: material.id
+        });
+      } catch (err) {
+        console.error('Failed to notify class about new material:', err);
+      }
+    })();
+
+    return material;
   }
 
   async deleteMaterial(materialId: string, teacherId: string) {
@@ -107,7 +124,7 @@ export class ClassManagementService {
   async addSession(classId: string, teacherId: string, dto: CreateClassSessionDto) {
     await this.verifyClassTeacher(classId, teacherId);
 
-    return p.classSession.create({
+    const session = await p.classSession.create({
       data: {
         classId,
         title: dto.title,
@@ -118,6 +135,22 @@ export class ClassManagementService {
         location: dto.location,
       },
     });
+
+    // Notify Students (Async)
+    (async () => {
+        try {
+          await NotificationService.notifyClass(classId, {
+            title: '📅 Lịch học mới',
+            content: `Buổi học "${dto.title}" đã được lên lịch vào ngày ${dto.sessionDate}.`,
+            type: 'SYSTEM' as any,
+            relatedId: session.id
+          });
+        } catch (err) {
+          console.error('Failed to notify class about new session:', err);
+        }
+    })();
+
+    return session;
   }
 
   async deleteSession(sessionId: string, teacherId: string) {

@@ -1,7 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../config/prisma';
 
-const prisma = new PrismaClient();
 // Bypass IDE stale property checks
 const p = prisma as any;
 

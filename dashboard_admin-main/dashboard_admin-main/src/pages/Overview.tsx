@@ -212,7 +212,7 @@ export default function Overview() {
 
                 {canViewFullDashboard && (
                     <>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 24, marginBottom: 24 }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: 24, marginBottom: 24 }}>
                             {/* Class Performance Comparison Chart */}
                             <Card
                                 variant="borderless"
@@ -267,6 +267,70 @@ export default function Overview() {
                                         <Empty description="Chưa có dữ liệu so sánh lớp học" />
                                     </div>
                                 )}
+                            </Card>
+
+                            {/* Top Students Leaderboard */}
+                            <Card
+                                variant="borderless"
+                                title={
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0' }}>
+                                        <div style={{ width: 32, height: 32, borderRadius: 8, background: isDark ? '#334155' : '#FEF3C7', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#F59E0B' }}>
+                                            <CrownOutlined />
+                                        </div>
+                                        <span style={{ fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.5px' }}>BẢNG XẾP HẠNG HỌC VIÊN</span>
+                                    </div>
+                                }
+                                style={{
+                                    borderRadius: 24,
+                                    border: `1px solid var(--border-color)`,
+                                    boxShadow: 'var(--card-shadow)',
+                                    background: 'var(--bg-surface)',
+                                }}
+                            >
+                                <Flex vertical gap={12}>
+                                    {stats?.topStudents && stats.topStudents.length > 0 ? (
+                                        stats.topStudents.slice(0, 5).map((student, index) => (
+                                            <div
+                                                key={student.id}
+                                                style={{
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'space-between',
+                                                    padding: '12px 16px',
+                                                    background: index === 0 ? (isDark ? 'rgba(245, 158, 11, 0.1)' : '#FFFBEB') : 'transparent',
+                                                    borderRadius: 16,
+                                                    border: index === 0 ? `1px solid ${isDark ? 'rgba(245, 158, 11, 0.2)' : '#FEF3C7'}` : '1px solid transparent',
+                                                }}
+                                            >
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                                                    <div style={{ position: 'relative' }}>
+                                                        <Avatar src={student.avatarUrl} size={40} icon={<UserOutlined />} />
+                                                        {index < 3 && (
+                                                            <div style={{
+                                                                position: 'absolute',
+                                                                top: -8,
+                                                                right: -8,
+                                                                fontSize: 16
+                                                            }}>
+                                                                {index === 0 ? '🥇' : index === 1 ? '🥈' : '🥉'}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    <div>
+                                                        <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: 14 }}>{student.name}</div>
+                                                        <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{student.email}</div>
+                                                    </div>
+                                                </div>
+                                                <div style={{ textAlign: 'right' }}>
+                                                    <div style={{ fontWeight: 800, color: '#F59E0B', fontSize: 16 }}>{student.estimatedScore}</div>
+                                                    <div style={{ fontSize: 10, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Điểm dự kiến</div>
+                                                </div>
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <Empty description="Chưa có dữ liệu xếp hạng" />
+                                    )}
+                                </Flex>
                             </Card>
                         </div>
 

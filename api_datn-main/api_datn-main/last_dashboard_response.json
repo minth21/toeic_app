@@ -21,7 +21,7 @@
       "max_p7": 2,
       "id_p7": "bd87606b-fc74-462f-9c81-12a50dc3afa2"
     },
-    "streak": 7,
+    "streak": 8,
     "recentActivities": [
       {
         "id": "17149e43-51f1-4c56-8317-b21dd6f61816",
@@ -303,10 +303,6 @@
       }
     ],
     "activityStats": [
-      {
-        "date": "2026-01-19",
-        "count": 0
-      },
       {
         "date": "2026-01-20",
         "count": 0
@@ -662,6 +658,10 @@
       {
         "date": "2026-04-18",
         "count": 2
+      },
+      {
+        "date": "2026-04-19",
+        "count": 0
       }
     ],
     "recommendations": [

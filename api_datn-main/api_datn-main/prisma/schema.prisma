@@ -8,7 +8,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  // url = env("DATABASE_URL") // Managed by prisma.config.ts and PrismaClient constructor in Prisma 7
 }
 
 // ============================================
@@ -74,8 +74,6 @@ model User {
   @@index([createdAt])
   @@map("users")
 }
-
-// ... existing enums ...
 
 // ============================================
 // PROGRESS TRACKING MODEL
@@ -499,7 +497,9 @@ enum NotificationType {
   COMPLAINT_RESOLVED // Admin/CV xử lý xong -> GV nhận tin
   STUDENT_FEEDBACK  // Học viên gửi ý kiến -> Giáo viên
   FEEDBACK_RESOLVED  // Giáo viên xử lý xong -> Học viên nhận tin
-  ROADMAP_RECEIVED   // Giáo viên gửi lộ trình cá nhân hóa -> Học viên
+  ROADMAP_RECEIVED   // Admin duyệt lộ trình cá nhân hóa -> Học viên
+  ROADMAP_SUBMITTED  // Giáo viên gửi lộ trình -> Admin chờ duyệt
+  ROADMAP_REJECTED   // Admin từ chối lộ trình -> Giáo viên nhận tin
   NEW_TEST_OPENED    // Đề thi mới được mở (ACTIVE) -> Tất cả học viên
   SYSTEM            // Thông báo hệ thống chung
 }
@@ -519,6 +519,13 @@ enum TrendType {
   STABLE
 }
 
+enum AssessmentStatus {
+  DRAFT
+  PENDING
+  PUBLISHED
+  REJECTED
+}
+
 model AiAssessment {
   id            String           @id @default(uuid())
   userId        String
@@ -530,8 +537,13 @@ model AiAssessment {
   score         Int?
   trend         TrendType?
   
-  isPublished   Boolean          @default(false) // Trạng thái GV đã duyệt và gửi cho HV chưa
-  teacherNote   String?          @db.Text        // Ghi chú của GV đính kèm lộ trình (Hỗ trợ HTML)
+  isPublished   Boolean          @default(false) // Giữ lại để tránh break code cũ (PUBLISHED = true)
+  status        AssessmentStatus @default(DRAFT) // Trạng thái mới: DRAFT, PENDING, PUBLISHED, REJECTED
+  
+  teacherNote   String?          @db.Text        // Ghi chú của GV đính kèm lộ trình
+  auditNote     String?          @db.Text        // Ghi chú của Admin khi duyệt hoặc từ chối
+  
+  teacherId     String?          // ID của Giáo viên tạo/gửi lộ trình
 
   createdAt     DateTime         @default(now())
   updatedAt     DateTime         @updatedAt @default(now())

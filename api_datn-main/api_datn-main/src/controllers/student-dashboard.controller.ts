@@ -1,8 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../config/prisma';
 import { computeLatestPartScores } from '../utils/score.utils';
-
-const prisma = new PrismaClient();
 
 /**
  * Get student dashboard data
@@ -153,7 +151,7 @@ export const getStudentDashboard = async (
             });
             
             // Find first attempt with score < 70%
-            const weak = recentAttempts.find(a => 
+            const weak = recentAttempts.find((a: any) => 
                 (a.totalQuestions ?? 0) > 0 && ((a.correctCount ?? 0) / (a.totalQuestions ?? 0)) < 0.7
             );
             
@@ -204,7 +202,7 @@ export const getStudentDashboard = async (
 
         // Group by local date string (VN Time)
         const statsMap: Record<string, number> = {};
-        allAttempts.forEach(attempt => {
+        allAttempts.forEach((attempt: any) => {
             const d = new Date(attempt.createdAt.getTime() + (7 * 60 * 60 * 1000));
             const y = d.getUTCFullYear();
             const m = String(d.getUTCMonth() + 1).padStart(2, '0');
@@ -306,7 +304,7 @@ export const getStudentDashboard = async (
                     })() : {}
                 },
                 streak: updatedStreak,
-                recentActivities: recentActivities.map(a => ({
+                recentActivities: recentActivities.map((a: any) => ({
                     id: a.id,
                     partId: a.partId,
                     partNumber: a.part?.partNumber ?? 0,
@@ -318,7 +316,7 @@ export const getStudentDashboard = async (
                     toeicScore: a.totalScore,
                     createdAt: a.createdAt,
                 })),
-                learningTimeline: learningTimeline.map(a => ({
+                learningTimeline: learningTimeline.map((a: any) => ({
                     id: a.id,
                     date: a.createdAt,
                     title: a.test?.title ?? a.part?.test?.title ?? 'Luyện tập',

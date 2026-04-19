@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../config/prisma';
 import sharp from 'sharp'; // Image optimization
 import {
     generatePart6ExplanationService,
@@ -400,7 +400,7 @@ export const translateWord = async (req: Request, res: Response) => {
     }
 };
 
-const prisma = new PrismaClient();
+
 
 export const getAiTimeline = async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -421,9 +421,12 @@ export const getAiTimeline = async (req: Request, res: Response, next: NextFunct
         console.log('--------------------------');
 
         const where: any = { userId };
-        if (!isTeacher) {
-            // Chỉ giáo viên mới thấy được bản nháp. Admin và Học viên chỉ thấy bản đã gửi.
-            where.isPublished = true;
+        if (userRole === 'STUDENT') {
+            // Học viên chỉ thấy những bài đã được Admin duyệt và phát hành
+            where.status = 'PUBLISHED';
+        } else if (isTeacher) {
+            // Giáo viên có thể thấy tất cả (Nháp, Đang chờ duyệt, Đã duyệt, Bị từ chối) của riêng học viên đó
+            // Hoặc có thể lọc thêm && teacherId = user.id nếu muốn chặt chẽ hơn
         }
 
         const assessments = await (prisma as any).aiAssessment.findMany({
@@ -566,51 +569,123 @@ export const assessStudentRoadmap = async (req: Request, res: Response) => {
  * 📢 PUBLISH ROADMAP
  * GV phê duyệt lộ trình, thêm ghi chú HTML và gửi thông báo cho HV.
  */
-export const publishRoadmap = async (req: Request, res: Response) => {
+// 📢 1. SUBMIT ROADMAP (GV gửi cho Admin duyệt)
+export const submitForApproval = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
-        const { teacherNote } = req.body;
-        // Xóa teacherId không dùng
+        const { teacherNote, summary, content } = req.body;
+        const teacherId = (req as any).user.id;
 
-        // 1. Tìm bản ghi assessment
         const assessment = await (prisma as any).aiAssessment.findUnique({
-            where: { id },
-            include: { user: { select: { name: true } } }
+            where: { id }
         });
 
-        if (!assessment) {
-            return res.status(404).json({ success: false, message: 'Không tìm thấy lộ trình' });
-        }
+        if (!assessment) return res.status(404).json({ success: false, message: 'Lộ trình không tồn tại' });
 
-        // 2. Cập nhật trạng thái và ghi chú (hỗ trợ lưu cả nội dung đã sửa)
         const updated = await (prisma as any).aiAssessment.update({
             where: { id },
             data: {
-                summary: req.body.summary || assessment.summary,
-                content: req.body.content || assessment.content,
-                isPublished: true,
-                teacherNote: teacherNote || assessment.teacherNote // Giữ nguyên nếu không có note mới
+                summary: summary || assessment.summary,
+                content: content || assessment.content,
+                teacherNote: teacherNote || assessment.teacherNote,
+                status: 'PENDING',
+                teacherId: teacherId
             }
         });
 
-        // 3. Gửi thông báo cho Học viên (ROADMAP_RECEIVED)
+        // Gửi thông báo cho Admin (BroadCast cho TẤT CẢ Admin)
         const { NotificationService } = await import('../services/notification.service');
-        await NotificationService.createNotification({
-            userId: assessment.userId,
-            title: '🚀 Lộ trình cá nhân hóa mới dành cho bạn',
-            content: `Giáo viên vừa cập nhật lộ trình luyện tập dựa trên năng lực hiện tại của bạn. Hãy kiểm tra ngay!`,
-            type: 'ROADMAP_RECEIVED' as any,
-            relatedId: assessment.id
-        });
+        const admins = await prisma.user.findMany({ where: { role: 'ADMIN' }, select: { id: true } });
+        
+        for (const admin of admins) {
+            await NotificationService.createNotification({
+                userId: admin.id,
+                title: '🛡️ Yêu cầu duyệt lộ trình mới',
+                content: `Giáo viên ${(req as any).user.name} vừa gửi yêu cầu duyệt lộ trình cho học viên.`,
+                type: 'ROADMAP_SUBMITTED' as any,
+                relatedId: updated.id
+            });
+        }
 
-        return res.json({
-            success: true,
-            message: 'Đã gửi lộ trình cho học viên thành công',
-            data: updated
-        });
-
+        return res.json({ success: true, message: 'Đã gửi yêu cầu duyệt cho Admin', data: updated });
     } catch (error: any) {
-        console.error('Publish Roadmap Error:', error);
+        return res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// 📢 2. APPROVE ROADMAP (Admin phê duyệt phát hành cho HV)
+export const approveRoadmap = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const { auditNote } = req.body;
+
+        const assessment = await (prisma as any).aiAssessment.findUnique({
+            where: { id }
+        });
+
+        if (!assessment) return res.status(404).json({ success: false, message: 'Lộ trình không tồn tại' });
+
+        const updated = await (prisma as any).aiAssessment.update({
+            where: { id },
+            data: {
+                status: 'PUBLISHED',
+                isPublished: true,
+                auditNote: auditNote || ''
+            }
+        });
+
+        // Gửi thông báo cho Giáo viên (người gửi duyệt)
+        if (assessment.teacherId) {
+            const { NotificationService } = await import('../services/notification.service');
+            await NotificationService.createNotification({
+                userId: assessment.teacherId,
+                title: '✅ Lộ trình đã được phê duyệt',
+                content: `Lộ trình bạn gửi cho học viên ${updated.userId} đã được Admin phê duyệt và phát hành.`,
+                type: 'ROADMAP_APPROVED' as any,
+                relatedId: assessment.id
+            });
+        }
+
+        return res.json({ success: true, message: 'Đã phê duyệt và phát hành lộ trình', data: updated });
+    } catch (error: any) {
+        return res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// 📢 3. REJECT ROADMAP (Admin từ chối lộ trình)
+export const rejectRoadmap = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const { auditNote } = req.body;
+
+        const assessment = await (prisma as any).aiAssessment.findUnique({
+            where: { id }
+        });
+
+        if (!assessment) return res.status(404).json({ success: false, message: 'Lộ trình không tồn tại' });
+
+        const updated = await (prisma as any).aiAssessment.update({
+            where: { id },
+            data: {
+                status: 'REJECTED',
+                auditNote: auditNote || 'Cần chỉnh sửa thêm nội dung.'
+            }
+        });
+
+        // Gửi thông báo cho Giáo viên (người tạo bài)
+        if (assessment.teacherId) {
+            const { NotificationService } = await import('../services/notification.service');
+            await NotificationService.createNotification({
+                userId: assessment.teacherId,
+                title: '❌ Lộ trình bị từ chối',
+                content: `Lộ trình bạn gửi cho học viên đã bị Admin từ chối. Lý do: ${auditNote}`,
+                type: 'ROADMAP_REJECTED' as any,
+                relatedId: assessment.id
+            });
+        }
+
+        return res.json({ success: true, message: 'Đã từ chối lộ trình', data: updated });
+    } catch (error: any) {
         return res.status(500).json({ success: false, message: error.message });
     }
 };
@@ -711,6 +786,35 @@ export const getAllRoadmaps = async (req: Request, res: Response, next: NextFunc
                 limit,
                 totalPages: Math.ceil(total / limit)
             }
+        });
+    } catch (error) {
+        return next(error);
+    }
+};
+
+export const getAiAssessmentById = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const { id } = req.params;
+        const assessment = await (prisma as any).aiAssessment.findUnique({
+            where: { id },
+            include: {
+                testAttempt: {
+                    select: {
+                        id: true,
+                        totalScore: true,
+                        test: { select: { title: true } }
+                    }
+                }
+            }
+        });
+
+        if (!assessment) {
+            return res.status(404).json({ success: false, message: 'Không tìm thấy thông tin đánh giá' });
+        }
+
+        return res.json({
+            success: true,
+            data: assessment
         });
     } catch (error) {
         return next(error);

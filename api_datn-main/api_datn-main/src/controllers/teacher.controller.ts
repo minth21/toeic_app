@@ -1,7 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '../config/prisma';
 
 /**
  * 1. Lấy danh sách các lớp do Giáo viên quản lý
@@ -304,6 +302,14 @@ export const exportStudentHistoryPdf = async (
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `attachment; filename=Practice_History_${studentId}.pdf`);
         
+        // Error handling for the stream to prevent ECONNRESET/Server crashes
+        pdfDoc.on('error', (err: any) => {
+            console.error('PDF Generation Error:', err);
+            if (!res.headersSent) {
+                res.status(500).json({ success: false, message: 'Lỗi trong quá trình tạo file PDF' });
+            }
+        });
+
         pdfDoc.pipe(res);
         pdfDoc.end();
     } catch (error) {
