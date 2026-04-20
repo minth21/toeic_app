@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:timelines_plus/timelines_plus.dart';
 import '../../../constants/app_constants.dart';
+import '../../../theme/app_typography.dart';
 import '../models/ai_assessment.dart';
 import '../viewmodels/ai_timeline_viewmodel.dart';
 import 'package:provider/provider.dart';
@@ -157,7 +157,7 @@ class _AiAssessmentDetailScreenState extends State<AiAssessmentDetailScreen> {
                           ),
                           child: Text(
                             assessment.type == AiAssessmentType.coaching ? 'STRATEGIC ROADMAP' : 'AI PERFORMANCE',
-                            style: GoogleFonts.outfit(
+                            style: AppTypography.ui(
                               color: Colors.white,
                               fontSize: 10,
                               fontWeight: FontWeight.w800,
@@ -172,7 +172,7 @@ class _AiAssessmentDetailScreenState extends State<AiAssessmentDetailScreen> {
                             Expanded(
                               child: Text(
                                 assessment.title,
-                                style: GoogleFonts.outfit(
+                                style: AppTypography.ui(
                                   color: Colors.white,
                                   fontSize: 28,
                                   fontWeight: FontWeight.bold,
@@ -198,7 +198,7 @@ class _AiAssessmentDetailScreenState extends State<AiAssessmentDetailScreen> {
                                     const SizedBox(width: 4),
                                     Text(
                                       'VERIFIED',
-                                      style: GoogleFonts.outfit(
+                                      style: AppTypography.ui(
                                         color: AppColors.primary,
                                         fontSize: 10,
                                         fontWeight: FontWeight.w900,
@@ -277,7 +277,7 @@ class _AiAssessmentDetailScreenState extends State<AiAssessmentDetailScreen> {
         const SizedBox(width: 8),
         Text(
           title,
-          style: GoogleFonts.outfit(
+          style: AppTypography.ui(
             fontSize: 14,
             fontWeight: FontWeight.w800,
             color: AppColors.textPrimary,
@@ -310,7 +310,7 @@ class _AiAssessmentDetailScreenState extends State<AiAssessmentDetailScreen> {
             children: [
               Text(
                 'TỔNG QUAN',
-                style: GoogleFonts.outfit(
+                style: AppTypography.ui(
                   fontSize: 11,
                   fontWeight: FontWeight.w900,
                   color: AppColors.primary,
@@ -320,16 +320,16 @@ class _AiAssessmentDetailScreenState extends State<AiAssessmentDetailScreen> {
               const Spacer(),
               Text(
                 DateFormat('dd MMM, yyyy').format(_assessment!.createdAt),
-                style: GoogleFonts.outfit(fontSize: 11, color: AppColors.textHint),
+                style: AppTypography.ui(fontSize: 11, color: AppColors.textHint),
               ),
             ],
           ),
           const SizedBox(height: 12),
           HtmlWidget(
             _assessment!.summary,
-            textStyle: GoogleFonts.outfit(
-              height: 1.6,
-              fontSize: 15,
+            textStyle: AppTypography.reading(
+              height: 1.8,
+              fontSize: 16,
               color: AppColors.textSecondary,
             ),
           ),
@@ -361,6 +361,7 @@ class _AiAssessmentDetailScreenState extends State<AiAssessmentDetailScreen> {
           Padding(
             padding: const EdgeInsets.all(24),
             child: Column(
+              mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
@@ -380,7 +381,7 @@ class _AiAssessmentDetailScreenState extends State<AiAssessmentDetailScreen> {
                         children: [
                           Text(
                             'LỜI KHUYÊN TỪ GIÁO VIÊN',
-                            style: GoogleFonts.outfit(
+                            style: AppTypography.ui(
                               fontSize: 12,
                               fontWeight: FontWeight.w900,
                               color: const Color(0xFF6366F1),
@@ -389,7 +390,7 @@ class _AiAssessmentDetailScreenState extends State<AiAssessmentDetailScreen> {
                           ),
                           Text(
                             'Xác thực bởi Antigravity Center',
-                            style: GoogleFonts.outfit(
+                            style: AppTypography.ui(
                               fontSize: 10,
                               color: const Color(0xFF6366F1).withValues(alpha: 0.6),
                               fontWeight: FontWeight.w600,
@@ -403,7 +404,7 @@ class _AiAssessmentDetailScreenState extends State<AiAssessmentDetailScreen> {
                 const SizedBox(height: 16),
                 HtmlWidget(
                   _assessment!.teacherNote!,
-                  textStyle: GoogleFonts.outfit(
+                  textStyle: AppTypography.friendly(
                     fontSize: 15,
                     height: 1.6,
                     color: const Color(0xFF1E293B),
@@ -444,37 +445,41 @@ class _AiAssessmentDetailScreenState extends State<AiAssessmentDetailScreen> {
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: color.withValues(alpha: 0.1)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: GoogleFonts.outfit(fontSize: 10, fontWeight: FontWeight.w900, color: color, letterSpacing: 2),
-          ),
-          const SizedBox(height: 12),
-          if (items.isEmpty)
-            Text('N/A', style: GoogleFonts.outfit(fontSize: 12, color: AppColors.textHint))
-          else
-            ...items.take(3).map((item) => Padding(
-              padding: const EdgeInsets.only(bottom: 6),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: Container(width: 4, height: 4, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
-                  ),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      item,
-                      style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+      child: SingleChildScrollView(
+        physics: const NeverScrollableScrollPhysics(),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: AppTypography.ui(fontSize: 10, fontWeight: FontWeight.w900, color: color, letterSpacing: 2),
+            ),
+            const SizedBox(height: 12),
+            if (items.isEmpty)
+              Text('Không có', style: AppTypography.ui(fontSize: 12, color: AppColors.textHint))
+            else
+              ...items.take(3).map((item) => Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Container(width: 4, height: 4, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
                     ),
-                  ),
-                ],
-              ),
-            )),
-        ],
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        item,
+                        style: AppTypography.ui(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                      ),
+                    ),
+                  ],
+                ),
+              )),
+          ],
+        ),
       ),
     );
   }
@@ -512,44 +517,53 @@ class _AiAssessmentDetailScreenState extends State<AiAssessmentDetailScreen> {
                   BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 10, offset: const Offset(0, 4))
                 ],
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          phase['phase']?.toString() ?? 'Phase ${index + 1}',
-                          style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+              child: SingleChildScrollView(
+                physics: const NeverScrollableScrollPhysics(),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            phase['phase']?.toString() ?? 'Phase ${index + 1}',
+                            style: AppTypography.ui(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                          ),
                         ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(color: AppColors.indigo50, borderRadius: BorderRadius.circular(8)),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(color: AppColors.indigo50, borderRadius: BorderRadius.circular(8)),
+                          child: Text(
+                            phase['duration']?.toString() ?? '',
+                            style: AppTypography.ui(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.primary),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    if (phase['focus'] is List)
+                      ...(phase['focus'] as List).map((f) => Padding(
+                        padding: const EdgeInsets.only(bottom: 6),
                         child: Text(
-                          phase['duration']?.toString() ?? '',
-                          style: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.primary),
+                          '• ${f.toString()}',
+                          style: AppTypography.ui(fontSize: 13, color: AppColors.textSecondary),
+                        ),
+                      )),
+                    if (phase['expertTips'] != null && phase['expertTips'].toString().isNotEmpty) ...[
+                      const Divider(height: 24),
+                      Text(
+                        phase['expertTips'].toString(),
+                        style: AppTypography.friendly(
+                          fontSize: 12, 
+                          color: AppColors.primary, 
+                          fontWeight: FontWeight.w500, 
+                          fontStyle: FontStyle.italic
                         ),
                       ),
                     ],
-                  ),
-                  const SizedBox(height: 12),
-                  if (phase['focus'] is List)
-                    ...(phase['focus'] as List).map((f) => Padding(
-                      padding: const EdgeInsets.only(bottom: 6),
-                      child: Text(
-                        '• ${f.toString()}',
-                        style: GoogleFonts.outfit(fontSize: 13, color: AppColors.textSecondary),
-                      ),
-                    )),
-                  if (phase['expertTips'] != null) ...[
-                    const Divider(height: 24),
-                    Text(
-                      phase['expertTips'].toString(),
-                      style: GoogleFonts.outfit(fontSize: 12, color: AppColors.primary, fontWeight: FontWeight.w500, fontStyle: FontStyle.italic),
-                    ),
                   ],
-                ],
+                ),
               ),
             ),
           );
@@ -584,17 +598,17 @@ class _AiAssessmentDetailScreenState extends State<AiAssessmentDetailScreen> {
               children: [
                 Text(
                   'MỤC TIÊU CHINH PHỤC',
-                  style: GoogleFonts.outfit(color: Colors.white60, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1),
+                  style: AppTypography.ui(color: Colors.white60, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   '$score ĐIỂM',
-                  style: GoogleFonts.outfit(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
+                  style: AppTypography.ui(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   'Dự kiến về đích trong: $time',
-                  style: GoogleFonts.outfit(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w500),
+                  style: AppTypography.ui(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w500),
                 ),
               ],
             ),

@@ -1304,9 +1304,9 @@ class _PracticeResultScreenState extends State<PracticeResultScreen> {
                         color: AppColors.error.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(4),
                       ),
-                      child: Text(
-                        userAnswer.isEmpty ? 'BỎ TRỐNG' : 'SAI',
-                        style: const TextStyle(
+                      child: const Text(
+                        'SAI',
+                        style: TextStyle(
                           color: AppColors.error,
                           fontSize: 9,
                           fontWeight: FontWeight.w900,

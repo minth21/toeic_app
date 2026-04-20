@@ -403,7 +403,7 @@ export default function TeacherClasses() {
                 const estimated = record.estimatedScore || 0;
                 const attempts = record._count?.testAttempts || record.totalAttempts || 0;
 
-                if (target === 0) return <Tag color="default">N/A Target</Tag>;
+                if (target === 0) return <Tag color="default">Chưa đặt mục tiêu</Tag>;
                 if (attempts === 0) return <Tag color="blue" style={{ fontWeight: 600 }}>CHƯA LÀM</Tag>;
 
                 const gap = target - estimated;
@@ -739,7 +739,7 @@ export default function TeacherClasses() {
                             <Col span={8}>
                                 <Statistic
                                     title="Khoảng cách đích"
-                                    value={selectedStudent?.targetScore > 0 ? Math.max(0, selectedStudent.targetScore - (selectedStudent.estimatedScore || 0)) : 'N/A'}
+                                    value={selectedStudent?.targetScore > 0 ? Math.max(0, selectedStudent.targetScore - (selectedStudent.estimatedScore || 0)) : 'Không có'}
                                     styles={{ content: { color: '#EF4444', fontWeight: 800, fontSize: 20 } }}
                                     prefix={<BulbOutlined style={{ marginRight: 4, fontSize: 16 }} />}
                                 />

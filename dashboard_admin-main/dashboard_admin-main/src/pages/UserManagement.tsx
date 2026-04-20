@@ -32,6 +32,7 @@ import {
     LoadingOutlined,
     PictureOutlined,
     CalendarOutlined,
+    MailOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 
@@ -46,6 +47,7 @@ interface User {
     id: string;
     username: string;
     name: string;
+    email?: string;
     phoneNumber?: string;
     dateOfBirth?: string;
     gender?: 'MALE' | 'FEMALE' | 'OTHER';
@@ -156,6 +158,7 @@ export default function UserManagement() {
         form.setFieldsValue({
             name: user.name,
             username: user.username,
+            email: user.email,
             phoneNumber: user.phoneNumber,
             dateOfBirth: user.dateOfBirth ? dayjs(user.dateOfBirth) : null,
             gender: user.gender,
@@ -337,6 +340,18 @@ export default function UserManagement() {
             sorter: (a, b) => a.name.localeCompare(b.name),
             render: (name: string) => <span style={{ fontWeight: 500, color: token.colorText }}>{name}</span>,
         },
+        {
+            title: 'Email',
+            dataIndex: 'email',
+            key: 'email',
+            align: 'left' as const,
+            render: (email: string) => email ? (
+                <span style={{ color: token.colorLink, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <MailOutlined style={{ fontSize: 12 }} />
+                    {email}
+                </span>
+            ) : <span style={{ color: '#94A3B8' }}>-</span>,
+        },
 
         {
             title: 'Giới tính',
@@ -376,27 +391,6 @@ export default function UserManagement() {
                 return <Tag color={config.color} style={{ borderRadius: 6, fontWeight: 500, border: 'none', padding: '4px 10px' }}>{config.label}</Tag>;
             },
         },
-        {
-            title: 'Điểm tổng',
-            dataIndex: 'estimatedScore',
-            key: 'estimatedScore',
-            width: 100,
-            align: 'center' as const,
-            render: (score: number, record: User) => record.role === 'STUDENT' ? (
-                <Tag color="volcano" style={{ fontWeight: 700 }}>{score || 0}</Tag>
-            ) : <span style={{ color: '#94A3B8' }}>-</span>,
-        },
-        {
-            title: 'Số bài làm',
-            dataIndex: 'totalAttempts',
-            key: 'totalAttempts',
-            width: 110,
-            align: 'center' as const,
-            render: (count: number, record: User) => record.role === 'STUDENT' ? (
-                <Tag color="blue" style={{ borderRadius: 4 }}>{count || 0}</Tag>
-            ) : <span style={{ color: '#94A3B8' }}>-</span>,
-        },
-
         {
             title: 'Ngày tạo',
             dataIndex: 'createdAt',
@@ -558,7 +552,6 @@ export default function UserManagement() {
                             style={{ width: 180 }}
                         >
                             <Option value="ALL">Tất cả vai trò</Option>
-                            <Option value="ADMIN">Admin</Option>
                             <Option value="SPECIALIST">Chuyên viên</Option>
                             <Option value="TEACHER">Giáo viên</Option>
                             <Option value="STUDENT">Học viên</Option>
@@ -750,6 +743,25 @@ export default function UserManagement() {
                         </Col>
                     </Row>
 
+                    <Row gutter={24}>
+                        <Col span={24}>
+                            <Form.Item
+                                label={<span style={{ fontWeight: 600, color: '#475569' }}>Địa chỉ Email</span>}
+                                name="email"
+                                rules={[
+                                    { type: 'email', message: 'Email không đúng định dạng' }
+                                ]}
+                            >
+                                <Input
+                                    size="large"
+                                    placeholder="example@gmail.com"
+                                    prefix={<MailOutlined style={{ color: '#94A3B8' }} />}
+                                    style={{ borderRadius: 10 }}
+                                />
+                            </Form.Item>
+                        </Col>
+                    </Row>
+
 
                     <Row gutter={24}>
                         <Col span={12}>
@@ -812,8 +824,8 @@ export default function UserManagement() {
                                     size="large"
                                     style={{ borderRadius: 10 }}
                                     suffixIcon={<SafetyCertificateOutlined style={{ color: '#94A3B8' }} />}
+                                    disabled={editingUser?.role === 'ADMIN'}
                                 >
-                                    <Option value="ADMIN">Admin</Option>
                                     <Option value="SPECIALIST">Chuyên viên</Option>
                                     <Option value="TEACHER">Giáo viên</Option>
                                     <Option value="STUDENT">Học viên</Option>
@@ -886,7 +898,6 @@ export default function UserManagement() {
                                     <Option value="STUDENT">Học viên</Option>
                                     <Option value="TEACHER">Giáo viên</Option>
                                     <Option value="SPECIALIST">Chuyên viên</Option>
-                                    <Option value="ADMIN">Admin</Option>
                                 </Select>
                             </Form.Item>
                         </Col>
@@ -1017,6 +1028,22 @@ export default function UserManagement() {
                                     )}
 
                                     <Row gutter={24}>
+                                        <Col span={12}>
+                                            <Form.Item
+                                                label={<span style={{ fontWeight: 600, color: '#475569' }}>Địa chỉ Email</span>}
+                                                name="email"
+                                                rules={[
+                                                    { type: 'email', message: 'Email không đúng định dạng' }
+                                                ]}
+                                            >
+                                                <Input
+                                                    size="large"
+                                                    placeholder="example@gmail.com"
+                                                    prefix={<MailOutlined style={{ color: '#94A3B8' }} />}
+                                                    style={{ borderRadius: 10 }}
+                                                />
+                                            </Form.Item>
+                                        </Col>
                                         <Col span={12}>
                                             <Form.Item
                                                 label={<span style={{ fontWeight: 600, color: '#475569' }}>Giới tính</span>}

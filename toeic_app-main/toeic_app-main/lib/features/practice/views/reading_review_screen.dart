@@ -4,6 +4,7 @@ import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../constants/app_constants.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../../theme/app_typography.dart';
 import '../models/question_model.dart';
 import 'widgets/touchable_passage_widget.dart';
 import 'widgets/vocab_flashcard_panel.dart';
@@ -72,21 +73,21 @@ class ReadingReviewScreen extends StatefulWidget {
         // Analysis
         if (analysis != null && analysis.isNotEmpty) ...[
           _staticSectionHeader('Phân tích đáp án', Icons.psychology_outlined, AppColors.primary),
-          Text(analysis, style: GoogleFonts.inter(fontSize: 14, color: AppColors.textPrimary, height: 1.6)),
+          Text(analysis, style: AppTypography.friendly(fontSize: 14, color: AppColors.textPrimary, height: 1.6)),
           const SizedBox(height: 16),
         ],
 
         // Evidence
         if (evidence != null && evidence.isNotEmpty) ...[
           _staticSectionHeader('Bằng chứng', Icons.fact_check_outlined, AppColors.success),
-          Text(evidence, style: GoogleFonts.inter(fontSize: 14, color: AppColors.textPrimary, fontStyle: FontStyle.italic, height: 1.6)),
+          Text(evidence, style: AppTypography.friendly(fontSize: 14, color: AppColors.textPrimary, fontStyle: FontStyle.italic, height: 1.6)),
           const SizedBox(height: 16),
         ],
 
         // Generic Explanation (if other fields are empty or as summary)
         if (showExplanation && analysis == null) ...[
           _staticSectionHeader('Giải thích chi tiết', Icons.info_outline, const Color(0xFF64748B)),
-          HtmlWidget(displayExplanation, textStyle: GoogleFonts.inter(fontSize: 14, color: AppColors.textPrimary, height: 1.6)),
+          HtmlWidget(displayExplanation, textStyle: AppTypography.friendly(fontSize: 14, color: AppColors.textPrimary, height: 1.6)),
           const SizedBox(height: 16),
         ],
 
@@ -358,15 +359,29 @@ class _ReadingReviewScreenState extends State<ReadingReviewScreen> {
       return match?.group(0) ?? s.trim().toUpperCase();
     }
 
-    // Ưu tiên dùng dữ liệu từ bảng attempt_details nếu có (Dual-Check)
+    // 🟢 Dual-Check Logic: Đảm bảo hiển thị đúng kể cả khi ID từ Server không khớp
     bool isCorrect;
-    if (widget.correctQuestionIds != null || widget.correctQuestionNumbers != null) {
-      final inIdSet = widget.correctQuestionIds?.contains(qId) ?? false;
-      final inNumSet = widget.correctQuestionNumbers?.contains(q.questionNumber) ?? false;
-      isCorrect = inIdSet || inNumSet;
-    } else {
-      isCorrect = !isUnanswered && 
-          clean(userAnswer) == clean(q.correctAnswer);
+    final String cleanUser = clean(userAnswer);
+    final String cleanCorrect = clean(q.correctAnswer);
+    
+    // 1. Kiểm tra theo ID hoặc Số thứ tự câu hỏi từ DB
+    final bool matchInSets = (widget.correctQuestionIds?.contains(qId) ?? false) || 
+                             (widget.correctQuestionNumbers?.contains(q.questionNumber) ?? false);
+                             
+    // 2. Kiểm tra trực tiếp đáp án (Fallback quan trọng cho Test 1)
+    final bool matchDirectly = !isUnanswered && cleanUser == cleanCorrect;
+
+    isCorrect = matchInSets || matchDirectly;
+
+    // 🔍 [Diagnostic Log] Chỉ in khi ở Review Mode và có nghi vấn lỗi (Đỏ)
+    if (widget.partNumber == 5 && !isCorrect) {
+      debugPrint('[Review Diagnostic] Q#${q.questionNumber} | ID: $qId');
+      debugPrint('   -> UserAnswer: "$userAnswer" (Clean: "$cleanUser")');
+      debugPrint('   -> CorrectAnswer: "${q.correctAnswer}" (Clean: "$cleanCorrect")');
+      debugPrint('   -> matchInSets: $matchInSets, matchDirectly: $matchDirectly');
+      if (userAnswer == null) {
+        debugPrint('   ⚠️ WARNING: userAnswer is NULL. Available IDs in map: ${widget.userAnswers.keys.take(5).toList()}...');
+      }
     }
 
 
@@ -720,14 +735,10 @@ class _ReadingReviewScreenState extends State<ReadingReviewScreen> {
       return match?.group(0) ?? s.trim().toUpperCase();
     }
 
-    bool isCorrect;
-    if (widget.correctQuestionIds != null || widget.correctQuestionNumbers != null) {
-      isCorrect = (widget.correctQuestionIds?.contains(qId) ?? false) || 
-                   (widget.correctQuestionNumbers?.contains(question.questionNumber) ?? false);
-    } else {
-      isCorrect = userAnswer != null &&
-          clean(userAnswer) == clean(question.correctAnswer);
-    }
+    // 🟢 Dual-Check Logic: Khắc phục lỗi Test 1 hiện toàn màu đỏ
+    final bool isCorrect = (widget.correctQuestionIds?.contains(qId) ?? false) || 
+                           (widget.correctQuestionNumbers?.contains(question.questionNumber) ?? false) ||
+                           (userAnswer != null && clean(userAnswer) == clean(question.correctAnswer));
     final aiData = _parseAiData(question);
 
     return Container(
@@ -899,7 +910,7 @@ class _ReadingReviewScreenState extends State<ReadingReviewScreen> {
                 const SizedBox(height: 4),
                 HtmlWidget(
                   comment,
-                  textStyle: GoogleFonts.inter(
+                  textStyle: AppTypography.friendly(
                     fontSize: 14,
                     height: 1.5,
                     color: Colors.orange.shade900,
@@ -1027,7 +1038,7 @@ class _ReadingReviewScreenState extends State<ReadingReviewScreen> {
                 // Main Feedback text
                 HtmlWidget(
                   feedbackText,
-                  textStyle: GoogleFonts.inter(
+                  textStyle: AppTypography.friendly(
                     fontSize: 14,
                     height: 1.6,
                     color: const Color(0xFF451A03),
@@ -1246,7 +1257,7 @@ class _ReadingReviewScreenState extends State<ReadingReviewScreen> {
                 const SizedBox(height: 10),
                 Text(
                   questionTranslation,
-                  style: GoogleFonts.inter(
+                  style: AppTypography.friendly(
                     fontSize: 14,
                     height: 1.6,
                     color: const Color(0xFF334155),
@@ -1288,7 +1299,7 @@ class _ReadingReviewScreenState extends State<ReadingReviewScreen> {
                 const SizedBox(height: 10),
                 Text(
                   analysis,
-                  style: GoogleFonts.inter(
+                  style: AppTypography.friendly(
                     fontSize: 14,
                     height: 1.6,
                     color: _slateText,
@@ -1329,7 +1340,7 @@ class _ReadingReviewScreenState extends State<ReadingReviewScreen> {
                 const SizedBox(height: 10),
                 Text(
                   evidence,
-                  style: GoogleFonts.inter(
+                  style: AppTypography.friendly(
                     fontSize: 14,
                     height: 1.6,
                     color: _slateText,
@@ -1390,8 +1401,8 @@ class _ReadingReviewScreenState extends State<ReadingReviewScreen> {
           htmlContent: _buildPassageHtml(q.questionNumber),
           translations: q.passageTranslations,
           showAllTranslations: false,
-          textStyle: GoogleFonts.tinos(
-            fontSize: 18,
+          textStyle: AppTypography.reading(
+            fontSize: 17, // Optimized for Lora
             height: 1.8,
             color: const Color(0xFF334155),
           ),

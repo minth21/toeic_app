@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import '../../../theme/app_typography.dart';
 import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../../constants/app_constants.dart';
@@ -8,6 +8,7 @@ import '../../practice/viewmodels/ai_timeline_viewmodel.dart';
 import '../../auth/viewmodels/auth_viewmodel.dart';
 import '../../home/viewmodels/dashboard_viewmodel.dart';
 import '../../practice/views/ai_assessment_detail_screen.dart';
+import '../../practice/models/ai_assessment.dart';
 import 'part_record_detail_screen.dart';
 import 'package:intl/intl.dart';
 import '../../../l10n/app_localizations.dart';
@@ -32,14 +33,14 @@ class _ProgressScreenState extends State<ProgressScreen> {
       builder: (context) => AlertDialog(
         title: Text(
           context.tr('target_score_dialog_title'),
-          style: GoogleFonts.outfit(fontWeight: FontWeight.bold),
+          style: AppTypography.ui(fontWeight: FontWeight.bold),
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
               context.tr('target_score_dialog_desc'),
-              style: GoogleFonts.outfit(fontSize: 14, color: AppColors.textSecondary),
+              style: AppTypography.ui(fontSize: 14, color: AppColors.textSecondary),
             ),
             const SizedBox(height: 20),
             TextField(
@@ -57,7 +58,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text(context.tr('cancel'), style: GoogleFonts.outfit(color: AppColors.textSecondary)),
+            child: Text(context.tr('cancel'), style: AppTypography.ui(color: AppColors.textSecondary)),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -100,7 +101,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
               backgroundColor: AppColors.primary,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
-            child: Text(context.tr('update'), style: GoogleFonts.outfit(color: Colors.white)),
+            child: Text(context.tr('update'), style: AppTypography.ui(color: Colors.white)),
           ),
         ],
       ),
@@ -132,7 +133,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
       appBar: AppBar(
         title: Text(
           context.tr('personal_achievement'),
-          style: GoogleFonts.outfit(fontWeight: FontWeight.bold),
+          style: AppTypography.ui(fontWeight: FontWeight.bold),
         ),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
@@ -198,7 +199,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
             children: [
               Text(
                 'KỶ LỤC HIỆN TẠI',
-                style: GoogleFonts.outfit(
+                style: AppTypography.ui(
                   color: Colors.white.withValues(alpha: 0.8),
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
@@ -211,7 +212,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
                 children: [
                   Text(
                     '${viewModel.estimatedScore}',
-                    style: GoogleFonts.outfit(
+                    style: AppTypography.ui(
                       fontSize: 84,
                       fontWeight: FontWeight.w800,
                       color: Colors.white,
@@ -222,7 +223,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
               ),
               Text(
                 'trên ${viewModel.targetScore > 0 ? viewModel.targetScore : 990} điểm',
-                style: GoogleFonts.outfit(
+                style: AppTypography.ui(
                   color: Colors.white.withValues(alpha: 0.7),
                   fontSize: 16,
                   fontWeight: FontWeight.w500,
@@ -272,7 +273,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
                 const SizedBox(width: 8),
                 Text(
                   label,
-                  style: GoogleFonts.outfit(
+                  style: AppTypography.ui(
                     color: Colors.white70,
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
@@ -284,7 +285,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
             const SizedBox(height: 8),
             Text(
               '$score',
-              style: GoogleFonts.outfit(
+              style: AppTypography.ui(
                 color: Colors.white,
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
@@ -327,13 +328,13 @@ class _ProgressScreenState extends State<ProgressScreen> {
                 const SizedBox(height: 16),
                 Text(
                   'BẠN CHƯA CÓ MỤC TIÊU?',
-                  style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 16),
+                  style: AppTypography.ui(fontWeight: FontWeight.bold, fontSize: 16),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   'Hãy thiết lập mục tiêu điểm TOEIC để AI giúp bạn lập lộ trình học tập tối ưu.',
                   textAlign: TextAlign.center,
-                  style: GoogleFonts.outfit(color: AppColors.textSecondary, fontSize: 14),
+                  style: AppTypography.ui(color: AppColors.textSecondary, fontSize: 14),
                 ),
                 const SizedBox(height: 20),
                 SizedBox(
@@ -386,7 +387,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
                       children: [
                         Text(
                           'TOEIC BURN DOWN',
-                          style: GoogleFonts.outfit(
+                          style: AppTypography.ui(
                             color: Colors.white70,
                             fontSize: 12,
                             fontWeight: FontWeight.bold,
@@ -396,7 +397,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
                         const SizedBox(height: 4),
                         Text(
                           '${context.tr('target_score')}: $target ${context.tr('achievement_points_label').toLowerCase()}',
-                          style: GoogleFonts.outfit(
+                          style: AppTypography.ui(
                             color: Colors.white,
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
@@ -492,11 +493,11 @@ class _ProgressScreenState extends State<ProgressScreen> {
                     final total = totals[groupIndex];
                     return BarTooltipItem(
                       'Part ${groupIndex + 1}\n',
-                      GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.bold),
+                      AppTypography.ui(color: Colors.white, fontWeight: FontWeight.bold),
                       children: [
                          TextSpan(
                           text: '$actualScore/$total câu',
-                          style: GoogleFonts.outfit(color: Colors.white.withValues(alpha: 0.9), fontWeight: FontWeight.normal, fontSize: 12),
+                          style: AppTypography.ui(color: Colors.white.withValues(alpha: 0.9), fontWeight: FontWeight.normal, fontSize: 12),
                         ),
                       ],
                     );
@@ -513,7 +514,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
                         padding: const EdgeInsets.only(top: 8.0),
                         child: Text(
                           'P${value.toInt() + 1}',
-                          style: GoogleFonts.outfit(
+                          style: AppTypography.ui(
                             color: AppColors.textSecondary,
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
@@ -532,7 +533,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
                       if (value == 0 || value == target || value == (target / 2).roundToDouble()) {
                         return Text(
                           value.toInt().toString(),
-                          style: GoogleFonts.outfit(color: Colors.grey, fontSize: 10),
+                          style: AppTypography.ui(color: Colors.grey, fontSize: 10),
                         );
                       }
                       return const SizedBox();
@@ -647,7 +648,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
                         const SizedBox(width: 8),
                         Text(
                           part['name'],
-                          style: GoogleFonts.outfit(
+                          style: AppTypography.ui(
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
                             color: AppColors.textSecondary,
@@ -656,7 +657,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
                         const Spacer(),
                         Text(
                           '${part['score']}/${part['total']}',
-                          style: GoogleFonts.outfit(
+                          style: AppTypography.ui(
                             fontSize: 12,
                             fontWeight: FontWeight.w700,
                             color: AppColors.primary,
@@ -701,7 +702,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
         Expanded(
           child: Text(
             title,
-            style: GoogleFonts.outfit(
+            style: AppTypography.ui(
               fontSize: 18,
               fontWeight: FontWeight.bold,
               color: AppColors.textPrimary,
@@ -716,7 +717,12 @@ class _ProgressScreenState extends State<ProgressScreen> {
     return Consumer<AiTimelineViewModel>(
       builder: (context, timelineVM, child) {
         if (timelineVM.isLoading && timelineVM.assessments.isEmpty) {
-          return const Center(child: CircularProgressIndicator());
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(24.0),
+              child: CircularProgressIndicator(),
+            ),
+          );
         }
 
         final assessments = timelineVM.assessments;
@@ -724,74 +730,155 @@ class _ProgressScreenState extends State<ProgressScreen> {
           return _buildChartPlaceholder(context, 'Chưa có tư vấn chiến thuật nào từ AI.');
         }
 
-        return Column(
-          children: [
-            ...assessments.map((item) => Container(
-              margin: const EdgeInsets.only(bottom: 12),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: AppShadows.softShadow,
-                border: Border.all(color: AppColors.primary.withValues(alpha: 0.1)),
-              ),
-              child: ListTile(
-                dense: true,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                leading: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.auto_awesome, color: AppColors.primary, size: 16),
-                ),
-                title: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+        return Padding(
+          padding: const EdgeInsets.only(left: 8.0),
+          child: Column(
+            children: List.generate(assessments.length, (index) {
+              final item = assessments[index];
+              final isLast = index == assessments.length - 1;
+              
+              // Classification Logic
+              final bool isRoadmap = item.type == AiAssessmentType.roadmap;
+              final String categoryLabel = isRoadmap ? 'LỘ TRÌNH CÁ NHÂN' : 'TƯ VẤN CHIẾN THUẬT';
+              final Color themeColor = isRoadmap ? const Color(0xFF6366F1) : const Color(0xFF8B5CF6);
+              final IconData categoryIcon = isRoadmap ? Icons.map_outlined : Icons.psychology_outlined;
+
+              return IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Text(
-                      item.title,
-                      style: GoogleFonts.outfit(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                        color: AppColors.textPrimary,
-                      ),
+                    // Timeline Axis
+                    Column(
+                      children: [
+                        Container(
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            color: themeColor.withValues(alpha: 0.1),
+                            shape: BoxShape.circle,
+                            border: Border.all(color: themeColor, width: 2),
+                          ),
+                          child: Icon(categoryIcon, color: themeColor, size: 16),
+                        ),
+                        if (!isLast)
+                          Expanded(
+                            child: Container(
+                              width: 2,
+                              color: AppColors.divider.withValues(alpha: 0.5),
+                            ),
+                          ),
+                      ],
                     ),
-                    Text(
-                      DateFormat('HH:mm - dd/MM/yyyy').format(item.createdAt),
-                      style: GoogleFonts.outfit(
-                        fontSize: 11,
-                        color: AppColors.textSecondary,
-                        fontWeight: FontWeight.w400,
+                    const SizedBox(width: 16),
+                    // Timeline Card
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => AiAssessmentDetailScreen(assessment: item),
+                            ),
+                          );
+                        },
+                        child: Container(
+                          margin: const EdgeInsets.only(bottom: 24),
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.03),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                            border: Border.all(color: AppColors.divider.withValues(alpha: 0.3)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Label Tag
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: themeColor.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  categoryLabel,
+                                  style: AppTypography.ui(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w800,
+                                    color: themeColor,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              Text(
+                                item.title,
+                                style: AppTypography.ui(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.textPrimary,
+                                  height: 1.3,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Row(
+                                children: [
+                                  const Icon(Icons.access_time_rounded, size: 12, color: AppColors.textSecondary),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    DateFormat('HH:mm - dd/MM/yyyy').format(item.createdAt),
+                                    style: AppTypography.ui(
+                                      fontSize: 11,
+                                      color: AppColors.textSecondary,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                item.summary,
+                                style: AppTypography.friendly(
+                                  fontSize: 13,
+                                  color: AppColors.textSecondary.withValues(alpha: 0.8),
+                                  height: 1.5,
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 12),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.end,
+                                children: [
+                                  Text(
+                                    'XEM CHI TIẾT',
+                                    style: AppTypography.ui(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                      color: themeColor,
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Icon(Icons.arrow_forward_ios_rounded, size: 10, color: themeColor),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     ),
                   ],
                 ),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'Xem chi tiết',
-                      style: GoogleFonts.outfit(
-                        fontSize: 12,
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    const Icon(Icons.arrow_forward_ios_rounded, size: 12, color: AppColors.primary),
-                  ],
-                ),
-                onTap: () {
-                   Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => AiAssessmentDetailScreen(assessment: item),
-                    ),
-                  );
-                },
-              ),
-            )),
-          ],
+              );
+            }),
+          ),
         );
       },
     );
@@ -810,7 +897,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
         boxShadow: AppShadows.softShadow,
       ),
       child: Center(
-        child: Text(message, style: GoogleFonts.outfit(color: Colors.grey.shade500)),
+        child: Text(message, style: AppTypography.ui(color: Colors.grey.shade500)),
       ),
     );
   }

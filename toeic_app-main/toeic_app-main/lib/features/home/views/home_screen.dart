@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../constants/app_constants.dart';
+import '../../../theme/app_typography.dart';
 import '../viewmodels/dashboard_viewmodel.dart';
 import '../../navigation/viewmodels/navigation_viewmodel.dart';
 import '../../vocabulary/viewmodels/vocabulary_viewmodel.dart';
@@ -157,10 +158,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   children: [
                     Text(
                       '${context.tr('welcome')} $userName! 👋',
-                      style: GoogleFonts.inter(
+                      style: AppTypography.friendly(
                         fontSize: 22,
                         fontWeight: FontWeight.bold,
-                        color: Theme.of(context).textTheme.displayLarge?.color,
+                        color: Theme.of(context).textTheme.displayLarge?.color ?? AppColors.textPrimary,
                       ),
                     ),
                     Consumer<NotificationViewModel>(
@@ -202,10 +203,11 @@ class _HomeScreenState extends State<HomeScreen> {
                           dashboardViewModel.predictedScore > 0 ? dashboardViewModel.predictedScore : context.watch<ProgressViewModel>().totalScore,
                           authUser?.targetScore ?? 500
                         ),
-                        style: GoogleFonts.inter(
+                        style: AppTypography.friendly(
                           fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                          color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.8),
+                          fontWeight: FontWeight.w600,
+                          color: (Theme.of(context).textTheme.bodyMedium?.color ?? AppColors.textSecondary)
+                              .withValues(alpha: 0.8),
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,

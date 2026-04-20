@@ -1,11 +1,15 @@
 import { useState, useEffect } from 'react';
-import { Modal, Form, Input, Select, message, Button, InputNumber, Card, Space, Tooltip } from 'antd';
-import { FileExcelOutlined } from '@ant-design/icons';
+import { Modal, Form, Input, Select, message, Button, InputNumber, Card, Space, Tooltip, Row, Col, Divider, Upload, Image, Tag, Typography } from 'antd';
+import { FileExcelOutlined, SoundOutlined, PicCenterOutlined, MessageOutlined, DeleteOutlined, CloudUploadOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import * as XLSX from 'xlsx';
+import ReactQuill from 'react-quill-new';
+import 'quill/dist/quill.snow.css';
 import api, { uploadApi } from '../services/api';
 import AudioBanner from './AudioBanner';
+import { QUILL_MODULES, QUILL_FORMATS } from '../utils/editorUtils';
 
 const { Option } = Select;
+const { Title, Text } = Typography;
 
 interface CreatePart3ModalProps {
     open: boolean;
@@ -19,7 +23,9 @@ interface CreatePart3ModalProps {
 export default function CreatePart3Modal({ open, onCancel, onSuccess, partId, partNumber, partName }: CreatePart3ModalProps) {
     const [form] = Form.useForm();
     const [loading, setLoading] = useState(false);
-    const [audioFile, setAudioFile] = useState<File | null>(null);
+    const [audioFiles, setAudioFiles] = useState<File | File[] | null>(null);
+    const [graphicFile, setGraphicFile] = useState<File | null>(null);
+    const [graphicPreview, setGraphicPreview] = useState<string | null>(null);
     const [nextQuestionNumber, setNextQuestionNumber] = useState<number>(1);
 
     const defaultStart = partNumber === 3 ? 32 : 71;
@@ -29,7 +35,9 @@ export default function CreatePart3Modal({ open, onCancel, onSuccess, partId, pa
             fetchNextQuestionNumber();
         } else {
             form.resetFields();
-            setAudioFile(null);
+            setAudioFiles(null);
+            setGraphicFile(null);
+            setGraphicPreview(null);
         }
     }, [open, partId]);
 
@@ -89,9 +97,11 @@ export default function CreatePart3Modal({ open, onCancel, onSuccess, partId, pa
 
                 if (rows.length === 0) { message.error('File Excel trống!'); return; }
 
-                // Take at most 3 rows (one group)
                 const groupRows = rows.slice(0, 3);
-                const transcript = String(groupRows[0]?.['Transcript nhóm'] || groupRows[0]?.['transcript'] || '');
+                let transcript = String(groupRows[0]?.['Transcript nhóm'] || groupRows[0]?.['transcript'] || '');
+                if (transcript && !transcript.includes('<p>')) {
+                    transcript = `<p>${transcript}</p>`;
+                }
 
                 const newQuestions = groupRows.map((row: any, i: number) => ({
                     questionNumber: Number(row['Số câu'] || nextQuestionNumber + i),
@@ -113,23 +123,49 @@ export default function CreatePart3Modal({ open, onCancel, onSuccess, partId, pa
         return false;
     };
 
+    const handleGraphicBeforeUpload = (file: File) => {
+        const preview = URL.createObjectURL(file);
+        setGraphicPreview(preview);
+        setGraphicFile(file);
+        return false;
+    };
+
     const handleSubmit = async (values: any) => {
         if (!partId) return;
 
-        if (!audioFile) {
-            message.error('Vui lòng upload file âm thanh cho nhóm này!');
+        if (!audioFiles || (Array.isArray(audioFiles) && audioFiles.length === 0)) {
+            message.error('Vui lòng upload ít nhất 1 file âm thanh!');
             return;
         }
 
         try {
             setLoading(true);
 
-            const actualFile = (audioFile as any)?.originFileObj || audioFile;
-            const audioRes = await uploadApi.audio(actualFile);
+            // 1. Handle Audio (Single or Merge)
+            let audioUrl = '';
+            if (Array.isArray(audioFiles) && audioFiles.length === 2) {
+                // Merge Mode
+                message.loading({ content: 'Đang gộp và upload âm thanh...', key: 'upload' });
+                const mergeRes = await uploadApi.mergeAudio(audioFiles);
+                if (!mergeRes.success) throw new Error(mergeRes.message || 'Gộp âm thanh thất bại');
+                audioUrl = mergeRes.url;
+            } else {
+                // Single Mode
+                message.loading({ content: 'Đang upload âm thanh...', key: 'upload' });
+                const fileToUpload = Array.isArray(audioFiles) ? audioFiles[0] : audioFiles;
+                const audioRes = await uploadApi.audio(fileToUpload);
+                if (!audioRes.success) throw new Error(audioRes.message || 'Upload âm thanh thất bại');
+                audioUrl = audioRes.url;
+            }
 
-            if (!audioRes.success) throw new Error(audioRes.message || 'Upload âm thanh thất bại');
-            const audioUrl = audioRes.url;
+            // 2. Handle Graphic Image (If any)
+            let graphicUrl = '';
+            if (graphicFile) {
+                const imgRes = await uploadApi.image(graphicFile);
+                if (imgRes.success) graphicUrl = imgRes.url;
+            }
 
+            // 3. Prepare Payload
             const questionsPayload = values.questions.map((q: any) => ({
                 questionNumber: q.questionNumber,
                 questionText: q.questionText,
@@ -143,8 +179,14 @@ export default function CreatePart3Modal({ open, onCancel, onSuccess, partId, pa
                 transcript: values.transcript
             }));
 
+            // In Part 3/4, passage string often contains the audio tag and the graphic img tag
+            let passageHtml = `<audio src="${audioUrl}"></audio>`;
+            if (graphicUrl) {
+                passageHtml += `<p><img src="${graphicUrl}" style="max-width: 100%; display: block; margin: 10px auto;" /></p>`;
+            }
+
             const payload = {
-                passage: `<audio src="${audioUrl}">`,
+                passage: passageHtml,
                 questions: questionsPayload,
                 audioUrl: audioUrl,
                 transcript: values.transcript
@@ -153,9 +195,11 @@ export default function CreatePart3Modal({ open, onCancel, onSuccess, partId, pa
             const response = await api.post(`/parts/${partId}/questions/batch`, payload);
 
             if (response.data.success) {
-                message.success(`Tạo nhóm câu hỏi Part ${partNumber} thành công!`);
+                message.success({ content: `Tạo nhóm câu hỏi Part ${partNumber} thành công!`, key: 'upload' });
                 form.resetFields();
-                setAudioFile(null);
+                setAudioFiles(null);
+                setGraphicFile(null);
+                setGraphicPreview(null);
                 onSuccess();
                 onCancel();
             } else {
@@ -173,108 +217,196 @@ export default function CreatePart3Modal({ open, onCancel, onSuccess, partId, pa
     return (
         <Modal
             title={
-                <div style={{ textAlign: 'center', width: '100%', fontSize: 20, fontWeight: 800, textTransform: 'uppercase', color: '#1E293B' }}>
-                    {partName
-                        ? (partName.toUpperCase().startsWith('PART') ? partName : `PART ${partNumber}: ${partName}`)
-                        : `Thêm nhóm câu hỏi Part ${partNumber}`}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <div style={{
+                        width: 40, height: 40, borderRadius: 12,
+                        background: 'linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff'
+                    }}>
+                        <SoundOutlined style={{ fontSize: 20 }} />
+                    </div>
+                    <div>
+                        <Title level={4} style={{ margin: 0 }}>{partName || `THÊM NHÓM CÂU HỎI PART ${partNumber}`}</Title>
+                        <Text type="secondary" style={{ fontSize: 12 }}>Quy trình tạo bài nghe cao cấp (Premium Manual Mode)</Text>
+                    </div>
                 </div>
             }
             open={open}
             onCancel={onCancel}
             footer={null}
-            width={900}
+            width={1100}
+            style={{ top: 20 }}
             destroyOnClose={true}
+            bodyStyle={{ padding: '0 24px 24px 24px' }}
         >
             <Form form={form} layout="vertical" onFinish={handleSubmit}>
-                {/* ─── AUDIO BANNER (top) ─── */}
-                <AudioBanner
-                    currentAudioUrl={null}
-                    newAudioFile={audioFile}
-                    onAudioFileChange={setAudioFile}
-                />
+                <Row gutter={24} style={{ marginTop: 24 }}>
+                    {/* ─── LEFT COLUMN: AUDIO & CONTENT ─── */}
+                    <Col span={14}>
+                        <Card 
+                            title={<Space><SoundOutlined /><span>Dữ liệu âm thanh & Nội dung</span></Space>}
+                            extra={
+                                <Space>
+                                    <Tooltip title="Tải mẫu Excel">
+                                        <Button size="small" icon={<FileExcelOutlined />} onClick={handleDownloadTemplate} />
+                                    </Tooltip>
+                                    <Upload beforeUpload={handleExcelImport} showUploadList={false} accept=".xlsx,.xls">
+                                        <Button size="small" icon={<CloudUploadOutlined />}>Excel</Button>
+                                    </Upload>
+                                </Space>
+                            }
+                            style={{ borderRadius: 16, border: '1px solid #E2E8F0', height: '100%' }}
+                        >
+                            {/* Audio Banner */}
+                            <AudioBanner
+                                currentAudioUrl={null}
+                                newAudioFile={audioFiles}
+                                onAudioFileChange={setAudioFiles}
+                                multiple={true}
+                            />
 
-                {/* ─── EXCEL IMPORT BUTTONS ─── */}
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginBottom: 16 }}>
-                    <Tooltip title={`Tải file Excel mẫu cho 1 nhóm câu hỏi (3 câu)`}>
-                        <Button icon={<FileExcelOutlined />} onClick={handleDownloadTemplate} style={{ borderRadius: 8, color: '#16A34A', borderColor: '#16A34A' }}>
-                            Tải file mẫu
-                        </Button>
-                    </Tooltip>
-                    <Button
-                        icon={<FileExcelOutlined />}
-                        style={{ borderRadius: 8, background: '#16A34A', color: '#fff', border: 'none', fontWeight: 600 }}
-                        onClick={() => {
-                            const input = document.createElement('input');
-                            input.type = 'file';
-                            input.accept = '.xlsx,.xls';
-                            input.onchange = (e) => {
-                                const file = (e.target as HTMLInputElement).files?.[0];
-                                if (file) handleExcelImport(file);
-                            };
-                            input.click();
+                            <Divider orientation={"left" as any} style={{ margin: '16px 0' }}>
+                                <Space><MessageOutlined /><span>Transcript & Graphic</span></Space>
+                            </Divider>
+
+                            {/* Graphic Image Upload */}
+                            <div style={{ marginBottom: 20 }}>
+                                <Text strong style={{ display: 'block', marginBottom: 8 }}>Ảnh minh họa (Graphic - nếu có):</Text>
+                                <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
+                                    <Upload
+                                        beforeUpload={handleGraphicBeforeUpload}
+                                        showUploadList={false}
+                                        accept="image/*"
+                                    >
+                                        <div style={{
+                                            width: 100, height: 100, borderRadius: 12, border: '2px dashed #CBD5E1',
+                                            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                                            cursor: 'pointer', background: '#F8FAFC', transition: 'all 0.3s'
+                                        }} className="hover:border-blue-500">
+                                            {graphicPreview ? (
+                                                <Image src={graphicPreview} preview={false} style={{ width: '100%', height: '100%', borderRadius: 10, objectFit: 'cover' }} />
+                                            ) : (
+                                                <>
+                                                    <PicCenterOutlined style={{ fontSize: 24, color: '#94A3B8' }} />
+                                                    <span style={{ fontSize: 10, color: '#94A3B8', marginTop: 4 }}>Thêm ảnh</span>
+                                                </>
+                                            )}
+                                        </div>
+                                    </Upload>
+                                    {graphicPreview && (
+                                        <Button type="text" danger icon={<DeleteOutlined />} onClick={() => { setGraphicPreview(null); setGraphicFile(null); }}>Xóa ảnh</Button>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Transcript with Quill */}
+                            <Form.Item label={<Text strong>Transcript bài nói:</Text>} name="transcript">
+                                <ReactQuill
+                                    theme="snow"
+                                    modules={QUILL_MODULES}
+                                    formats={QUILL_FORMATS}
+                                    placeholder="Nhập nội dung hội thoại..."
+                                    style={{ height: 200, marginBottom: 50, borderRadius: 12 }}
+                                />
+                            </Form.Item>
+                        </Card>
+                    </Col>
+
+                    {/* ─── RIGHT COLUMN: QUESTIONS ─── */}
+                    <Col span={10}>
+                        <Card 
+                            title={<Space><CheckCircleOutlined /><span>Danh sách 3 câu hỏi</span></Space>}
+                            style={{ borderRadius: 16, border: '1px solid #E2E8F0', maxHeight: '70vh', overflowY: 'auto' }}
+                            bodyStyle={{ padding: '16px' }}
+                        >
+                            <Form.List name="questions">
+                                {(fields) => (
+                                    <>
+                                        {fields.map((field, index) => (
+                                            <Card
+                                                key={field.key}
+                                                size="small"
+                                                style={{ 
+                                                    marginBottom: 16, borderRadius: 12, background: '#F8FAFC', 
+                                                    border: '1px solid #E2E8F0', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' 
+                                                }}
+                                                title={
+                                                    <Space>
+                                                        <Form.Item
+                                                            noStyle
+                                                            shouldUpdate={(prevValues, currentValues) =>
+                                                                prevValues.questions?.[index]?.questionNumber !== currentValues.questions?.[index]?.questionNumber
+                                                            }
+                                                        >
+                                                            {() => (
+                                                                <Tag color="blue" style={{ borderRadius: 6 }}>
+                                                                    Câu {form.getFieldValue(['questions', index, 'questionNumber']) || (index * 1 + 32)}
+                                                                </Tag>
+                                                            )}
+                                                        </Form.Item>
+                                                        <Form.Item {...field} name={[field.name, 'questionNumber']} noStyle>
+                                                            <InputNumber size="small" bordered={false} style={{ fontWeight: 700, width: 50 }} />
+                                                        </Form.Item>
+                                                    </Space>
+                                                }
+                                            >
+                                                <Form.Item {...field} name={[field.name, 'questionText']} rules={[{ required: true, message: 'Nhập nội dung câu hỏi' }]}>
+                                                    <Input placeholder="Nội dung câu hỏi..." style={{ borderRadius: 8 }} />
+                                                </Form.Item>
+
+                                                <Row gutter={[8, 8]}>
+                                                    <Col span={12}>
+                                                        <Form.Item {...field} name={[field.name, 'optionA']} label="A" style={{ marginBottom: 8 }}>
+                                                            <Input size="small" style={{ borderRadius: 6 }} />
+                                                        </Form.Item>
+                                                    </Col>
+                                                    <Col span={12}>
+                                                        <Form.Item {...field} name={[field.name, 'optionB']} label="B" style={{ marginBottom: 8 }}>
+                                                            <Input size="small" style={{ borderRadius: 6 }} />
+                                                        </Form.Item>
+                                                    </Col>
+                                                    <Col span={12}>
+                                                        <Form.Item {...field} name={[field.name, 'optionC']} label="C" style={{ marginBottom: 8 }}>
+                                                            <Input size="small" style={{ borderRadius: 6 }} />
+                                                        </Form.Item>
+                                                    </Col>
+                                                    <Col span={12}>
+                                                        <Form.Item {...field} name={[field.name, 'optionD']} label="D" style={{ marginBottom: 8 }}>
+                                                            <Input size="small" style={{ borderRadius: 6 }} />
+                                                        </Form.Item>
+                                                    </Col>
+                                                </Row>
+
+                                                <Form.Item {...field} name={[field.name, 'correctAnswer']} label={<Text strong style={{ fontSize: 12 }}>Đáp án đúng:</Text>} rules={[{ required: true }]} style={{ marginTop: 8, marginBottom: 0 }}>
+                                                    <Select size="small" style={{ width: '100%', borderRadius: 6 }}>
+                                                        <Option value="A">A</Option>
+                                                        <Option value="B">B</Option>
+                                                        <Option value="C">C</Option>
+                                                        <Option value="D">D</Option>
+                                                    </Select>
+                                                </Form.Item>
+                                            </Card>
+                                        ))}
+                                    </>
+                                )}
+                            </Form.List>
+                        </Card>
+                    </Col>
+                </Row>
+
+                <div style={{ marginTop: 24, display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
+                    <Button onClick={onCancel} style={{ borderRadius: 10, width: 120 }}>Hủy</Button>
+                    <Button 
+                        type="primary" 
+                        htmlType="submit" 
+                        loading={loading}
+                        style={{ 
+                            borderRadius: 10, width: 200, height: 40,
+                            background: 'linear-gradient(135deg, #2563EB 0%, #1E40AF 100%)', 
+                            border: 'none', fontWeight: 700, boxShadow: '0 4px 12px rgba(37, 99, 235, 0.3)'
                         }}
                     >
-                        Import Excel (1 nhóm)
-                    </Button>
-                </div>
-
-                <Card title="Transcript / Nội dung hội thoại chung" style={{ marginBottom: 16, borderRadius: 12 }}>
-                    <Form.Item label="Transcript / Giải thích chung" name="transcript">
-                        <Input.TextArea rows={4} placeholder="Nhập nội dung hội thoại/bài nói..." style={{ borderRadius: 8 }} />
-                    </Form.Item>
-                </Card>
-
-                <Form.List name="questions">
-                    {(fields) => (
-                        <div style={{ maxHeight: '50vh', overflowY: 'auto', paddingRight: 5 }}>
-                            {fields.map((field, index) => (
-                                <Card
-                                    key={field.key}
-                                    title={<span style={{ fontWeight: 700 }}>Câu hỏi {index + 1}</span>}
-                                    size="small"
-                                    style={{ marginBottom: 16, borderRadius: 12, border: '1px solid #E2E8F0' }}
-                                >
-                                    <Form.Item {...field} label="Số câu" name={[field.name, 'questionNumber']} rules={[{ required: true }]}>
-                                        <InputNumber style={{ borderRadius: 8 }} />
-                                    </Form.Item>
-                                    <Form.Item {...field} label="Nội dung câu hỏi" name={[field.name, 'questionText']} rules={[{ required: true }]}>
-                                        <Input style={{ borderRadius: 8 }} />
-                                    </Form.Item>
-                                    <Space style={{ display: 'flex', marginBottom: 8 }} align="start">
-                                        <Form.Item {...field} name={[field.name, 'optionA']} rules={[{ required: true }]} style={{ marginBottom: 0 }}>
-                                            <Input prefix="(A)" placeholder="Đáp án A" style={{ borderRadius: 8 }} />
-                                        </Form.Item>
-                                        <Form.Item {...field} name={[field.name, 'optionB']} rules={[{ required: true }]} style={{ marginBottom: 0 }}>
-                                            <Input prefix="(B)" placeholder="Đáp án B" style={{ borderRadius: 8 }} />
-                                        </Form.Item>
-                                    </Space>
-                                    <Space style={{ display: 'flex' }} align="start">
-                                        <Form.Item {...field} name={[field.name, 'optionC']} rules={[{ required: true }]} style={{ marginBottom: 0 }}>
-                                            <Input prefix="(C)" placeholder="Đáp án C" style={{ borderRadius: 8 }} />
-                                        </Form.Item>
-                                        <Form.Item {...field} name={[field.name, 'optionD']} rules={[{ required: true }]} style={{ marginBottom: 0 }}>
-                                            <Input prefix="(D)" placeholder="Đáp án D" style={{ borderRadius: 8 }} />
-                                        </Form.Item>
-                                    </Space>
-                                    <Form.Item {...field} label="Đáp án đúng" name={[field.name, 'correctAnswer']} rules={[{ required: true }]} style={{ marginTop: 16 }}>
-                                        <Select style={{ width: 120, borderRadius: 8 }}>
-                                            <Option value="A">A</Option>
-                                            <Option value="B">B</Option>
-                                            <Option value="C">C</Option>
-                                            <Option value="D">D</Option>
-                                        </Select>
-                                    </Form.Item>
-                                </Card>
-                            ))}
-                        </div>
-                    )}
-                </Form.List>
-
-                <div style={{ textAlign: 'right', marginTop: 16, display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-                    <Button onClick={onCancel} style={{ borderRadius: 8 }}>Hủy</Button>
-                    <Button type="primary" htmlType="submit" loading={loading}
-                        style={{ borderRadius: 8, background: 'linear-gradient(135deg, #2563EB 0%, #1E40AF 100%)', border: 'none', fontWeight: 700 }}>
-                        Tạo nhóm câu hỏi
+                        TẠO NHÓM CÂU HỎI
                     </Button>
                 </div>
             </Form>

@@ -81,7 +81,7 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
     );
   }
 
-  Future<void> _checkHistoryAndStart(PartModel part) async {
+      Future<void> _checkHistoryAndStart(PartModel part) async {
     if (_isProcessing) return;
     
     setState(() => _isProcessing = true);
@@ -95,14 +95,16 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
         return;
       }
 
+      int? score;
+      int? total;
+      String assessment = 'Hãy cố gắng hơn nhé!';
+      List<String> strengths = [];
+      List<String> weaknesses = [];
+
       if (history.isNotEmpty) {
         final latest = history.first;
-        final score = latest['score'];
-        final total = latest['totalQuestions'];
-        String assessment = 'Hãy cố gắng hơn nhé!';
-        List<String> strengths = [];
-        List<String> weaknesses = [];
-        String shortFeedback = '';
+        score = latest['score'];
+        total = latest['totalQuestions'];
 
         try {
           final rawAssessment = latest['aiAssessment'];
@@ -115,7 +117,6 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
                   parsed['shortFeedback'] ??
                   parsed['recommendationText'] ??
                   parsed['assessment'];
-              shortFeedback = (parsed['shortFeedback'] ?? '').toString();
 
               if (aiFeedback != null) {
                 assessment = aiFeedback.toString();
@@ -134,161 +135,234 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
             }
           }
         } catch (_) {}
+      }
 
-        final bool? ready = await showDialog<bool>(
-          context: context,
-          barrierDismissible: false,
-          builder: (ctx) {
-            return Dialog(
-              backgroundColor: Colors.transparent,
-              insetPadding: const EdgeInsets.all(20),
-              child: Container(
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(24),
+      final bool? ready = await showDialog<bool>(
+        context: context,
+        barrierDismissible: true,
+        builder: (ctx) {
+          final instructionText = part.instructions ?? _getStandardInstructions(part.partNumber);
+          
+          return Dialog(
+            backgroundColor: Colors.transparent,
+            insetPadding: const EdgeInsets.all(16),
+            child: Container(
+              clipBehavior: Clip.antiAlias,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(32),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.2),
+                    blurRadius: 25,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
+              ),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(context).size.height * 0.85,
                 ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Icon(Icons.history_edu, size: 48, color: AppColors.primary),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Bạn đã làm phần này rồi',
-                      style: GoogleFonts.inter(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 24),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                    // --- Header Section with Gradient ---
+                    Stack(
                       children: [
-                        Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            SizedBox(
-                              width: 80,
-                              height: 80,
-                              child: CircularProgressIndicator(
-                                value: (total != null && total > 0)
-                                    ? (score ?? 0).toDouble() /
-                                        (total ?? 0).toDouble()
-                                    : 0.0,
-                                strokeWidth: 8,
-                                backgroundColor: Colors.grey[100],
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  (total != null &&
-                                          total > 0 &&
-                                          (score ?? 0) / (total ?? 0) >= 0.8)
-                                      ? AppColors.success
-                                      : ((total != null &&
-                                              total > 0 &&
-                                              (score ?? 0) / (total ?? 0) >= 0.5)
-                                          ? AppColors.warning
-                                          : AppColors.error),
+                        Container(
+                          height: 120,
+                          decoration: const BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [Color(0xFF4F46E5), Color(0xFF7C3AED)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                          ),
+                        ),
+                        Positioned(
+                          right: -20,
+                          top: -20,
+                          child: Icon(
+                            _getPartIcon(part.partNumber),
+                            size: 140,
+                            color: Colors.white.withValues(alpha: 0.1),
+                          ),
+                        ),
+                        Positioned(
+                          left: 24,
+                          bottom: 16,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.2),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  'PART ${part.partNumber}',
+                                  style: GoogleFonts.inter(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 12,
+                                    letterSpacing: 1.2,
+                                  ),
                                 ),
                               ),
-                            ),
-                            Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  '${score ?? 0}/${total ?? 0}',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.textPrimary,
-                                  ),
+                              const SizedBox(height: 4),
+                              Text(
+                                part.partName,
+                                style: GoogleFonts.inter(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 22,
                                 ),
-                                Text(
-                                  'Đúng',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 10,
-                                    color: AppColors.textSecondary,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        Positioned(
+                          right: 12,
+                          top: 12,
+                          child: IconButton(
+                            icon: const Icon(Icons.close_rounded, color: Colors.white, size: 28),
+                            onPressed: () => Navigator.of(ctx).pop(false),
+                          ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 24),
-                    
-                    // Strengths/Weaknesses
-                    if (strengths.isNotEmpty || weaknesses.isNotEmpty) ...[
-                      Row(
-                        children: [
-                          if (strengths.isNotEmpty)
-                            Expanded(child: _buildCompactTagList('Điểm mạnh', strengths, Colors.green)),
-                          if (strengths.isNotEmpty && weaknesses.isNotEmpty) const SizedBox(width: 8),
-                          if (weaknesses.isNotEmpty)
-                            Expanded(child: _buildCompactTagList('Cần cải thiện', weaknesses, Colors.orange)),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                    ],
 
-                    // AI Assessment
-                    if (assessment.isNotEmpty)
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: AppColors.indigo50.withValues(alpha: 0.5),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
+                    // --- Scrollable Body Section ---
+                    Flexible(
+                      child: SingleChildScrollView(
+                        physics: const BouncingScrollPhysics(),
+                        padding: const EdgeInsets.fromLTRB(24, 24, 24, 12),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('NHẬN XÉT AI', style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w900, color: AppColors.primary)),
-                            const SizedBox(height: 4),
-                            Text(
-                              shortFeedback.isNotEmpty ? shortFeedback : 'Bạn đang có tiến bộ tốt!',
-                              style: GoogleFonts.inter(fontSize: 12, fontStyle: FontStyle.italic, color: AppColors.textPrimary),
+                            // Mission Details
+                            Row(
+                              children: [
+                                _buildMissionSticker(Icons.help_outline_rounded, '${part.totalQuestions} câu hỏi'),
+                                const SizedBox(width: 12),
+                                _buildMissionSticker(Icons.timer_outlined, part.timeLimit != null ? '${part.timeLimit! ~/ 60} phút' : 'Tự do'),
+                              ],
                             ),
+                            const SizedBox(height: 24),
+
+                            // Instructions Section
+                            Text(
+                              'HƯỚNG DẪN NHIỆM VỤ',
+                              style: GoogleFonts.inter(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w900,
+                                color: const Color(0xFF64748B),
+                                letterSpacing: 1,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF8FAFC),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(color: const Color(0xFFE2E8F0)),
+                              ),
+                              child: Text(
+                                instructionText,
+                                style: GoogleFonts.inter(
+                                  fontSize: 14,
+                                  height: 1.6,
+                                  color: const Color(0xFF334155),
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+
+                            const SizedBox(height: 24),
+
+                            // Previous Best (If history exists)
+                            if (history.isNotEmpty) ...[
+                              Text(
+                                'THÀNH TÍCH TRƯỚC ĐÓ',
+                                style: GoogleFonts.inter(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w900,
+                                  color: const Color(0xFF64748B),
+                                  letterSpacing: 1,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              _buildAuraHistoryCard(score, total, assessment, strengths, weaknesses),
+                            ],
                           ],
                         ),
                       ),
+                    ),
 
-                    const SizedBox(height: 24),
-                    Row(
-                      children: [
-                        Expanded(child: OutlinedButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Đóng'))),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: () {
-                              Navigator.of(ctx).pop();
-                              _directReview(part);
-                            }, 
-                            child: const Text('Xem lại')
-                          )
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: () => Navigator.of(ctx).pop(true), 
-                            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: Colors.white),
-                            child: const Text('Làm bài')
-                          )
-                        ),
-                      ],
+                    // --- Fixed Buttons Section ---
+                    Container(
+                      padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.05),
+                            blurRadius: 10,
+                            offset: const Offset(0, -5),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          if (history.isNotEmpty)
+                            Expanded(
+                              flex: 2,
+                              child: OutlinedButton(
+                                onPressed: () {
+                                  Navigator.of(ctx).pop();
+                                  _directReview(part);
+                                },
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(vertical: 16),
+                                  side: const BorderSide(color: Color(0xFFE2E8F0), width: 2),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                ),
+                                child: const Icon(Icons.history_rounded, color: Color(0xFF64748B)),
+                              ),
+                            ),
+                          if (history.isNotEmpty) const SizedBox(width: 12),
+                          Expanded(
+                            flex: 5,
+                            child: ElevatedButton(
+                              onPressed: () => Navigator.of(ctx).pop(true),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF4F46E5),
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                              ),
+                              child: Text(
+                                history.isEmpty ? 'BẮT ĐẦU NGAY' : 'LÀM LẠI',
+                                style: const TextStyle(fontWeight: FontWeight.w900, letterSpacing: 0.5),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
               ),
-            );
-          },
-        );
+            ),
+          );
+        },
+      );
 
-        if (ready == true) {
-          await _directSimulation(part);
-        }
-      } else {
+      if (ready == true) {
         await _directSimulation(part);
       }
     } catch (e) {
@@ -1104,28 +1178,151 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
     }
   }
 
-  Widget _buildCompactTagList(String label, List<String> items, Color color) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label.toUpperCase(),
+  String _getStandardInstructions(int partNumber) {
+    switch (partNumber) {
+      case 1: return "Phần 1: Mô tả hình ảnh. Với mỗi câu hỏi, bạn sẽ nghe 4 câu mô tả về một bức tranh. Hãy chọn câu mô tả đúng nhất những gì bạn thấy trong tranh.";
+      case 2: return "Phần 2: Hỏi - Đáp. Bạn sẽ nghe một câu hỏi hoặc một câu nói và 3 lựa chọn trả lời. Hãy chọn câu trả lời phù hợp nhất cho câu hỏi đó.";
+      case 3: return "Phần 3: Đoạn hội thoại. Bạn sẽ nghe các đoạn hội thoại giữa hai hoặc nhiều người. Với mỗi đoạn, hãy trả lời 3 câu hỏi liên quan.";
+      case 4: return "Phần 4: Bài nói ngắn. Bạn sẽ nghe các bài nói ngắn do một người trình bày. Với mỗi bài, hãy trả lời 3 câu hỏi liên quan.";
+      case 5: return "Phần 5: Hoàn thành câu. Hãy chọn từ hoặc cụm từ phù hợp nhất để hoàn thành câu văn đã cho.";
+      case 6: return "Phần 6: Hoàn thành đoạn văn. Hãy chọn từ, cụm từ hoặc câu văn phù hợp nhất để điền vào các khoảng trống trong đoạn văn.";
+      case 7: return "Phần 7: Đọc hiểu. Hãy đọc các đoạn văn (đơn hoặc đa) và trả lời các câu hỏi dựa trên thông tin đã đọc.";
+      default: return "Hãy chọn đáp án đúng nhất cho mỗi câu hỏi.";
+    }
+  }
+
+  IconData _getPartIcon(int partNumber) {
+    switch (partNumber) {
+      case 1: return Icons.camera_alt_rounded;
+      case 2: return Icons.question_answer_rounded;
+      case 3: return Icons.forum_rounded;
+      case 4: return Icons.record_voice_over_rounded;
+      case 5: return Icons.edit_note_rounded;
+      case 6: return Icons.article_rounded;
+      case 7: return Icons.menu_book_rounded;
+      default: return Icons.assignment_rounded;
+    }
+  }
+
+  Widget _buildMissionSticker(IconData icon, String text) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF1F5F9),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: const Color(0xFF64748B)),
+          const SizedBox(width: 6),
+          Text(
+            text,
             style: GoogleFonts.inter(
-                fontSize: 9,
-                fontWeight: FontWeight.w900,
-                color: color.withValues(alpha: 0.8))),
-        const SizedBox(height: 4),
-        ...items.take(2).map((item) => Container(
-              margin: const EdgeInsets.only(bottom: 2),
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(4)),
-              child: Text(item,
-                  style: GoogleFonts.inter(
-                      fontSize: 10, color: color, fontWeight: FontWeight.w500),
-                  overflow: TextOverflow.ellipsis),
-            )),
-      ],
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: const Color(0xFF475569),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAuraHistoryCard(int? score, int? total, String assessment, List<String> strengths, List<String> weaknesses) {
+    final double percentage = (total != null && total > 0) ? (score ?? 0) / total : 0;
+    final color = percentage >= 0.8 ? Colors.green : (percentage >= 0.5 ? Colors.orange : Colors.red);
+    
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
+        boxShadow: [
+          BoxShadow(
+            color: color.withValues(alpha: 0.05),
+            blurRadius: 15,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Stack(
+                alignment: Alignment.center,
+                children: [
+                  SizedBox(
+                    width: 54,
+                    height: 54,
+                    child: CircularProgressIndicator(
+                      value: percentage,
+                      backgroundColor: color.withValues(alpha: 0.1),
+                      valueColor: AlwaysStoppedAnimation<Color>(color),
+                      strokeWidth: 5,
+                    ),
+                  ),
+                  Text(
+                    '${(percentage * 100).toInt()}%',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: color),
+                  ),
+                ],
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Kết quả: $score/$total',
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Nhận xét AI: $assessment',
+                      style: TextStyle(fontSize: 12, color: Colors.grey.shade600, fontStyle: FontStyle.italic),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (strengths.isNotEmpty || weaknesses.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            const Divider(height: 1),
+            const SizedBox(height: 12),
+            if (strengths.isNotEmpty)
+              _buildCompactBadgeRow('Ưu điểm', strengths, Colors.green),
+            if (weaknesses.isNotEmpty)
+              _buildCompactBadgeRow('Cần cải thiện', weaknesses, Colors.orange),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCompactBadgeRow(String title, List<String> items, Color color) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('$title: ', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: color)),
+          Expanded(
+            child: Text(
+              items.join(', '),
+              style: const TextStyle(fontSize: 10),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

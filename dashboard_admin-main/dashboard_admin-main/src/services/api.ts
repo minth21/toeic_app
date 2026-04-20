@@ -179,6 +179,19 @@ export const uploadApi = {
         });
 
         return response.data;
+    },
+
+    mergeAudio: async (files: File[]): Promise<{ success: boolean; url: string; publicId: string; message?: string }> => {
+        const formData = new FormData();
+        files.forEach(file => formData.append('audios', file));
+
+        const response = await api.post('/upload/audio/merge', formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data',
+            },
+        });
+
+        return response.data;
     }
 };
 

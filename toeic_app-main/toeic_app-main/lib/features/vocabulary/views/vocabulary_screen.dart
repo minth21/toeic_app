@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../../theme/app_typography.dart';
 import '../viewmodels/vocabulary_viewmodel.dart';
 import 'widgets/flashcard_widget.dart';
 import '../../../constants/app_constants.dart';
@@ -129,7 +130,7 @@ class _VocabularyScreenState extends State<VocabularyScreen> {
                             const SizedBox(height: 4),
                             Text(
                               context.tr('your_vocabulary_store'),
-                              style: GoogleFonts.outfit(
+                              style: AppTypography.ui(
                                 fontSize: 24,
                                 fontWeight: FontWeight.w900,
                                 color: Colors.white,

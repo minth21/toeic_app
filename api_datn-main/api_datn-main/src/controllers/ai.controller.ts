@@ -17,6 +17,9 @@ import {
 } from '../services/ai.service';
 import { calculateEstimatedScore } from '../services/user.service';
 import axios from 'axios';
+import { ExportService } from '../services/export.service';
+
+const exportService = new ExportService();
 
 // Helper: Resize & nén ảnh trước khi gửi Gemini (giảm 80% dung lượng, tăng tốc 2-3x)
 const optimizeImage = async (buffer: Buffer): Promise<Buffer> => {
@@ -733,15 +736,23 @@ export const updateRoadmap = async (req: Request, res: Response) => {
 export const exportRoadmapPdf = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
-        // Logic gọi export service ở đây (giả định dùng exportService có sẵn)
-        const pdfBuffer = await require('../services/export.service').exportRoadmapToPdf(id);
         
+        // Gọi service tạo PDF (Trả về một Stream)
+        const pdfStream = await exportService.generateSingleRoadmapPdf(id);
+        
+        // Thiết lập Headers cho trình duyệt nhận diện file PDF
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `attachment; filename=roadmap-${id}.pdf`);
-        return res.send(pdfBuffer);
+        
+        // Pipe stream trực tiếp vào response
+        pdfStream.pipe(res);
+        
+        // CỰC KỲ QUAN TRỌNG: Phải gọi .end() để kết thúc stream, nếu không request sẽ bị treo (hang)
+        pdfStream.end();
+        return;
     } catch (error: any) {
         console.error('Export PDF Error:', error);
-        return res.status(500).json({ success: false, message: error.message });
+        return res.status(500).json({ success: false, message: error.message || 'Lỗi khi xuất PDF' });
     }
 };
 

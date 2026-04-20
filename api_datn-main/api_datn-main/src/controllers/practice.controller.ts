@@ -373,7 +373,8 @@ export const submitPart = async (
                         content: finalAiResult, // Save full JSON for metrics
                         score: toeicScore,  // Store the actual score reached at this milestone (Corrected variable)
                         trend: 'STABLE', // Could be calculated comparing history
-                        isPublished: true, // Mặc định CÔNG BỐ để HV thấy ngay Tư vấn chiến thuật
+                        isPublished: true, // Mặc định CÔNG BỐ để HV thấy ngay Tư vấn chiến thuật (Legacy support)
+                        status: 'PUBLISHED', // [FIX] Cập nhật status để API timeline của STUDENT có thể lấy được
                         createdAt: new Date()
                     }
                 }).catch((err: any) => console.error("[AI] Failed to create AiAssessment record:", err));
@@ -404,7 +405,7 @@ export const submitPart = async (
                         if (userData?.allowAiPushNotification) {
                             await NotificationService.createNotification({
                                 userId,
-                                title: '💡 AI Coach: Lời khuyên cho bạn',
+                                title: 'Phân tích: Lời khuyên từ AI Coach',
                                 content: `Kết quả ${score}/${total} cực kỳ ấn tượng! Hãy xem phân tích chi tiết nhé.`,
                                 type: 'FEEDBACK_RESOLVED' as any,
                                 relatedId: savedProgress.attempt.id
@@ -641,7 +642,7 @@ export const submitFullTest = async (
                 if (student?.studentClass?.teacherId) {
                     await NotificationService.createNotification({
                         userId: student.studentClass.teacherId,
-                        title: '🎯 Học viên nộp bài Full Test',
+                        title: 'Thông báo: Học viên nộp bài Full Test',
                         content: `Học viên ${student.name} vừa hoàn thành đề thi "${test.title}" với tổng điểm ${totalScore}/990. Kết quả: L ${listeningScore}, R ${readingScore}.`,
                         type: 'TEST_SUBMITTED' as any,
                         relatedId: result.id
@@ -714,7 +715,8 @@ export const submitFullTest = async (
                         content: finalAiResult,
                         score: totalScore,
                         trend: 'STABLE',
-                        isPublished: true, // Mặc định CÔNG BỐ để HV thấy ngay Tư vấn chiến thuật
+                        isPublished: true, // Mặc định CÔNG BỐ để HV thấy ngay Tư vấn chiến thuật (Legacy support)
+                        status: 'PUBLISHED', // [FIX] Cập nhật status để API timeline của STUDENT có thể lấy được
                         createdAt: new Date()
                     }
                 });

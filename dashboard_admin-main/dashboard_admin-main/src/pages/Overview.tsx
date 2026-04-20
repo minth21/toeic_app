@@ -310,9 +310,20 @@ export default function Overview() {
                                                                 position: 'absolute',
                                                                 top: -8,
                                                                 right: -8,
-                                                                fontSize: 16
+                                                                width: 20,
+                                                                height: 20,
+                                                                borderRadius: '50%',
+                                                                background: index === 0 ? '#F59E0B' : index === 1 ? '#94A3B8' : '#B45309',
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                justifyContent: 'center',
+                                                                fontSize: 10,
+                                                                fontWeight: 800,
+                                                                color: '#fff',
+                                                                boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                                                                border: '2px solid var(--bg-surface)'
                                                             }}>
-                                                                {index === 0 ? '🥇' : index === 1 ? '🥈' : '🥉'}
+                                                                {index + 1}
                                                             </div>
                                                         )}
                                                     </div>

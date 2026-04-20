@@ -2,6 +2,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../models/flashcard_model.dart';
+import '../../../../theme/app_typography.dart';
 import '../../../../l10n/app_localizations.dart';
 
 class FlashcardWidget extends StatefulWidget {
@@ -183,7 +184,7 @@ class _FlashcardWidgetState extends State<FlashcardWidget>
                     children: [
                       TextSpan(
                         text: widget.flashcard.word,
-                        style: GoogleFonts.outfit(
+                        style: AppTypography.ui(
                           fontSize: 34,
                           fontWeight: FontWeight.w900,
                           color: Colors.white,
@@ -193,7 +194,7 @@ class _FlashcardWidgetState extends State<FlashcardWidget>
                       if (typeStr.isNotEmpty)
                         TextSpan(
                           text: ' ($typeStr)',
-                          style: GoogleFonts.outfit(
+                          style: AppTypography.ui(
                             fontSize: 18,
                             fontWeight: FontWeight.w600,
                             color: Colors.white.withValues(alpha: 0.8),
@@ -212,7 +213,7 @@ class _FlashcardWidgetState extends State<FlashcardWidget>
                     ),
                     child: Text(
                       widget.flashcard.ipa!,
-                      style: GoogleFonts.outfit(
+                      style: AppTypography.ui(
                         fontSize: 16,
                         color: Colors.white,
                         fontWeight: FontWeight.w500,
@@ -233,7 +234,7 @@ class _FlashcardWidgetState extends State<FlashcardWidget>
                     Flexible(
                       child: Text(
                         context.tr('tap_to_flip').toUpperCase(),
-                        style: GoogleFonts.outfit(
+                        style: AppTypography.ui(
                           color: Colors.white.withValues(alpha: 0.6),
                           fontSize: 10,
                           fontWeight: FontWeight.w800,
@@ -290,7 +291,7 @@ class _FlashcardWidgetState extends State<FlashcardWidget>
                 Flexible(
                   child: Text(
                     context.tr('meaning_caps'),
-                    style: GoogleFonts.outfit(
+                    style: AppTypography.ui(
                       fontSize: 11,
                       fontWeight: FontWeight.w900,
                       color: primaryColor,
@@ -323,7 +324,7 @@ class _FlashcardWidgetState extends State<FlashcardWidget>
                 children: [
                   Text(
                     widget.flashcard.meaning,
-                    style: GoogleFonts.outfit(
+                    style: AppTypography.friendly(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
                       color: const Color(0xFF1E293B),
@@ -334,7 +335,7 @@ class _FlashcardWidgetState extends State<FlashcardWidget>
                     const SizedBox(height: 6),
                     Text(
                       widget.flashcard.ipa!,
-                      style: GoogleFonts.outfit(
+                      style: AppTypography.friendly(
                         fontSize: 16,
                         color: primaryColor,
                         fontStyle: FontStyle.italic,
@@ -365,7 +366,7 @@ class _FlashcardWidgetState extends State<FlashcardWidget>
                           const SizedBox(height: 4),
                           Text(
                             widget.flashcard.exampleEn!,
-                            style: GoogleFonts.outfit(
+                            style: AppTypography.friendly(
                               fontSize: 13,
                               color: const Color(0xFF475569),
                               fontStyle: FontStyle.italic,

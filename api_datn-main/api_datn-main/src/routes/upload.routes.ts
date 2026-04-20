@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import multer from 'multer';
-import { uploadExamImage, uploadAudio } from '../controllers/upload.controller';
+import { uploadExamImage, uploadAudio, mergeAudio } from '../controllers/upload.controller';
 import { authMiddleware } from '../middlewares/auth.middleware';
 
 const router = Router();
@@ -28,5 +28,9 @@ router.post('/image', authMiddleware, upload.single('image'), uploadExamImage);
 // Route: POST /api/upload/audio
 // Protected by auth middleware
 router.post('/audio', authMiddleware, upload.single('audio'), uploadAudio);
+
+// Route: POST /api/upload/audio/merge
+// Protected by auth middleware, supports up to 2 files
+router.post('/audio/merge', authMiddleware, upload.array('audios', 2), mergeAudio);
 
 export default router;

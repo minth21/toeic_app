@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 import '../../../constants/app_constants.dart';
+import '../../../theme/app_typography.dart';
 import '../viewmodels/progress_viewmodel.dart';
 
 class PartRecordDetailScreen extends StatefulWidget {
@@ -42,7 +42,7 @@ class _PartRecordDetailScreenState extends State<PartRecordDetailScreen> {
         ),
         title: Text(
           widget.partName,
-          style: GoogleFonts.outfit(fontWeight: FontWeight.bold, color: Colors.white),
+          style: AppTypography.ui(fontWeight: FontWeight.bold, color: Colors.white),
         ),
         flexibleSpace: Container(
           decoration: const BoxDecoration(
@@ -76,7 +76,7 @@ class _PartRecordDetailScreenState extends State<PartRecordDetailScreen> {
                   const SizedBox(height: 32),
                   Text(
                     'LỊCH SỬ CHI TIẾT',
-                    style: GoogleFonts.outfit(
+                    style: AppTypography.ui(
                       fontSize: 14,
                       fontWeight: FontWeight.bold,
                       color: AppColors.textSecondary,
@@ -110,7 +110,7 @@ class _PartRecordDetailScreenState extends State<PartRecordDetailScreen> {
             Expanded(
               child: Text(
                 'Làm thêm bài tập để AI có thể phân tích tiến trình của bạn.',
-                style: GoogleFonts.outfit(color: AppColors.textSecondary),
+                style: AppTypography.ui(color: AppColors.textSecondary),
               ),
             ),
           ],
@@ -159,7 +159,7 @@ class _PartRecordDetailScreenState extends State<PartRecordDetailScreen> {
                   children: [
                     Text(
                       isImproving ? 'BẠN ĐANG TIẾN BỘ!' : 'GIỮ VỮNG PHONG ĐỘ',
-                      style: GoogleFonts.outfit(
+                      style: AppTypography.friendly(
                         color: Colors.white,
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -170,9 +170,10 @@ class _PartRecordDetailScreenState extends State<PartRecordDetailScreen> {
                       isImproving 
                         ? 'Kết quả lần này tốt hơn so với lần trước. Tiếp tục phát huy nhé!'
                         : 'Điểm số chưa có sự đột phá. Hãy thử ôn lại các câu sai để cải thiện.',
-                      style: GoogleFonts.outfit(
+                      style: AppTypography.friendly(
                         color: Colors.white.withValues(alpha: 0.9),
                         fontSize: 13,
+                        height: 1.4,
                       ),
                     ),
                   ],
@@ -225,7 +226,7 @@ class _PartRecordDetailScreenState extends State<PartRecordDetailScreen> {
                   if (value == 0 || value == maxScore || value == (maxScore/2).roundToDouble()) {
                     return Text(
                       value.toInt().toString(),
-                      style: GoogleFonts.outfit(color: Colors.grey, fontSize: 10),
+                      style: AppTypography.ui(color: Colors.grey, fontSize: 10),
                     );
                   }
                   return const SizedBox();
@@ -240,7 +241,7 @@ class _PartRecordDetailScreenState extends State<PartRecordDetailScreen> {
                     padding: const EdgeInsets.only(top: 8.0),
                     child: Text(
                       'Lần ${value.toInt() + 1}',
-                      style: GoogleFonts.outfit(color: Colors.grey, fontSize: 10),
+                      style: AppTypography.ui(color: Colors.grey, fontSize: 10),
                     ),
                   );
                 },
@@ -310,11 +311,11 @@ class _PartRecordDetailScreenState extends State<PartRecordDetailScreen> {
             leading: _buildScoreCircle(percentage),
             title: Text(
               'Lần làm thứ ${history.length - index}',
-              style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 15),
+              style: AppTypography.ui(fontWeight: FontWeight.bold, fontSize: 15),
             ),
             subtitle: Text(
               DateFormat('HH:mm - dd/MM/yyyy').format(date),
-              style: GoogleFonts.outfit(color: AppColors.textSecondary, fontSize: 12),
+              style: AppTypography.ui(color: AppColors.textSecondary, fontSize: 12),
             ),
             trailing: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -322,7 +323,7 @@ class _PartRecordDetailScreenState extends State<PartRecordDetailScreen> {
               children: [
                 Text(
                   '$score/$total',
-                  style: GoogleFonts.outfit(
+                  style: AppTypography.ui(
                     color: AppColors.primary,
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
@@ -330,7 +331,7 @@ class _PartRecordDetailScreenState extends State<PartRecordDetailScreen> {
                 ),
                 Text(
                   'Câu đúng',
-                  style: GoogleFonts.outfit(color: AppColors.textSecondary, fontSize: 10),
+                  style: AppTypography.ui(color: AppColors.textSecondary, fontSize: 10),
                 ),
               ],
             ),
@@ -358,7 +359,7 @@ class _PartRecordDetailScreenState extends State<PartRecordDetailScreen> {
       child: Center(
         child: Text(
           '$percentage%',
-          style: GoogleFonts.outfit(
+          style: AppTypography.ui(
             color: color,
             fontWeight: FontWeight.bold,
             fontSize: 12,
@@ -377,7 +378,7 @@ class _PartRecordDetailScreenState extends State<PartRecordDetailScreen> {
           const SizedBox(height: 16),
           Text(
             'Bạn chưa làm bài nào ở Part này.',
-            style: GoogleFonts.outfit(color: AppColors.textSecondary),
+            style: AppTypography.ui(color: AppColors.textSecondary),
           ),
         ],
       ),

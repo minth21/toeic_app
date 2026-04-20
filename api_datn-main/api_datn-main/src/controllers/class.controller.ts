@@ -48,6 +48,7 @@ export class ClassController {
                 description: c.description,
                 teacher: c.teacher,
                 studentCount: c._count.students,
+                maxCapacity: c.maxCapacity,
                 status: c.status,
                 createdAt: c.createdAt
             })), 'Tải danh sách lớp học thành công');
@@ -386,8 +387,8 @@ export class ClassController {
                     const classData = await p.class.findUnique({ where: { id: classId }, select: { className: true } });
                     await NotificationService.createNotification({
                         userId: studentId,
-                        title: '🏫 Bạn đã được thêm vào lớp học',
-                        content: `Chào mừng! Bạn đã được thêm vào lớp "${classData?.className || 'mới'}". Hãy kiểm tra tài liệu và lịch học nhé!`,
+                        title: 'Thông báo: Bạn đã được thêm vào lớp học',
+                        content: `Chào mừng bạn đã được thêm vào lớp "${classData?.className || 'mới'}". Vui lòng kiểm tra tài liệu và lịch học trên ứng dụng.`,
                         type: 'SYSTEM' as any,
                         relatedId: classId
                     });

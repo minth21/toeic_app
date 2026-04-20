@@ -50,7 +50,7 @@ export class ExportService {
 
         // Student Info Header
         worksheet.mergeCells('A1:E1');
-        worksheet.getCell('A1').value = `BÁO CÁO LỊCH SỬ LUYỆN TẬP - HỌC VIÊN: ${student?.name || 'N/A'} (${student?.username})`;
+        worksheet.getCell('A1').value = `BÁO CÁO LỊCH SỬ LUYỆN TẬP - HỌC VIÊN: ${student?.name || 'Không có'} (${student?.username})`;
         worksheet.getCell('A1').font = { bold: true, size: 14 };
         worksheet.getCell('A1').alignment = { horizontal: 'center' };
         worksheet.addRow([]);
@@ -121,7 +121,7 @@ export class ExportService {
                 { text: 'ANTIGRAVITY TOEIC LEARNING SYSTEM', style: 'brand', alignment: centerAlign },
                 { canvas: [{ type: 'line', x1: 0, y1: 5, x2: 515, y2: 5, lineWidth: 1, lineColor: '#1E3A8A' }] },
                 { text: 'BÁO CÁO TỔNG HỢP NĂNG LỰC & LỘ TRÌNH CÁ NHÂN', style: 'pdfTitle', alignment: centerAlign, margin: [0, 20, 0, 20] },
-                
+
                 // Student Info Info
                 {
                     style: 'infoSection',
@@ -129,8 +129,8 @@ export class ExportService {
                         widths: ['*', '*'],
                         body: [
                             [
-                                { text: `Họ và tên: ${student?.name || 'N/A'}`, bold: true },
-                                { text: `Mã học viên: ${student?.username || 'N/A'}`, bold: true }
+                                { text: `Họ và tên: ${student?.name || 'Không có'}`, bold: true },
+                                { text: `Mã học viên: ${student?.username || 'Không có'}`, bold: true }
                             ],
                             [
                                 { text: `Mục tiêu: ${student?.targetScore || 0} điểm`, color: '#1E3A8A', bold: true },
@@ -153,10 +153,10 @@ export class ExportService {
                                 { text: 'Ngày làm', style: 'tableHeader' },
                                 { text: 'Nội dung bài làm', style: 'tableHeader' },
                                 { text: 'Kết quả', style: 'tableHeader' },
-                                {text: 'Điểm', style: 'tableHeader'}
+                                { text: 'Điểm', style: 'tableHeader' }
                             ],
                             ...history.map((a: any, i: number) => [
-                                {text: (i + 1).toString(), alignment: centerAlign, fontSize: 10},
+                                { text: (i + 1).toString(), alignment: centerAlign, fontSize: 10 },
                                 { text: a.createdAt.toLocaleDateString('vi-VN'), fontSize: 10 },
                                 { text: a.test?.title || a.part?.partName || 'Luyện tập lẻ', fontSize: 10 },
                                 { text: `${a.correctCount}/${a.totalQuestions}`, alignment: centerAlign, fontSize: 10 },
@@ -174,33 +174,33 @@ export class ExportService {
                 },
 
                 // Section II: AI Roadmap
-                { text: 'II. LỘ TRÌNH PHÁT TRIỂN NĂNG LỰC CÁ NHÂN HÓA (AI COACHING)', style: 'sectionHeader', margin: [0, 30, 0, 10] },
-                aiAssessments.length === 0 
-                  ? { text: 'Chưa có phân tích lộ trình AI cho học viên này.', italics: true, color: '#6B7280' }
-                  : aiAssessments.map((item: any) => ({
-                      stack: [
-                        {
-                            columns: [
-                                { text: item.title, bold: true, fontSize: 12, color: '#1E3A8A' },
-                                { text: item.createdAt.toLocaleDateString('vi-VN'), alignment: 'right', fontSize: 10, color: '#6B7280' }
-                            ]
-                        },
-                        { 
-                            text: item.summary.replace(/<[^>]*>/g, ''), 
-                            fontSize: 10, 
-                            margin: [0, 5, 0, 15],
-                            lineHeight: 1.3
-                        },
-                        { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.5, lineColor: '#F3F4F6' }] }
-                      ],
-                      margin: [0, 5, 0, 10]
+                { text: 'II. LỘ TRÌNH PHÁT TRIỂN NĂNG LỰC CÁ NHÂN HÓA', style: 'sectionHeader', margin: [0, 30, 0, 10] },
+                aiAssessments.length === 0
+                    ? { text: 'Chưa có phân tích lộ trình AI cho học viên này.', italics: true, color: '#6B7280' }
+                    : aiAssessments.map((item: any) => ({
+                        stack: [
+                            {
+                                columns: [
+                                    { text: item.title, bold: true, fontSize: 12, color: '#1E3A8A' },
+                                    { text: item.createdAt.toLocaleDateString('vi-VN'), alignment: 'right', fontSize: 10, color: '#6B7280' }
+                                ]
+                            },
+                            {
+                                text: item.summary.replace(/<[^>]*>/g, ''),
+                                fontSize: 10,
+                                margin: [0, 5, 0, 15],
+                                lineHeight: 1.3
+                            },
+                            { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.5, lineColor: '#F3F4F6' }] }
+                        ],
+                        margin: [0, 5, 0, 10]
                     })),
 
                 // Footer
-                { 
-                    text: '\n\nBáo cáo này được tạo tự động bởi Hệ thống Antigravity Center.\nChúc bạn luyện thi TOEIC hiệu quả và sớm đạt mục tiêu!', 
-                    alignment: centerAlign, 
-                    fontSize: 9, 
+                {
+                    text: '\n\nBáo cáo này được tạo tự động bởi Hệ thống Antigravity Center.\nChúc bạn luyện thi TOEIC hiệu quả và sớm đạt mục tiêu!',
+                    alignment: centerAlign,
+                    fontSize: 9,
                     color: '#9CA3AF',
                     italics: true
                 }
@@ -241,7 +241,7 @@ export class ExportService {
             content: [
                 { text: 'ANTIGRAVITY TOEIC LEARNING SYSTEM', style: 'brand', alignment: centerAlign },
                 { canvas: [{ type: 'line' as any, x1: 0, y1: 5, x2: 515, y2: 5, lineWidth: 1, lineColor: '#1E3A8A' }] },
-                
+
                 { text: 'LỘ TRÌNH PHÁT TRIỂN NĂNG LỰC CÁ NHÂN HÓA', style: 'pdfTitle', alignment: centerAlign, margin: [0, 25, 0, 10] },
                 { text: `Ngày tạo: ${assessment.createdAt.toLocaleDateString('vi-VN')}`, alignment: centerAlign, fontSize: 10, color: '#6B7280', margin: [0, 0, 0, 20] },
 
@@ -252,8 +252,8 @@ export class ExportService {
                         widths: ['*', '*'],
                         body: [
                             [
-                                { text: `Học viên: ${assessment.user?.name || 'N/A'}`, bold: true },
-                                { text: `Mã số: ${assessment.user?.username || 'N/A'}`, bold: true }
+                                { text: `Học viên: ${assessment.user?.name || 'Không có'}`, bold: true },
+                                { text: `Mã số: ${assessment.user?.username || 'Không có'}`, bold: true }
                             ],
                             [
                                 { text: `Mục tiêu: ${assessment.user?.targetScore || 0} điểm`, color: '#1E3A8A', bold: true },
@@ -266,9 +266,9 @@ export class ExportService {
 
                 // I. Overview Summary
                 { text: 'I. TỔNG QUAN NĂNG LỰC HIỆN TẠI', style: 'sectionHeader' },
-                { 
-                    text: assessment.summary.replace(/<[^>]*>/g, ''), 
-                    fontSize: 11, 
+                {
+                    text: assessment.summary.replace(/<[^>]*>/g, ''),
+                    fontSize: 11,
                     lineHeight: 1.5,
                     margin: [5, 0, 0, 10] as [number, number, number, number]
                 },
@@ -276,12 +276,12 @@ export class ExportService {
                 // II. Teacher's Note (Mục tiêu của User) - Supports HTML to plain conversion Lite
                 ...(assessment.teacherNote ? [
                     { text: 'II. LỜI KHUYÊN TỪ GIÁO VIÊN', style: 'sectionHeader' },
-                    { 
-                        canvas: [{ type: 'rect' as any, x: 0, y: 0, w: 515, h: 2, color: '#1E3A8A' }] 
+                    {
+                        canvas: [{ type: 'rect' as any, x: 0, y: 0, w: 515, h: 2, color: '#1E3A8A' }]
                     },
-                    { 
-                        text: assessment.teacherNote.replace(/<[^>]*>/g, '\n').trim(), 
-                        fontSize: 11, 
+                    {
+                        text: assessment.teacherNote.replace(/<[^>]*>/g, '\n').trim(),
+                        fontSize: 11,
                         italics: true,
                         color: '#1E3A8A',
                         margin: [10, 10, 10, 20] as [number, number, number, number],
@@ -302,10 +302,10 @@ export class ExportService {
                 },
 
                 // Footer
-                { 
-                    text: '\n\n\n\nBáo cáo này được bảo mật và chỉ dành riêng cho mục đích học tập cá nhân.\n© 2024 Antigravity Center - Empower your potential.', 
-                    alignment: centerAlign, 
-                    fontSize: 8, 
+                {
+                    text: '\n\n\n\nBáo cáo này được bảo mật và chỉ dành riêng cho mục đích học tập cá nhân.\n© 2024 Antigravity Center - Empower your potential.',
+                    alignment: centerAlign,
+                    fontSize: 8,
                     color: '#9CA3AF',
                     italics: true,
                     margin: [0, 50, 0, 0] as [number, number, number, number]

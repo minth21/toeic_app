@@ -102,7 +102,7 @@ class AppLocalizations {
       'current_average_score_caps': 'CURRENT AVERAGE SCORE',
       'completed': 'Completed',
       'points_to_go': 'points to go!',
-      'target_achieved': 'Target Achieved! 🎉',
+      'target_achieved': 'Target Achieved!',
       'no_performance_data_msg':
           'Take a test to start tracking your performance',
       'no_ai_assessments_msg': 'No AI assessments yet.',
@@ -215,7 +215,7 @@ class AppLocalizations {
       'current_average_score_caps': 'ĐIỂM TRUNG BÌNH HIỆN TẠI',
       'completed': 'Hoàn thành',
       'points_to_go': 'điểm nữa!',
-      'target_achieved': 'Đã đạt mục tiêu! 🎉',
+      'target_achieved': 'Đã hoàn thành mục tiêu!',
       'no_performance_data_msg': 'Hãy thi thử để bắt đầu ghi lại điểm số',
       'no_ai_assessments_msg': 'Chưa có nhận xét AI nào.',
       'achievement_points_label': 'Điểm',

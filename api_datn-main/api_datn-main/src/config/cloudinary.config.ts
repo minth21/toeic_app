@@ -131,6 +131,19 @@ export const uploadAudioToCloudinary = (
 };
 
 /**
+ * Upload audio from file path
+ */
+export const uploadAudioFileToCloudinary = (
+    filePath: string,
+    folder: string = 'toeic_practice/exam-audio'
+): Promise<any> => {
+    return cloudinary.uploader.upload(filePath, {
+        folder: folder,
+        resource_type: 'video'
+    });
+};
+
+/**
  * Delete file from Cloudinary
  */
 export const deleteFromCloudinary = async (

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
     Table, Button, Card, Typography, Space, Modal, Form,
     Input, Select, message, Tag, Tooltip, Avatar,
+    InputNumber,
     Row, Col, Drawer
 } from 'antd';
 import {
@@ -9,7 +10,9 @@ import {
     UserOutlined, TeamOutlined, BookOutlined,
     SearchOutlined, ReloadOutlined,
     EyeOutlined, DownloadOutlined,
-    LockOutlined, UnlockOutlined
+    LockOutlined, UnlockOutlined,
+    CloseCircleOutlined, UserSwitchOutlined,
+    BarChartOutlined
 } from '@ant-design/icons';
 import { classApi, userApi } from '../services/api';
 import type { Class, User } from '../services/api';
@@ -35,6 +38,8 @@ const ClassManagement: React.FC = () => {
     const [availableStudents, setAvailableStudents] = useState<any[]>([]);
     const [searchingStudents, setSearchingStudents] = useState(false);
     const [selectedStudentToAdd, setSelectedStudentToAdd] = useState<string | null>(null);
+    const [changeTeacherModalVisible, setChangeTeacherModalVisible] = useState(false);
+    const [targetClassForTeacher, setTargetClassForTeacher] = useState<Class | null>(null);
 
     // Fetch data
     const fetchData = async () => {
@@ -231,6 +236,17 @@ const ClassManagement: React.FC = () => {
                         icon={<UserOutlined />}
                     />
                     <span>{record.teacher?.name || 'Chưa gán'}</span>
+                    <Tooltip title="Điều chuyển giáo viên">
+                        <Button
+                            type="text"
+                            size="small"
+                            icon={<UserSwitchOutlined style={{ color: '#6366F1' }} />}
+                            onClick={() => {
+                                setTargetClassForTeacher(record);
+                                setChangeTeacherModalVisible(true);
+                            }}
+                        />
+                    </Tooltip>
                 </Space>
             ),
         },
@@ -253,7 +269,7 @@ const ClassManagement: React.FC = () => {
             width: 150,
             render: (status: string) => {
                 let color = 'default';
-                let text = 'N/A';
+                let text = 'Không xác định';
                 switch (status) {
                     case 'ACTIVE': color = 'success'; text = 'Đang hoạt động'; break;
                     case 'INACTIVE': color = 'default'; text = 'Tạm dừng'; break;
@@ -369,7 +385,9 @@ const ClassManagement: React.FC = () => {
                                 onOk: () => handleRemoveStudent(record.id)
                             });
                         }}
-                    />
+                    >
+                        Xoá
+                    </Button>
                 </Tooltip>
             )
         }
@@ -425,7 +443,12 @@ const ClassManagement: React.FC = () => {
             <Row gutter={24} style={{ marginBottom: 32 }}>
                 <Col xs={24} lg={16}>
                     <Card
-                        title={<span style={{ fontWeight: 800, color: '#1E293B' }}>📊 TỔNG QUAN HỆ THỐNG</span>}
+                        title={
+                            <Space size={10}>
+                                <BarChartOutlined style={{ color: '#2563EB' }} />
+                                <span style={{ fontWeight: 800, color: '#1E293B' }}>TỔNG QUAN HỆ THỐNG</span>
+                            </Space>
+                        }
                         styles={{ body: { padding: '24px' } }}
                         style={{ borderRadius: 24, border: 'none', boxShadow: modernShadow, height: '100%' }}
                     >
@@ -471,7 +494,7 @@ const ClassManagement: React.FC = () => {
                 </Col>
                 <Col xs={24} lg={8}>
                     <Card
-                        title={<span style={{ fontWeight: 800, color: '#1E293B' }}>👩‍🏫 HIỆU SUẤT GIÁO VIÊN</span>}
+                        title={<span style={{ fontWeight: 800, color: '#1E293B' }}>HIỆU SUẤT GIÁO VIÊN</span>}
                         styles={{ body: { padding: 0 } }}
                         style={{ borderRadius: 24, border: 'none', boxShadow: modernShadow, height: '100%' }}
                     >
@@ -583,8 +606,13 @@ const ClassManagement: React.FC = () => {
                     </Row>
                     <Row gutter={16}>
                         <Col span={12}>
-                            <Form.Item label="Sĩ số tối đa" name="maxCapacity" rules={[{ required: true }]}>
-                                <Input type="number" prefix={<TeamOutlined />} />
+                            <Form.Item label="Sĩ số tối đa" name="maxCapacity" rules={[{ required: true, message: 'Vui lòng nhập sĩ số tối đa' }]}>
+                                <InputNumber 
+                                    min={1} 
+                                    max={200} 
+                                    style={{ width: '100%' }} 
+                                    placeholder="Vd: 30"
+                                />
                             </Form.Item>
                         </Col>
                         <Col span={12}>
@@ -637,7 +665,17 @@ const ClassManagement: React.FC = () => {
                             onSearch={fetchAvailableStudents}
                             onFocus={() => fetchAvailableStudents()}
                             loading={searchingStudents}
-                            filterOption={false}
+                            suffixIcon={selectedStudentToAdd ? (
+                                <Tooltip title="Xóa để tìm tên khác">
+                                    <CloseCircleOutlined
+                                        style={{ cursor: 'pointer', color: '#94A3B8', fontSize: 16 }}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setSelectedStudentToAdd(null);
+                                        }}
+                                    />
+                                </Tooltip>
+                            ) : null}
                         >
                             {availableStudents.map(s => (
                                 <Select.Option key={s.id} value={s.id}>
@@ -662,6 +700,56 @@ const ClassManagement: React.FC = () => {
                     size="middle"
                 />
             </Drawer>
+
+            <Modal
+                title={
+                    <Space>
+                        <UserSwitchOutlined style={{ color: '#6366F1' }} />
+                        <span style={{ fontWeight: 700 }}>Điều chuyển giáo viên: {targetClassForTeacher?.className}</span>
+                    </Space>
+                }
+                open={changeTeacherModalVisible}
+                onCancel={() => setChangeTeacherModalVisible(false)}
+                footer={null}
+                centered
+                width={500}
+            >
+                <div style={{ padding: '20px 0' }}>
+                    <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
+                        Chọn giáo viên mới để phụ trách lớp này.
+                    </Text>
+                    <Select
+                        placeholder="Chọn giáo viên mới..."
+                        style={{ width: '100%' }}
+                        size="large"
+                        defaultValue={targetClassForTeacher?.teacher?.id}
+                        onChange={async (teacherId) => {
+                            if (!targetClassForTeacher) return;
+                            try {
+                                const res = await classApi.update(targetClassForTeacher.id, { teacherId });
+                                if (res.success) {
+                                    message.success('Điều chuyển giáo viên thành công');
+                                    setChangeTeacherModalVisible(false);
+                                    fetchData();
+                                } else {
+                                    message.error(res.message);
+                                }
+                            } catch (error) {
+                                message.error('Lỗi khi điều chuyển giáo viên');
+                            }
+                        }}
+                    >
+                        {teachers.map(t => (
+                            <Select.Option key={t.id} value={t.id}>
+                                <Space>
+                                    <Avatar size="small" src={t.avatarUrl} icon={<UserOutlined />} />
+                                    {t.name}
+                                </Space>
+                            </Select.Option>
+                        ))}
+                    </Select>
+                </div>
+            </Modal>
         </div>
     );
 };
