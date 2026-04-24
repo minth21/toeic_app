@@ -66,21 +66,43 @@ class ReadingReviewScreen extends StatefulWidget {
         // Translation of Question
         if (question.questionTranslation != null && question.questionTranslation!.isNotEmpty) ...[
           _staticSectionHeader('Dịch câu hỏi', Icons.translate, const Color(0xFF6366F1)),
-          Text(question.questionTranslation!, style: GoogleFonts.inter(fontSize: 14, color: AppColors.textPrimary, fontStyle: FontStyle.italic)),
+          HtmlWidget(
+            question.questionTranslation!, 
+            textStyle: GoogleFonts.inter(
+              fontSize: 14, 
+              color: AppColors.textPrimary, 
+              fontStyle: FontStyle.italic
+            )
+          ),
           const SizedBox(height: 16),
         ],
 
         // Analysis
         if (analysis != null && analysis.isNotEmpty) ...[
           _staticSectionHeader('Phân tích đáp án', Icons.psychology_outlined, AppColors.primary),
-          Text(analysis, style: AppTypography.friendly(fontSize: 14, color: AppColors.textPrimary, height: 1.6)),
+          HtmlWidget(
+            analysis, 
+            textStyle: AppTypography.friendly(
+              fontSize: 14, 
+              color: AppColors.textPrimary, 
+              height: 1.6
+            )
+          ),
           const SizedBox(height: 16),
         ],
 
         // Evidence
         if (evidence != null && evidence.isNotEmpty) ...[
           _staticSectionHeader('Bằng chứng', Icons.fact_check_outlined, AppColors.success),
-          Text(evidence, style: AppTypography.friendly(fontSize: 14, color: AppColors.textPrimary, fontStyle: FontStyle.italic, height: 1.6)),
+          HtmlWidget(
+            evidence, 
+            textStyle: AppTypography.friendly(
+              fontSize: 14, 
+              color: AppColors.textPrimary, 
+              fontStyle: FontStyle.italic, 
+              height: 1.6
+            )
+          ),
           const SizedBox(height: 16),
         ],
 
@@ -399,22 +421,22 @@ class _ReadingReviewScreenState extends State<ReadingReviewScreen> {
 
     if (isCorrect) {
       // Đúng (Xanh) - High Priority
-      info['bg'] = AppColors.success.withValues(alpha: 0.2); // Increased visibility
-      info['border'] = AppColors.success;
-      info['text'] = AppColors.success;
-      info['borderWidth'] = 2.0; // Thicker for status
+      info['bg'] = _emerald; 
+      info['border'] = _emerald.withValues(alpha: 0.8);
+      info['text'] = Colors.white;
+      info['borderWidth'] = 2.0;
     } else {
       // Sai hoặc Bỏ trống -> Đều tính là lỗi (Đỏ)
-      info['bg'] = AppColors.error.withValues(alpha: 0.2); // Increased visibility
-      info['border'] = AppColors.error;
-      info['text'] = AppColors.error;
-      info['borderWidth'] = 2.0; // Thicker for status
+      info['bg'] = _rose;
+      info['border'] = _rose.withValues(alpha: 0.8);
+      info['text'] = Colors.white;
+      info['borderWidth'] = 2.0;
       
       // Ưu tiên hiển thị Cắm cờ nếu HV đánh dấu câu phân vân
       if (isFlagged) {
-        info['bg'] = Colors.orange.withValues(alpha: 0.1);
-        info['border'] = Colors.orange;
-        info['text'] = Colors.orange;
+        info['bg'] = Colors.orange;
+        info['border'] = Colors.orange.withValues(alpha: 0.8);
+        info['text'] = Colors.white;
       }
     }
 
@@ -774,33 +796,36 @@ class _ReadingReviewScreenState extends State<ReadingReviewScreen> {
               ),
               const Spacer(),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                 decoration: BoxDecoration(
-                  color: isCorrect 
-                      ? _emerald.withValues(alpha: 0.1)
-                      : _rose.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: isCorrect ? _emerald : _rose,
-                    width: 1,
-                  ),
+                  color: isCorrect ? _emerald : _rose,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: (isCorrect ? _emerald : _rose).withValues(alpha: 0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
                 ),
                 child: Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(
                       isCorrect 
                           ? Icons.check_circle_rounded 
                           : Icons.cancel_rounded,
-                      color: isCorrect ? _emerald : _rose,
+                      color: Colors.white,
                       size: 16,
                     ),
-                    const SizedBox(width: 4),
+                    const SizedBox(width: 6),
                     Text(
-                      isCorrect ? 'Đúng' : 'Sai',
+                      isCorrect ? 'ĐÚNG' : (userAnswer == null || userAnswer.isEmpty ? 'CHƯA TRẢ LỜI' : 'SAI'),
                       style: GoogleFonts.inter(
-                        color: isCorrect ? _emerald : _rose,
-                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                        fontWeight: FontWeight.w900,
                         fontSize: 12,
+                        letterSpacing: 0.5,
                       ),
                     ),
                   ],
@@ -1121,13 +1146,13 @@ class _ReadingReviewScreenState extends State<ReadingReviewScreen> {
         Color iconColor = Colors.transparent;
 
         if (isCorrect) {
-          bgColor = Colors.green.shade50;
+          bgColor = _emerald.withValues(alpha: 0.1);
           borderColor = _emerald;
           textColor = _emerald;
           icon = Icons.check_circle;
           iconColor = _emerald;
         } else if (isWrongSelection) {
-          bgColor = Colors.red.shade50;
+          bgColor = _rose.withValues(alpha: 0.1);
           borderColor = _rose;
           textColor = _rose;
           icon = Icons.close;

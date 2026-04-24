@@ -11,6 +11,7 @@ class AppTypography {
     Color color = AppColors.textPrimary,
     double? letterSpacing,
     double? height,
+    FontStyle? fontStyle,
   }) {
     return GoogleFonts.inter(
       fontSize: fontSize,
@@ -18,6 +19,7 @@ class AppTypography {
       color: color,
       letterSpacing: letterSpacing,
       height: height,
+      fontStyle: fontStyle,
     );
   }
 

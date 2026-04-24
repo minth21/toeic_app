@@ -252,41 +252,30 @@ class _Part1SimulationScreenState extends State<Part1SimulationScreen> {
         return match?.group(0) ?? s.trim().toUpperCase();
       }
 
-      // 🟢 Dual-Check: Prioritize DB correct status (ID match OR Question Number match)
+      // 🟢 Dual-Check: Prioritize DB correct status OR manual comparison
       bool isCorrect = false;
+      final String cleanUser = clean(userAnswer);
+      final String cleanCorrect = clean(questions[i].correctAnswer);
+
       if (widget.correctQuestionIds != null || widget.correctQuestionNumbers != null) {
         final inIdSet = widget.correctQuestionIds?.contains(qId) ?? false;
         final qNum = questions[i].questionNumber;
         final inNumSet = widget.correctQuestionNumbers?.contains(qNum) ?? false;
-        isCorrect = inIdSet || inNumSet;
-        
-        // ✅ Diagnostic Log: Log cho câu hỏi đầu tiên
-        if (qNum == 1) {
-          debugPrint('[Part1 Palette Audit] Checking Q#$qNum (ID: $qId): CorrectIds=${widget.correctQuestionIds?.length}, CorrectNums=${widget.correctQuestionNumbers?.length}, MatchID=$inIdSet, MatchNum=$inNumSet -> Final=$isCorrect');
-        }
+        isCorrect = inIdSet || inNumSet || (isAnswered && cleanUser == cleanCorrect);
       } else {
-        // Fallback to manual comparison (Using robust normalization)
-        isCorrect = isAnswered && clean(userAnswer) == clean(questions[i].correctAnswer);
+        isCorrect = isAnswered && cleanUser == cleanCorrect;
       }
 
-
-
       // High-contrast colors for Review Mode
-      if (isAnswered) {
-        if (isCorrect) {
-          info['bg'] = const Color(0xFF10B981); // Emerald 500
-          info['border'] = const Color(0xFF059669);
-          info['text'] = Colors.white;
-        } else {
-          info['bg'] = const Color(0xFFEF4444); // Red 500
-          info['border'] = const Color(0xFFDC2626);
-          info['text'] = Colors.white;
-        }
+      if (isCorrect) {
+        info['bg'] = const Color(0xFF10B981); // Emerald 500
+        info['border'] = const Color(0xFF10B981).withValues(alpha: 0.8);
+        info['text'] = Colors.white;
       } else {
-        // Not answered but in review mode = treated as wrong (Red)
-        info['bg'] = const Color(0xFFEF4444).withValues(alpha: 0.1);
-        info['border'] = const Color(0xFFEF4444).withValues(alpha: 0.3);
-        info['text'] = const Color(0xFFEF4444);
+        // Not answered or wrong both Red in review mode
+        info['bg'] = const Color(0xFFEF4444); // Red 500
+        info['border'] = const Color(0xFFEF4444).withValues(alpha: 0.8);
+        info['text'] = Colors.white;
       }
     } else {
       // Practice Mode
@@ -438,7 +427,7 @@ class _Part1SimulationScreenState extends State<Part1SimulationScreen> {
                           alignment: Alignment.center,
                           children: [
                             Text(
-                              '${i + 1}',
+                              '${questions[i].questionNumber}',
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 15,
@@ -612,19 +601,19 @@ class _Part1SimulationScreenState extends State<Part1SimulationScreen> {
       child:
           _showInstruction &&
               _selectedPart != null &&
-              (_selectedPart!.instructions != null ||
-                  _selectedPart!.instructionImgUrl != null)
+              (_selectedPart!.instructions != null || (_selectedPart!.instructionImgUrl != null && _selectedPart!.instructionImgUrl!.trim().isNotEmpty))
           ? _buildInstructionScreen(context)
           : Scaffold(
               backgroundColor: AppColors.background,
               appBar: AppBar(
                 title: Text(
-                  widget.test.title,
+                  _selectedPart?.partName ?? widget.test.title,
                   style: GoogleFonts.inter(
                     fontWeight: FontWeight.bold,
                     fontSize: 18,
                   ),
                 ),
+                centerTitle: true,
                 backgroundColor: const Color(0xFF2563EB),
                 foregroundColor: Colors.white,
                 elevation: 0,
@@ -661,7 +650,9 @@ class _Part1SimulationScreenState extends State<Part1SimulationScreen> {
                             child: Padding(
                               padding: const EdgeInsets.only(right: 16.0),
                               child: Text(
-                                '${_currentIndex + 1}/${viewModel.currentQuestions.length}',
+                                viewModel.currentQuestions.isNotEmpty && _currentIndex < viewModel.currentQuestions.length
+                                    ? '${viewModel.currentQuestions[_currentIndex].questionNumber}/${viewModel.currentQuestions.length}'
+                                    : '0/${viewModel.currentQuestions.length}',
                                 style: const TextStyle(fontWeight: FontWeight.bold),
                               ),
                             ),
@@ -711,7 +702,7 @@ class _Part1SimulationScreenState extends State<Part1SimulationScreen> {
                                         MainAxisAlignment.spaceBetween,
                                     children: [
                                       Text(
-                                        'Câu ${index + 1}',
+                                        'Câu ${question.questionNumber}',
                                         style: GoogleFonts.inter(
                                           fontSize: 18,
                                           fontWeight: FontWeight.bold,
@@ -763,12 +754,17 @@ class _Part1SimulationScreenState extends State<Part1SimulationScreen> {
                                               ClipRRect(
                                                 borderRadius:
                                                     BorderRadius.circular(24),
-                                                child: Image.network(
-                                                  question.imageUrl!,
-                                                  fit: BoxFit.contain,
-                                                  width: double.infinity,
-                                                  height: double.infinity,
-                                                ),
+                                                child: question.imageUrl == null || AppConstants.getFullUrl(question.imageUrl!).isEmpty
+                                                    ? const Center(child: Icon(Icons.broken_image_outlined, size: 48, color: Colors.grey))
+                                                    : Image.network(
+                                                        AppConstants.getFullUrl(question.imageUrl!),
+                                                        fit: BoxFit.contain,
+                                                        width: double.infinity,
+                                                        height: double.infinity,
+                                                        errorBuilder: (context, error, stackTrace) => const Center(
+                                                          child: Icon(Icons.broken_image_outlined, size: 48, color: Colors.grey),
+                                                        ),
+                                                      ),
                                               ),
                                               // Hint icon để biết có thể tap
                                               Positioned(
@@ -1023,7 +1019,7 @@ class _Part1SimulationScreenState extends State<Part1SimulationScreen> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: CustomAudioPlayer(
-        audioUrl: _selectedPart!.audioUrl!,
+        audioUrl: AppConstants.getFullUrl(_selectedPart!.audioUrl!),
         autoPlay: !widget.isReviewMode,
       ),
     );
@@ -1041,13 +1037,13 @@ class _Part1SimulationScreenState extends State<Part1SimulationScreen> {
 
     if (_isSubmitted) {
       if (isCorrect) {
-        color = const Color(0xFFECFDF5);
+        color = const Color(0xFF10B981).withValues(alpha: 0.1);
         borderColor = const Color(0xFF10B981);
-        textColor = const Color(0xFF065F46);
+        textColor = const Color(0xFF10B981);
       } else if (isSelected) {
-        color = const Color(0xFFFEF2F2);
+        color = const Color(0xFFEF4444).withValues(alpha: 0.1);
         borderColor = const Color(0xFFEF4444);
-        textColor = const Color(0xFF991B1B);
+        textColor = const Color(0xFFEF4444);
       }
     } else if (isSelected) {
       borderColor = const Color(0xFF2563EB);
@@ -1378,7 +1374,7 @@ class _Part1SimulationScreenState extends State<Part1SimulationScreen> {
                   const SizedBox(height: 24),
 
                   // Image (if any)
-                  if (_selectedPart?.instructionImgUrl != null)
+                  if (_selectedPart?.instructionImgUrl != null && _selectedPart!.instructionImgUrl!.trim().isNotEmpty)
                     Container(
                       width: double.infinity,
                       margin: const EdgeInsets.only(bottom: 24),
@@ -1394,10 +1390,15 @@ class _Part1SimulationScreenState extends State<Part1SimulationScreen> {
                       ),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(20),
-                        child: Image.network(
-                          _selectedPart!.instructionImgUrl!,
-                          fit: BoxFit.cover,
-                        ),
+                        child: AppConstants.getFullUrl(_selectedPart!.instructionImgUrl!).isEmpty
+                            ? const Center(child: Icon(Icons.broken_image_outlined, size: 48, color: Colors.grey))
+                            : Image.network(
+                                AppConstants.getFullUrl(_selectedPart!.instructionImgUrl!),
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) => const Center(
+                                  child: Icon(Icons.broken_image_outlined, size: 48, color: Colors.grey),
+                                ),
+                              ),
                       ),
                     ),
 
@@ -1538,10 +1539,18 @@ class _Part1SimulationScreenState extends State<Part1SimulationScreen> {
               String displayContent = widget.overallFeedback!;
               
               // Kiểm tra và parse nếu là JSON
-              if (displayContent.trim().startsWith('{')) {
+              if (displayContent.trim().startsWith('{') || displayContent.contains('```')) {
                 try {
-                  final decoded = jsonDecode(displayContent);
-                  displayContent = decoded['detailedAssessment'] ?? decoded['shortFeedback'] ?? displayContent;
+                  String cleanText = displayContent;
+                  if (displayContent.contains('```')) {
+                    cleanText = displayContent
+                        .replaceFirst(RegExp(r'```json'), '')
+                        .replaceFirst(RegExp(r'```'), '')
+                        .trim();
+                  }
+                  
+                  final decoded = jsonDecode(cleanText);
+                  displayContent = decoded['detailedAssessment'] ?? decoded['shortFeedback'] ?? decoded['assessment'] ?? displayContent;
                 } catch (e) {
                   debugPrint("Error parsing AI feedback: $e");
                 }
@@ -1587,29 +1596,46 @@ class _FullscreenImageViewer extends StatelessWidget {
         ),
       ),
       body: Center(
-        child: InteractiveViewer(
-          panEnabled: true,
-          scaleEnabled: true, // Bật zoom
-          minScale: 0.5, // Thu nhỏ tối đa 0.5x
-          maxScale: 5.0, // Phóng to tối đa 5x
-          boundaryMargin: const EdgeInsets.all(20), // Thêm vùng đệm khi kéo
-          child: Image.network(
-            imageUrl,
-            fit: BoxFit.contain,
-            loadingBuilder: (context, child, progress) {
-              if (progress == null) return child;
-              return Center(
-                child: CircularProgressIndicator(
-                  value: progress.expectedTotalBytes != null
-                      ? progress.cumulativeBytesLoaded /
-                            progress.expectedTotalBytes!
-                      : null,
-                  color: Colors.white,
+        child: imageUrl.isEmpty || !imageUrl.startsWith('http') && !imageUrl.startsWith('/') 
+          ? Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.broken_image_rounded, color: Colors.white54, size: 64),
+                const SizedBox(height: 16),
+                Text('Không tìm thấy ảnh', style: GoogleFonts.inter(color: Colors.white54)),
+              ],
+            )
+          : InteractiveViewer(
+              panEnabled: true,
+              scaleEnabled: true,
+              minScale: 0.5,
+              maxScale: 5.0,
+              boundaryMargin: const EdgeInsets.all(20),
+              child: Image.network(
+                AppConstants.getFullUrl(imageUrl),
+                fit: BoxFit.contain,
+                loadingBuilder: (context, child, progress) {
+                  if (progress == null) return child;
+                  return Center(
+                    child: CircularProgressIndicator(
+                      value: progress.expectedTotalBytes != null
+                          ? progress.cumulativeBytesLoaded /
+                                progress.expectedTotalBytes!
+                          : null,
+                      color: Colors.white,
+                    ),
+                  );
+                },
+                errorBuilder: (context, error, stackTrace) => Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.error_outline_rounded, color: Colors.white54, size: 64),
+                    const SizedBox(height: 16),
+                    Text('Lỗi tải ảnh', style: GoogleFonts.inter(color: Colors.white54)),
+                  ],
                 ),
-              );
-            },
-          ),
-        ),
+              ),
+            ),
       ),
     );
   }

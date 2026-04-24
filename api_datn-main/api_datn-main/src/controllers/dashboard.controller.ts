@@ -26,9 +26,12 @@ export const getDashboardStats = async (
             }),
             // Tổng số lượt làm bài
             p.testAttempt.count(),
-            // Top 5 học viên có điểm cao nhất
+            // Top 5 học viên có điểm cao nhất (chỉ tính những người đã làm bài)
             p.user.findMany({
-                where: { role: 'STUDENT' },
+                where: { 
+                    role: 'STUDENT',
+                    estimatedScore: { not: null, gte: 0 }
+                },
                 orderBy: { estimatedScore: 'desc' },
                 take: 5,
                 select: {

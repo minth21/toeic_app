@@ -56,6 +56,7 @@ interface PartFormValues {
     timeLimitMinutes?: number;
     timeLimitSeconds?: number;
     orderIndex?: number;
+    status: 'ACTIVE' | 'LOCKED' | 'PENDING' | 'REJECTED';
 }
 
 
@@ -164,6 +165,7 @@ export default function TestDetail() {
             const data = await partApi.create(testId!, {
                 ...valuesToSubmit,
                 timeLimit,
+                status: values.status || 'ACTIVE',
                 instructions: createInstructions,
             });
 
@@ -194,6 +196,7 @@ export default function TestDetail() {
             timeLimitMinutes: Math.floor((part.timeLimit || 0) / 60),
             timeLimitSeconds: (part.timeLimit || 0) % 60,
             orderIndex: part.orderIndex,
+            status: part.status || 'ACTIVE',
         });
         setEditModalVisible(true);
     };
@@ -955,6 +958,13 @@ export default function TestDetail() {
                             </Form.Item>
                         </Col>
                         <Col span={12}>
+                            <Form.Item label={<span style={{ fontWeight: 600, color: '#475569' }}>Trạng thái</span>} name="status" initialValue="ACTIVE">
+                                <Select size="large" style={{ borderRadius: 10 }}>
+                                    <Option value="ACTIVE">Công khai (Hoạt động)</Option>
+                                    <Option value="LOCKED">Khóa (Ẩn)</Option>
+                                    <Option value="PENDING">Chờ duyệt</Option>
+                                </Select>
+                            </Form.Item>
                             {/* Hidden field for orderIndex */}
                             <Form.Item name="orderIndex" hidden>
                                 <InputNumber />
@@ -1055,22 +1065,31 @@ export default function TestDetail() {
                     </Row>
 
                     <Row gutter={24}>
-                        <Col span={24}>
+                        <Col span={12}>
                             <Form.Item label={<span style={{ fontWeight: 600, color: '#475569' }}>Thời gian giới hạn</span>} required>
                                 <Space align="baseline" style={{ display: 'flex' }}>
                                     <Form.Item
                                         name="timeLimitMinutes"
                                         rules={[{ type: 'number', min: 0 }]}
                                     >
-                                        <InputNumber size="large" min={0} style={{ width: 120, borderRadius: 10 }} addonAfter="phút" />
+                                        <InputNumber size="large" min={0} style={{ width: 100, borderRadius: 10 }} addonAfter="phút" />
                                     </Form.Item>
                                     <Form.Item
                                         name="timeLimitSeconds"
                                         rules={[{ type: 'number', min: 0, max: 59 }]}
                                     >
-                                        <InputNumber size="large" min={0} max={59} style={{ width: 120, borderRadius: 10 }} addonAfter="giây" />
+                                        <InputNumber size="large" min={0} max={59} style={{ width: 100, borderRadius: 10 }} addonAfter="giây" />
                                     </Form.Item>
                                 </Space>
+                            </Form.Item>
+                        </Col>
+                        <Col span={12}>
+                            <Form.Item label={<span style={{ fontWeight: 600, color: '#475569' }}>Trạng thái</span>} name="status">
+                                <Select size="large" style={{ borderRadius: 10 }}>
+                                    <Option value="ACTIVE">Công khai (Hoạt động)</Option>
+                                    <Option value="LOCKED">Khóa (Ẩn)</Option>
+                                    <Option value="PENDING">Chờ duyệt</Option>
+                                </Select>
                             </Form.Item>
                         </Col>
                     </Row>

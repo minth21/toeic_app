@@ -22,6 +22,7 @@ class Part1SimulationScreen extends StatefulWidget {
   final PartModel? part;
   final List<dynamic>? aiFeedbacks;
   final String? overallFeedback;
+  final Map<String, bool>? correctStatus; // questionId → isCorrect
 
   const Part1SimulationScreen({
     super.key,
@@ -32,6 +33,7 @@ class Part1SimulationScreen extends StatefulWidget {
     this.part,
     this.aiFeedbacks,
     this.overallFeedback,
+    this.correctStatus,
   });
 
   @override
@@ -224,7 +226,15 @@ class _Part1SimulationScreenState extends State<Part1SimulationScreen> {
     });
   }
 
-  // ── Palette Helpers ───────────────────────────────────────────────────────
+  // Normalize "Option B", "B", "option b" → "B" for consistent comparison
+  String _normalizeAnswer(String? raw) {
+    if (raw == null || raw.isEmpty) return '';
+    final s = raw.trim().toUpperCase();
+    // Handles: "Option B", "OPTION B", "option b" → "B"
+    final match = RegExp(r'(?:OPTION\s+)?([A-D])$').firstMatch(s);
+    return match?.group(1) ?? s;
+  }
+
 
   // Xác định màu palette cho từng ô câu hỏi.
   // Khi ở chế độ Review (_isSubmitted = true): phân biệt Đúng/Sai.
@@ -248,9 +258,12 @@ class _Part1SimulationScreenState extends State<Part1SimulationScreen> {
       'borderWidth': 1.5,
     };
 
-    // 1. Result mode - Prioritize Correct/Incorrect if submitted
-    if (_isSubmitted && isAnswered) {
-      final bool isCorrect = userAnswer == questions[i].correctAnswer;
+    // 1. Result mode - Prioritize Correct/Incorrect if submitted or in Review Mode
+    if (_isSubmitted || widget.isReviewMode) {
+      final String normUser = _normalizeAnswer(userAnswer);
+      final String normCorrect = _normalizeAnswer(questions[i].correctAnswer);
+      final bool isCorrect = widget.correctStatus?[qId] ?? (normUser.isNotEmpty && normUser == normCorrect);
+
       if (isCorrect) {
         info['bg'] = const Color(0xFF10B981);
         info['border'] = const Color(0xFF059669);
@@ -342,7 +355,7 @@ class _Part1SimulationScreenState extends State<Part1SimulationScreen> {
                     const Color(0xFFD97706),
                     'Cắm cờ',
                   ),
-                  if (_isSubmitted) ...[
+                  if (_isSubmitted || widget.isReviewMode) ...[
                     _buildPaletteLegendItem(
                       const Color(0xFF10B981),
                       const Color(0xFF059669),
@@ -351,14 +364,21 @@ class _Part1SimulationScreenState extends State<Part1SimulationScreen> {
                     _buildPaletteLegendItem(
                       const Color(0xFFEF4444),
                       const Color(0xFFDC2626),
-                      'Sai',
+                      'Sai/Bỏ trống',
                     ),
                   ],
-                  _buildPaletteLegendItem(
-                    Colors.white,
-                    AppColors.divider,
-                    'Chưa trả lời',
-                  ),
+                  if (!_isSubmitted && !widget.isReviewMode) ...[
+                    _buildPaletteLegendItem(
+                      AppColors.primary,
+                      const Color(0xFF1E3A8A),
+                      'Đã trả lời',
+                    ),
+                    _buildPaletteLegendItem(
+                      Colors.white,
+                      AppColors.divider,
+                      'Chưa trả lời',
+                    ),
+                  ],
                 ],
               ),
               const SizedBox(height: 20),
@@ -410,7 +430,7 @@ class _Part1SimulationScreenState extends State<Part1SimulationScreen> {
                           alignment: Alignment.center,
                           children: [
                             Text(
-                              '${i + 1}',
+                              '${questions[i].questionNumber}',
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 15,
@@ -603,9 +623,11 @@ class _Part1SimulationScreenState extends State<Part1SimulationScreen> {
                 actions: [
                   Consumer<PracticeViewModel>(
                     builder: (context, viewModel, child) {
-                      final currentQId = viewModel.currentQuestions.isNotEmpty && _currentIndex < viewModel.currentQuestions.length 
-                          ? viewModel.currentQuestions[_currentIndex].id 
+                      final questions = viewModel.currentQuestions;
+                      final currentQuestion = questions.isNotEmpty && _currentIndex < questions.length 
+                          ? questions[_currentIndex] 
                           : null;
+                      final currentQId = currentQuestion?.id;
                       
                       return Row(
                         children: [
@@ -633,7 +655,9 @@ class _Part1SimulationScreenState extends State<Part1SimulationScreen> {
                             child: Padding(
                               padding: const EdgeInsets.only(right: 16.0),
                               child: Text(
-                                '${_currentIndex + 1}/${viewModel.currentQuestions.length}',
+                                currentQuestion != null 
+                                    ? 'Câu ${currentQuestion.questionNumber}' 
+                                    : '${_currentIndex + 1}/${viewModel.currentQuestions.length}',
                                 style: const TextStyle(fontWeight: FontWeight.bold),
                               ),
                             ),
@@ -683,7 +707,7 @@ class _Part1SimulationScreenState extends State<Part1SimulationScreen> {
                                         MainAxisAlignment.spaceBetween,
                                     children: [
                                       Text(
-                                        'Câu ${index + 1}',
+                                        'Câu ${question.questionNumber}',
                                         style: GoogleFonts.inter(
                                           fontSize: 18,
                                           fontWeight: FontWeight.bold,
@@ -704,7 +728,7 @@ class _Part1SimulationScreenState extends State<Part1SimulationScreen> {
                                   ),
                                   const SizedBox(height: 16),
 
-                                  if (question.imageUrl != null)
+                                  if (question.imageUrl != null && question.imageUrl!.isNotEmpty)
                                     GestureDetector(
                                       onTap: () => _openFullscreenImage(
                                         context,
@@ -824,7 +848,9 @@ class _Part1SimulationScreenState extends State<Part1SimulationScreen> {
 
   Widget _buildAIFeedbackArea(QuestionModel question, int index) {
     final userAnswer = _userAnswers[question.id];
-    final isCorrect = userAnswer == question.correctAnswer;
+    final bool isCorrect = widget.correctStatus?[question.id] ?? 
+                          ((userAnswer?.trim().toUpperCase() ?? '') == 
+                           (question.correctAnswer?.trim().toUpperCase() ?? ''));
 
     // Logic: If incorrect and has AI feedback, show the orange tip card.
     // If it has explanation, show the blue explanation card.
@@ -1005,7 +1031,7 @@ class _Part1SimulationScreenState extends State<Part1SimulationScreen> {
     if (text == null) return const SizedBox.shrink();
 
     bool isSelected = _userAnswers[qId] == label;
-    bool isCorrect = correct == label;
+    bool isCorrect = _normalizeAnswer(correct) == label.toUpperCase();
 
     Color color = Colors.white;
     Color borderColor = Colors.grey.shade200;
@@ -1061,9 +1087,10 @@ class _Part1SimulationScreenState extends State<Part1SimulationScreen> {
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                "Đáp án $label",
+                _isSubmitted ? (text.isNotEmpty ? text : "Option $label") : "Option $label",
                 style: GoogleFonts.inter(
                   color: textColor,
+                  fontSize: _isSubmitted ? 14 : 16,
                   fontWeight: (isSelected || (_isSubmitted && isCorrect))
                       ? FontWeight.w600
                       : FontWeight.normal,
@@ -1181,7 +1208,7 @@ class _Part1SimulationScreenState extends State<Part1SimulationScreen> {
                       ),
                       child: Center(
                         child: Text(
-                          '${i + 1}',
+                          '${questions[i].questionNumber}',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 12,

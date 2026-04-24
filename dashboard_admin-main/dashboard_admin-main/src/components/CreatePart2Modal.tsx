@@ -5,18 +5,23 @@ import {
     Input,
     Select,
     message,
-    Upload,
     Button,
     InputNumber,
     Alert,
     Row,
-    Col
+    Col,
+    Typography
 } from 'antd';
-import { UploadOutlined, SoundOutlined } from '@ant-design/icons';
-import type { UploadFile } from 'antd/es/upload/interface';
+import { 
+    CheckCircleOutlined,
+    QuestionCircleOutlined,
+    FileTextOutlined
+} from '@ant-design/icons';
 import api, { uploadApi } from '../services/api';
+import AudioBanner from './AudioBanner';
 
 const { Option } = Select;
+const { Text } = Typography;
 
 interface CreatePart2ModalProps {
     open: boolean;
@@ -31,7 +36,7 @@ interface CreatePart2ModalProps {
 export default function CreatePart2Modal({ open, onCancel, onSuccess, partId, currentAudioUrl, partName, partNumber }: CreatePart2ModalProps) {
     const [form] = Form.useForm();
     const [loading, setLoading] = useState(false);
-    const [audioFileList, setAudioFileList] = useState<UploadFile[]>([]);
+    const [audioFile, setAudioFile] = useState<File | null>(null); // ✅ New
     const [nextQuestionNumber, setNextQuestionNumber] = useState<number>(1);
 
     useEffect(() => {
@@ -39,7 +44,7 @@ export default function CreatePart2Modal({ open, onCancel, onSuccess, partId, cu
             fetchNextQuestionNumber();
         } else {
             form.resetFields();
-            setAudioFileList([]);
+            setAudioFile(null);
         }
     }, [open, partId]);
 
@@ -63,37 +68,23 @@ export default function CreatePart2Modal({ open, onCancel, onSuccess, partId, cu
         }
     };
 
-    const handleAudioUpload = (file: UploadFile) => {
-        setAudioFileList([file]);
-        return false;
-    };
 
     const handleSubmit = async (values: any) => {
         if (!partId) return;
 
-        // If no part audio and no file uploaded, error
-        if (!currentAudioUrl && audioFileList.length === 0) {
-            message.error('Vui lòng upload file âm thanh hoặc cập nhật Audio chung cho Part!');
-            return;
-        }
-
         try {
             setLoading(true);
 
-            let audioUrl = currentAudioUrl; // Default to part audio
+            let audioUrl = currentAudioUrl; 
 
-            // If user uploaded a specific audio, use it (override)
-            if (audioFileList.length > 0) {
-                const actualFile = (audioFileList[0] as any)?.originFileObj || audioFileList[0];
-                const audioRes = await uploadApi.audio(actualFile);
-
+            if (audioFile) {
+                const audioRes = await uploadApi.audio(audioFile);
                 if (!audioRes.success) {
                     throw new Error(audioRes.message || 'Upload âm thanh thất bại');
                 }
                 audioUrl = audioRes.url;
             }
 
-            // Create Question
             const payload = {
                 questionNumber: values.questionNumber,
                 audioUrl: audioUrl,
@@ -111,10 +102,7 @@ export default function CreatePart2Modal({ open, onCancel, onSuccess, partId, cu
             if (response.data.success) {
                 message.success('Tạo câu hỏi thành công!');
                 form.resetFields();
-                setAudioFileList([]);
-                // Do NOT close modal automatically for ease of entry? 
-                // Wait, user might want to add multiple. But typically modals close.
-                // Let's close it as requested by current flow.
+                setAudioFile(null);
                 onSuccess();
                 onCancel();
             } else {
@@ -132,15 +120,46 @@ export default function CreatePart2Modal({ open, onCancel, onSuccess, partId, cu
     return (
         <Modal
             title={
-                <div style={{ textAlign: 'center', width: '100%', fontSize: 20, fontWeight: 800, textTransform: 'uppercase', color: '#1E293B' }}>
-                    {partName
-                        ? (partName.toUpperCase().startsWith('PART') ? partName : `PART ${partNumber}: ${partName}`)
-                        : 'Thêm câu hỏi Part 2 (Question-Response)'}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <div style={{
+                        width: 36,
+                        height: 36,
+                        borderRadius: 10,
+                        background: 'linear-gradient(135deg, #1E293B 0%, #334155 100%)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        boxShadow: '0 4px 10px rgba(30, 41, 59, 0.2)'
+                    }}>
+                        <QuestionCircleOutlined style={{ color: '#fff', fontSize: 18 }} />
+                    </div>
+                    <div>
+                        <span style={{
+                            fontSize: 18,
+                            fontWeight: 800,
+                            background: 'linear-gradient(to right, #1E293B, #475569)',
+                            WebkitBackgroundClip: 'text',
+                            WebkitTextFillColor: 'transparent',
+                            letterSpacing: '0.5px',
+                            display: 'block'
+                        }}>
+                            {partName
+                                ? (partName.toUpperCase().startsWith('PART') ? partName : `PART ${partNumber}: ${partName}`)
+                                : 'TẠO CÂU HỎI PART 2'}
+                        </span>
+                        <Text type="secondary" style={{ fontSize: 11, fontWeight: 500, marginTop: -4, display: 'block' }}>
+                            Thêm câu hỏi Question-Response (3 lựa chọn)
+                        </Text>
+                    </div>
                 </div>
             }
             open={open}
             onCancel={onCancel}
             footer={null}
+            width={700}
+            centered
+            maskClosable={false}
+            styles={{ body: { padding: '24px 32px' } }}
         >
             <Form
                 form={form}
@@ -153,32 +172,46 @@ export default function CreatePart2Modal({ open, onCancel, onSuccess, partId, cu
                     optionB: '(B)',
                     optionC: '(C)'
                 }}
+                requiredMark={false}
             >
+                <div style={{ marginBottom: 24 }}>
+                    <AudioBanner 
+                        currentAudioUrl={currentAudioUrl} 
+                        newAudioFile={audioFile}
+                        onAudioFileChange={setAudioFile}
+                        multiple={false}
+                    />
+                </div>
+
                 <Alert
-                    message="Part 2: Question-Response"
-                    description="Nhập Tapescript tiếng Anh cho cả câu hỏi và 3 đáp án. Part này không dùng AI dịch để rèn luyện phản xạ nghe gốc cho học viên."
+                    message={<Text strong style={{ color: '#1E40AF' }}>Part 2: Question-Response Strategy</Text>}
+                    description={
+                        <span style={{ fontSize: 13, color: '#475569' }}>
+                            Nhập Tapescript tiếng Anh cho cả câu hỏi và 3 đáp án. Part này rèn luyện phản xạ nghe gốc, không sử dụng AI dịch tự động.
+                        </span>
+                    }
                     type="info"
                     showIcon
-                    style={{ marginBottom: 16 }}
+                    style={{ marginBottom: 24, borderRadius: 12, border: '1px solid #BFDBFE' }}
                 />
 
-                <Row gutter={16}>
+                <Row gutter={24}>
                     <Col span={12}>
                         <Form.Item
-                            label="Số câu hỏi"
+                            label={<span style={{ fontWeight: 600, color: '#475569' }}>Số thứ tự câu hỏi</span>}
                             name="questionNumber"
                             rules={[{ required: true, message: 'Vui lòng nhập số câu hỏi' }]}
                         >
-                            <InputNumber min={1} max={200} style={{ width: '100%' }} />
+                            <InputNumber min={1} max={200} style={{ width: '100%', borderRadius: 8 }} size="large" />
                         </Form.Item>
                     </Col>
                     <Col span={12}>
                         <Form.Item
-                            label="Đáp án đúng"
+                            label={<span style={{ fontWeight: 600, color: '#475569' }}>Đáp án đúng</span>}
                             name="correctAnswer"
                             rules={[{ required: true, message: 'Chọn đáp án đúng' }]}
                         >
-                            <Select placeholder="Chọn đáp án">
+                            <Select placeholder="Chọn đáp án" size="large" style={{ borderRadius: 8 }}>
                                 <Option value="A">Đáp án A</Option>
                                 <Option value="B">Đáp án B</Option>
                                 <Option value="C">Đáp án C</Option>
@@ -187,76 +220,67 @@ export default function CreatePart2Modal({ open, onCancel, onSuccess, partId, cu
                     </Col>
                 </Row>
 
-                <Form.Item label="File Âm thanh">
-                    {currentAudioUrl && (
-                        <div style={{ marginBottom: 8, color: '#52c41a' }}>
-                            <SoundOutlined /> Đang sử dụng Audio chung của Part. (Upload file riêng nếu muốn ghi đè cho câu này)
-                        </div>
-                    )}
-                    <Upload
-                        beforeUpload={handleAudioUpload}
-                        onRemove={() => setAudioFileList([])}
-                        fileList={audioFileList}
-                        maxCount={1}
-                        accept="audio/*"
+                {/* Xóa bỏ phần upload cũ ở đây vì đã có AudioBanner */}
+
+                <div style={{ 
+                    marginTop: 24, padding: '20px', background: '#FFF', 
+                    borderRadius: 16, border: '1px solid #E2E8F0', boxShadow: '0 4px 12px rgba(0,0,0,0.02)' 
+                }}>
+                    <div style={{ fontWeight: 700, color: '#1E293B', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <FileTextOutlined style={{ color: '#6366F1' }} /> Nội dung Tapescript
+                    </div>
+                    
+                    <Form.Item
+                        label={<span style={{ fontWeight: 600, color: '#475569' }}>Câu hỏi (Transcript)</span>}
+                        name="questionText"
+                        rules={[{ required: true, message: 'Vui lòng nhập Tapescript câu hỏi' }]}
                     >
-                        <Button icon={<UploadOutlined />}>
-                            {currentAudioUrl ? 'Upload file riêng (Tùy chọn)' : 'Chọn file Audio (Bắt buộc)'}
-                        </Button>
-                    </Upload>
-                </Form.Item>
+                        <Input.TextArea rows={2} placeholder="Ví dụ: Where is the marketing convention being held?" style={{ borderRadius: 8 }} />
+                    </Form.Item>
 
-                <Form.Item
-                    label="Tapescript Câu hỏi (Listening)"
-                    name="questionText"
-                    rules={[{ required: true, message: 'Vui lòng nhập Tapescript câu hỏi' }]}
-                >
-                    <Input.TextArea rows={2} placeholder="Ví dụ: Where is the marketing convention being held?" />
-                </Form.Item>
+                    <Row gutter={12}>
+                        <Col span={8}>
+                            <Form.Item label={<span style={{ fontWeight: 600, fontSize: 12 }}>A</span>} name="optionA" rules={[{ required: true }]}>
+                                <Input placeholder="A..." style={{ borderRadius: 6 }} />
+                            </Form.Item>
+                        </Col>
+                        <Col span={8}>
+                            <Form.Item label={<span style={{ fontWeight: 600, fontSize: 12 }}>B</span>} name="optionB" rules={[{ required: true }]}>
+                                <Input placeholder="B..." style={{ borderRadius: 6 }} />
+                            </Form.Item>
+                        </Col>
+                        <Col span={8}>
+                            <Form.Item label={<span style={{ fontWeight: 600, fontSize: 12 }}>C</span>} name="optionC" rules={[{ required: true }]}>
+                                <Input placeholder="C..." style={{ borderRadius: 6 }} />
+                            </Form.Item>
+                        </Col>
+                    </Row>
 
-                <Row gutter={12}>
-                    <Col span={8}>
-                        <Form.Item
-                            label="Tapescript A"
-                            name="optionA"
-                            rules={[{ required: true, message: 'Nhập Tapescript A' }]}
-                        >
-                            <Input placeholder="Ví dụ: In the Grand Ballroom" />
-                        </Form.Item>
-                    </Col>
-                    <Col span={8}>
-                        <Form.Item
-                            label="Tapescript B"
-                            name="optionB"
-                            rules={[{ required: true, message: 'Nhập Tapescript B' }]}
-                        >
-                            <Input placeholder="Ví dụ: Every Tuesday morning" />
-                        </Form.Item>
-                    </Col>
-                    <Col span={8}>
-                        <Form.Item
-                            label="Tapescript C"
-                            name="optionC"
-                            rules={[{ required: true, message: 'Nhập Tapescript C' }]}
-                        >
-                            <Input placeholder="Ví dụ: To discuss the new budget" />
-                        </Form.Item>
-                    </Col>
-                </Row>
+                    <Form.Item
+                        label={<span style={{ fontWeight: 600, color: '#475569' }}>Giải thích / Mẹo làm bài (Tùy chọn)</span>}
+                        name="explanation"
+                        style={{ marginTop: 8 }}
+                    >
+                        <Input.TextArea rows={3} placeholder="Ghi chú thêm cho học viên..." style={{ borderRadius: 8 }} />
+                    </Form.Item>
+                </div>
 
-                <Form.Item
-                    label="Giải thích / Ghi chú (tùy chọn)"
-                    name="explanation"
-                >
-                    <Input.TextArea rows={3} placeholder="Mẹo làm bài hoặc ghi chú thêm..." />
-                </Form.Item>
-
-                <div style={{ textAlign: 'right', marginTop: 16 }}>
-                    <Button onClick={onCancel} style={{ marginRight: 8 }}>
-                        Hủy
+                <div style={{ 
+                    textAlign: 'right', marginTop: 32, paddingTop: 20, 
+                    borderTop: '1px solid #F1F5F9', display: 'flex', justifyContent: 'flex-end', gap: 12 
+                }}>
+                    <Button onClick={onCancel} size="large" style={{ borderRadius: 10, fontWeight: 600, minWidth: 100 }}>
+                        Hủy bỏ
                     </Button>
-                    <Button type="primary" htmlType="submit" loading={loading}>
-                        Tạo câu hỏi
+                    <Button 
+                        type="primary" htmlType="submit" loading={loading} size="large" icon={<CheckCircleOutlined />}
+                        style={{ 
+                            borderRadius: 10, fontWeight: 700, minWidth: 160,
+                            background: 'linear-gradient(135deg, #1E293B 0%, #334155 100%)',
+                            border: 'none', boxShadow: '0 4px 14px rgba(30, 41, 59, 0.25)'
+                        }}
+                    >
+                        LƯU CÂU HỎI
                     </Button>
                 </div>
             </Form>

@@ -635,3 +635,73 @@ export const getLeaderboard = async (
         next(error);
     }
 };
+/**
+ * Delete user (Admin only)
+ * DELETE /api/users/:id
+ */
+export const deleteUser = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+): Promise<void> => {
+    try {
+        const { id } = req.params;
+
+        // 1. Lấy thông tin user kèm theo các quan hệ ràng buộc
+        const user = await p.user.findUnique({
+            where: { id },
+            include: {
+                managedClasses: { select: { id: true, className: true } },
+                studentClass: { select: { id: true, className: true } },
+            }
+        });
+
+        if (!user) {
+            res.status(404).json({
+                success: false,
+                message: 'Không tìm thấy người dùng này',
+            });
+            return;
+        }
+
+        // 2. Kiểm tra quyền (Không cho phép xóa ADMIN)
+        if (user.role === 'ADMIN') {
+            res.status(403).json({
+                success: false,
+                message: 'Không được phép xóa tài khoản Quản trị viên (ADMIN)',
+            });
+            return;
+        }
+
+        // 3. Kiểm tra ràng buộc Giáo viên - Lớp học
+        if (user.managedClasses && user.managedClasses.length > 0) {
+            const classNames = user.managedClasses.map((c: any) => c.className).join(', ');
+            res.status(400).json({
+                success: false,
+                message: `Không thể xóa giáo viên này vì đang quản lý các lớp: [${classNames}]. Vui lòng chuyển nhượng lớp học cho giáo viên khác trước khi thực hiện xóa.`,
+            });
+            return;
+        }
+
+        // 4. Thực hiện xóa
+        // Lưu ý: Các quan hệ như TestAttempt, Flashcard đã được cấu hình onDelete: Cascade trong Prisma Schema nên sẽ tự động xóa theo.
+        await p.user.delete({
+            where: { id },
+        });
+
+        res.status(200).json({
+            success: true,
+            message: 'Đã xóa người dùng và các dữ liệu liên quan thành công',
+        });
+    } catch (error: any) {
+        // Xử lý các lỗi Prisma cụ thể (nếu có lỗi khác phát sinh)
+        if (error.code === 'P2003') {
+            res.status(400).json({
+                success: false,
+                message: 'Không thể xóa vì người dùng này còn ràng buộc dữ liệu quan trọng trong hệ thống.',
+            });
+            return;
+        }
+        next(error);
+    }
+};

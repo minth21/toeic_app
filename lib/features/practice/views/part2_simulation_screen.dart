@@ -16,8 +16,9 @@ class Part2SimulationScreen extends StatefulWidget {
   final bool isReviewMode;
   final Map<String, String>? userAnswers;
   final PartModel? part; // Add part model for submission
-  final List<dynamic>? aiFeedbacks;
+  final Map<String, bool>? correctStatus; // questionId → isCorrect
   final String? overallFeedback;
+  final List<dynamic>? aiFeedbacks;
 
   const Part2SimulationScreen({
     super.key,
@@ -28,6 +29,7 @@ class Part2SimulationScreen extends StatefulWidget {
     this.part,
     this.aiFeedbacks,
     this.overallFeedback,
+    this.correctStatus,
   });
 
   @override
@@ -55,7 +57,17 @@ class _Part2SimulationScreenState extends State<Part2SimulationScreen> {
     super.dispose();
   }
 
+
+  // Normalize "Option B", "B", "option b" → "B" for consistent comparison
+  String _normalizeAnswer(String? raw) {
+    if (raw == null || raw.isEmpty) return '';
+    final s = raw.trim().toUpperCase();
+    final match = RegExp(r'(?:OPTION\s+)?([A-D])$').firstMatch(s);
+    return match?.group(1) ?? s;
+  }
+
   void _onOptionSelected(String questionId, String option) {
+
     if (widget.isReviewMode) return;
 
     HapticFeedback.lightImpact();
@@ -80,7 +92,9 @@ class _Part2SimulationScreenState extends State<Part2SimulationScreen> {
       backgroundColor: Colors.white,
       appBar: AppBar(
         title: Text(
-          widget.isReviewMode ? 'Xem lại Part 2' : 'Phần 2: Question-Response',
+          widget.questions.isNotEmpty && _currentIndex < widget.questions.length
+              ? 'Câu ${widget.questions[_currentIndex].questionNumber}'
+              : (widget.isReviewMode ? 'Xem lại Part 2' : 'Phần 2: Question-Response'),
           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
         ),
         centerTitle: true,
@@ -120,7 +134,140 @@ class _Part2SimulationScreenState extends State<Part2SimulationScreen> {
           ),
         ],
       ),
-      bottomNavigationBar: widget.isReviewMode ? null : _buildBottomActions(),
+      bottomNavigationBar: widget.isReviewMode ? _buildReviewBottomNavigation() : _buildBottomActions(),
+    );
+  }
+
+  Map<String, dynamic> _getPaletteColorInfo(int i) {
+    final q = widget.questions[i];
+    final bool isActive = i == _currentIndex;
+    final String? userAnswer = _selectedAnswers[q.id];
+    final bool isAnswered = userAnswer != null && userAnswer.isNotEmpty;
+
+    Map<String, dynamic> info = {
+      'bg': Colors.white,
+      'border': AppColors.divider,
+      'text': AppColors.textSecondary,
+      'shadow': false,
+      'borderWidth': 1.5,
+    };
+
+    if (widget.isReviewMode) {
+      final String normUser = _normalizeAnswer(userAnswer);
+      final String normCorrect = _normalizeAnswer(q.correctAnswer);
+      final bool isCorrect = widget.correctStatus?[q.id] ?? (normUser.isNotEmpty && normUser == normCorrect);
+
+      if (isCorrect) {
+        info['bg'] = const Color(0xFF10B981);
+        info['border'] = const Color(0xFF059669);
+        info['text'] = Colors.white;
+      } else {
+        info['bg'] = const Color(0xFFEF4444);
+        info['border'] = const Color(0xFFDC2626);
+        info['text'] = Colors.white;
+      }
+    } else if (isAnswered) {
+      info['bg'] = AppColors.primary;
+      info['border'] = const Color(0xFF1E3A8A);
+      info['text'] = Colors.white;
+    }
+
+    if (isActive) {
+      info['border'] = widget.isReviewMode ? (info['text'] == Colors.white ? Colors.white : AppColors.primary) : AppColors.primary;
+      info['borderWidth'] = 3.5;
+      info['shadow'] = true;
+      if (info['bg'] == Colors.white) {
+        info['bg'] = AppColors.indigo50;
+        info['text'] = AppColors.primary;
+      }
+    }
+    return info;
+  }
+
+  Widget _buildReviewBottomNavigation() {
+    return Container(
+      padding: const EdgeInsets.all(12).copyWith(bottom: 24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, -5),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            height: 40,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: widget.questions.length,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              itemBuilder: (context, i) {
+                final colorInfo = _getPaletteColorInfo(i);
+                return GestureDetector(
+                  onTap: () => _pageController.animateToPage(
+                    i,
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeInOut,
+                  ),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                    width: 40,
+                    decoration: BoxDecoration(
+                      color: colorInfo['bg'],
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: colorInfo['border'],
+                        width: colorInfo['shadow'] == true ? 2 : 1.5,
+                      ),
+                    ),
+                    child: Center(
+                      child: Text(
+                        '${widget.questions[i].questionNumber}',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                          color: colorInfo['text'],
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 12),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () => Navigator.pop(context),
+                icon: const Icon(Icons.close_rounded, size: 18),
+                label: const Text(
+                  "Đóng chế độ xem lại",
+                  style: TextStyle(
+                    color: Color(0xFF64748B),
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  side: const BorderSide(color: Color(0xFFE2E8F0), width: 2),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -283,10 +430,10 @@ class _Part2SimulationScreenState extends State<Part2SimulationScreen> {
     String selectedOption,
   ) {
     final bool isSelected = selectedOption == option;
-    final bool isCorrect =
-        widget.isReviewMode && question.correctAnswer == option;
-    final bool isWrong =
-        widget.isReviewMode && isSelected && question.correctAnswer != option;
+    final bool isCorrect = widget.isReviewMode &&
+        (_normalizeAnswer(question.correctAnswer) == option.toUpperCase());
+    final bool isWrong = widget.isReviewMode && isSelected &&
+        !(widget.correctStatus?[question.id] ?? (_normalizeAnswer(question.correctAnswer) == option.toUpperCase()));
 
     Color bgColor = Colors.white;
     Color borderColor = Colors.grey[200]!;
@@ -334,14 +481,34 @@ class _Part2SimulationScreenState extends State<Part2SimulationScreen> {
               ),
           ],
         ),
-        child: Center(
-          child: Text(
-            option,
-            style: TextStyle(
-              fontSize: 36,
-              fontWeight: FontWeight.w900,
-              color: textColor,
-            ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                option,
+                style: TextStyle(
+                  fontSize: widget.isReviewMode ? 24 : 36,
+                  fontWeight: FontWeight.w900,
+                  color: textColor,
+                ),
+              ),
+              if (widget.isReviewMode) ...[
+                const SizedBox(height: 4),
+                Text(
+                  option == 'A' ? (question.optionA ?? '') : (option == 'B' ? (question.optionB ?? '') : (question.optionC ?? '')),
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: textColor.withValues(alpha: 0.8),
+                  ),
+                ),
+              ],
+            ],
           ),
         ),
       ),
@@ -422,7 +589,9 @@ class _Part2SimulationScreenState extends State<Part2SimulationScreen> {
     // Calculate raw score for fallback/display
     int correctCount = 0;
     for (var q in widget.questions) {
-      if (_selectedAnswers[q.id] == q.correctAnswer) {
+      final userAns = _selectedAnswers[q.id];
+      if (userAns != null && 
+          userAns.trim().toUpperCase() == (q.correctAnswer?.trim().toUpperCase() ?? '')) {
         correctCount++;
       }
     }

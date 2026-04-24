@@ -1,11 +1,25 @@
 import ffmpeg from 'fluent-ffmpeg';
 import ffmpegPath from 'ffmpeg-static';
+const ffprobePath = require('ffprobe-static');
 import * as fs from 'fs';
 import * as path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 
 if (ffmpegPath) {
+    console.log('--- AUDIO SERVICE: SETTING FF_MPEG PATH ---');
+    console.log('FF_MPEG PATH:', ffmpegPath);
     ffmpeg.setFfmpegPath(ffmpegPath);
+} else {
+    console.warn('--- AUDIO SERVICE: FF_MPEG_STATIC PATH NOT FOUND, USING SYSTEM DEFAULT ---');
+}
+
+if (ffprobePath) {
+    const actualFfprobePath = typeof ffprobePath === 'string' ? ffprobePath : ffprobePath.path;
+    console.log('--- AUDIO SERVICE: SETTING FF_PROBE PATH ---');
+    console.log('FF_PROBE PATH:', actualFfprobePath);
+    ffmpeg.setFfprobePath(actualFfprobePath);
+} else {
+    console.warn('--- AUDIO SERVICE: FF_PROBE_STATIC PATH NOT FOUND ---');
 }
 
 export class AudioService {
@@ -30,10 +44,15 @@ export class AudioService {
 
         try {
             // Write buffers to temp files
-            for (const file of files) {
-                const tempInputPath = path.join(tempDir, `input_${uuidv4()}_${file.originalname}`);
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                // Sanitize filename: use UUID + original extension or just .mp3
+                const ext = path.extname(file.originalname) || '.mp3';
+                const tempInputPath = path.join(tempDir, `input_${uuidv4()}${ext}`);
+                
                 fs.writeFileSync(tempInputPath, file.buffer);
                 inputPaths.push(tempInputPath);
+                console.log(`Temp input file created: ${tempInputPath}`);
             }
 
             return new Promise((resolve, reject) => {
@@ -44,12 +63,19 @@ export class AudioService {
                 });
 
                 command
-                    .on('error', (err) => {
-                        console.error('FFmpeg error:', err);
+                    .on('start', (commandLine) => {
+                        console.log('--- FFmpeg COMMAND START ---');
+                        console.log('Spawned FFmpeg with command: ' + commandLine);
+                    })
+                    .on('error', (err, _stdout, stderr) => {
+                        console.error('--- FFmpeg ERROR ---');
+                        console.error('Error message:', err.message);
+                        console.error('FFmpeg stderr:', stderr);
                         this.cleanup(inputPaths, outputPath);
-                        reject(new Error('Failed to merge audio files'));
+                        reject(new Error(`FFmpeg failed: ${err.message}`));
                     })
                     .on('end', () => {
+                        console.log('--- FFmpeg MERGE FINISHED ---');
                         // Cleanup input files but keep the output file for upload
                         this.cleanup(inputPaths);
                         resolve(outputPath);

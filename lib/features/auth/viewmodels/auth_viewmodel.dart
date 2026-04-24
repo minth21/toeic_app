@@ -183,6 +183,7 @@ class AuthViewModel extends ChangeNotifier {
   /// Update user profile
   Future<bool> updateProfile({
     String? name,
+    String? email,
     String? phoneNumber,
     DateTime? dateOfBirth,
     String? avatarUrl,
@@ -197,6 +198,7 @@ class AuthViewModel extends ChangeNotifier {
     try {
       final response = await _authApiService.updateProfile(
         name: name,
+        email: email,
         phoneNumber: phoneNumber,
         dateOfBirth: dateOfBirth,
         avatarUrl: avatarUrl,

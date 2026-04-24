@@ -16,6 +16,7 @@ class ReadingReviewScreen extends StatefulWidget {
   final int partNumber;
   final List<dynamic>? aiFeedbacks;
   final String? overallFeedback;
+  final Map<String, bool>? correctStatus; // questionId → isCorrect
 
   const ReadingReviewScreen({
     super.key,
@@ -25,6 +26,7 @@ class ReadingReviewScreen extends StatefulWidget {
     required this.partNumber,
     this.aiFeedbacks,
     this.overallFeedback,
+    this.correctStatus,
   });
 
   /// ✅ New: Static builder for reusability in PracticeResultScreen
@@ -209,7 +211,9 @@ class _ReadingReviewScreenState extends State<ReadingReviewScreen> {
       } else if (questionIndex != -1) {
         final q = widget.questions[questionIndex];
         final userAnswer = widget.userAnswers[q.id];
-        final isCorrect = userAnswer == q.correctAnswer;
+        final bool isCorrect = widget.correctStatus?[q.id] ?? 
+                              ((userAnswer?.trim().toUpperCase() ?? '') == 
+                               (q.correctAnswer?.trim().toUpperCase() ?? ''));
         final isUnanswered = userAnswer == null || userAnswer.isEmpty;
         final isFlagged = widget.flaggedQuestions.contains(q.id);
 
@@ -351,11 +355,9 @@ class _ReadingReviewScreenState extends State<ReadingReviewScreen> {
     final isActive = i == _activeIndex;
     final q = widget.questions[i];
     final userAnswer = widget.userAnswers[q.id];
-    final isUnanswered = userAnswer == null || userAnswer.isEmpty;
-    final isCorrect = !isUnanswered && userAnswer == q.correctAnswer;
-    final isFlagged = widget.flaggedQuestions.contains(q.id);
+    final bool isFlagged = widget.flaggedQuestions.contains(q.id);
 
-    // Default styles (Bỏ trống)
+    // Default styles
     Map<String, dynamic> info = {
       'bg': Colors.white,
       'border': const Color(0xFFE2E8F0),
@@ -365,23 +367,27 @@ class _ReadingReviewScreenState extends State<ReadingReviewScreen> {
       'shadow': false,
     };
 
-    if (!isUnanswered) {
-      if (isCorrect) {
-        // Đúng (Chuẩn Legend - Tinted for modern look)
-        info['bg'] = AppColors.success.withValues(alpha: 0.1);
-        info['border'] = AppColors.success;
-        info['text'] = AppColors.success;
-      } else {
-        // Sai (Chuẩn Legend - Tinted for modern look)
-        info['bg'] = AppColors.error.withValues(alpha: 0.1);
-        info['border'] = AppColors.error;
-        info['text'] = AppColors.error;
-      }
-    } else if (isFlagged) {
-      // Cắm cờ nhưng bỏ trống (Chuẩn Legend)
-      info['bg'] = Colors.orange.withValues(alpha: 0.1);
-      info['border'] = Colors.orange;
-      info['text'] = Colors.orange;
+    // Result mode - All questions must be Green (Correct) or Red (Incorrect)
+    // Empty answers are always Red (Incorrect)
+    final String normUser = userAnswer?.trim().toUpperCase() ?? '';
+    final String normCorrect = (q.correctAnswer ?? '').trim().toUpperCase();
+    final bool isCorrect = widget.correctStatus?[q.id] ?? (normUser.isNotEmpty && normUser == normCorrect);
+
+    if (isCorrect) {
+      // Đúng (Chuẩn Legend - Tinted for modern look)
+      info['bg'] = AppColors.success.withValues(alpha: 0.1);
+      info['border'] = AppColors.success;
+      info['text'] = AppColors.success;
+    } else {
+      // Sai/Bỏ trống (Chuẩn Legend - Tinted for modern look)
+      info['bg'] = AppColors.error.withValues(alpha: 0.1);
+      info['border'] = AppColors.error;
+      info['text'] = AppColors.error;
+    }
+
+    if (isFlagged && !isCorrect) {
+      // If flagged AND wrong, we could show orange tint but red border is more important for review
+      // Let's stick to standard Correct/Incorrect for clarity in review
     }
 
     // Highlight Current
@@ -416,11 +422,9 @@ class _ReadingReviewScreenState extends State<ReadingReviewScreen> {
                 children: [
                   _buildLegendItem(AppColors.success.withValues(alpha: 0.1), AppColors.success, 'Đúng'),
                   const SizedBox(width: 12),
-                  _buildLegendItem(AppColors.error.withValues(alpha: 0.1), AppColors.error, 'Sai'),
+                  _buildLegendItem(AppColors.error.withValues(alpha: 0.1), AppColors.error, 'Sai/Bỏ trống'),
                   const SizedBox(width: 12),
                   _buildLegendItem(Colors.orange.withValues(alpha: 0.1), Colors.orange, 'Cắm cờ'),
-                  const SizedBox(width: 12),
-                  _buildLegendItem(Colors.white, AppColors.divider, 'Bỏ trống'),
                 ],
               ),
               const SizedBox(height: 24),
@@ -716,7 +720,9 @@ class _ReadingReviewScreenState extends State<ReadingReviewScreen> {
 
   Widget _buildQuestionCard(QuestionModel question, int index) {
     final userAnswer = widget.userAnswers[question.id];
-    final isCorrect = userAnswer == question.correctAnswer;
+    final bool isCorrect = widget.correctStatus?[question.id] ?? 
+                          ((userAnswer?.trim().toUpperCase() ?? '') == 
+                           (question.correctAnswer?.trim().toUpperCase() ?? ''));
     final aiData = _parseAiData(question);
 
     return Container(
@@ -1004,7 +1010,7 @@ class _ReadingReviewScreenState extends State<ReadingReviewScreen> {
       children: options.entries.map((entry) {
         final label = entry.key;
         final text = entry.value ?? '';
-        final isCorrect = label == q.correctAnswer;
+        final isCorrect = label.toUpperCase() == (q.correctAnswer?.trim().toUpperCase() ?? '');
         final isSelected = label == userAnswer;
         final isWrongSelection = isSelected && !isCorrect;
 

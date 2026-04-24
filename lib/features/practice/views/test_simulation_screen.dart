@@ -13,12 +13,26 @@ import 'widgets/touchable_passage_widget.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../auth/viewmodels/auth_viewmodel.dart';
 import 'class_feedback_screen.dart';
+import 'reading_review_screen.dart';
+import 'widgets/custom_audio_player.dart';
 
 class TestSimulationScreen extends StatefulWidget {
   final ExamModel test;
   final String? partId;
+  final bool isReviewMode;
+  final Map<String, String>? initialUserAnswers;
+  final List<dynamic>? aiFeedbacks;
+  final String? overallFeedback;
 
-  const TestSimulationScreen({super.key, required this.test, this.partId});
+  const TestSimulationScreen({
+    super.key,
+    required this.test,
+    this.partId,
+    this.isReviewMode = false,
+    this.initialUserAnswers,
+    this.aiFeedbacks,
+    this.overallFeedback,
+  });
 
   @override
   State<TestSimulationScreen> createState() => _TestSimulationScreenState();
@@ -44,9 +58,27 @@ class _TestSimulationScreenState extends State<TestSimulationScreen> {
   Timer? _questionTimer;
   double _topPaneFlex = 0.4;
 
+  // Normalize "Option B", "B", "option b" → "B" for consistent comparison
+  String _normalizeAnswer(String? raw) {
+    if (raw == null || raw.isEmpty) return '';
+    final s = raw.trim().toUpperCase();
+    final match = RegExp(r'(?:OPTION\s+)?([A-D])$').firstMatch(s);
+    return match?.group(1) ?? s;
+  }
+
   @override
   void initState() {
     super.initState();
+    
+    // Initialize review mode state
+    if (widget.isReviewMode) {
+      _isSubmitted = true;
+      _showInstruction = false;
+      if (widget.initialUserAnswers != null) {
+        _userAnswers.addAll(widget.initialUserAnswers!);
+      }
+    }
+
     if (widget.partId != null) {
       try {
         _selectedPart = widget.test.parts.firstWhere(
@@ -62,7 +94,10 @@ class _TestSimulationScreenState extends State<TestSimulationScreen> {
     } else {
       _showInstruction = false;
     }
-    _startQuestionTimer();
+    
+    if (!widget.isReviewMode) {
+      _startQuestionTimer();
+    }
   }
 
   void _startQuestionTimer() {
@@ -228,13 +263,17 @@ class _TestSimulationScreenState extends State<TestSimulationScreen> {
       'borderWidth': 1.5,
     };
 
-    // 1. Priority: Correct/Incorrect if submitted
-    if (_isSubmitted && isAnswered) {
+    // 1. Priority: Correct/Incorrect if submitted or in Review Mode
+    if ((_isSubmitted || widget.isReviewMode)) {
       final userAnswer = _userAnswers[qId];
       final questionList = context.read<PracticeViewModel>().currentQuestions;
       if (index < questionList.length) {
         final correctAnswer = questionList[index].correctAnswer;
-        final isCorrect = userAnswer == correctAnswer;
+        final normUser = userAnswer?.trim().toUpperCase() ?? '';
+        final normCorrect = correctAnswer?.trim().toUpperCase() ?? '';
+        
+        // Local comparison fallback since correctStatus is not passed here
+        final isCorrect = normUser.isNotEmpty && normUser == normCorrect;
 
         if (isCorrect) {
           info['bg'] = const Color(0xFF10B981);
@@ -595,11 +634,13 @@ class _TestSimulationScreenState extends State<TestSimulationScreen> {
       runSpacing: 8,
       children: [
         _buildLegendChip(const Color(0xFFF59E0B), const Color(0xFFD97706), 'Cắm cờ'),
-        if (_isSubmitted) ...[
+        if (_isSubmitted || widget.isReviewMode) ...[
           _buildLegendChip(const Color(0xFF10B981), const Color(0xFF059669), 'Đúng'),
-          _buildLegendChip(const Color(0xFFEF4444), const Color(0xFFDC2626), 'Sai'),
+          _buildLegendChip(const Color(0xFFEF4444), const Color(0xFFDC2626), 'Sai/Bỏ trống'),
+        ] else ...[
+          _buildLegendChip(AppColors.primary, const Color(0xFF1E3A8A), 'Đã trả lời'),
+          _buildLegendChip(Colors.white, AppColors.divider, 'Chưa trả lời'),
         ],
-        _buildLegendChip(Colors.white, AppColors.divider, 'Chưa trả lời'),
       ],
     );
   }
@@ -845,7 +886,15 @@ class _TestSimulationScreenState extends State<TestSimulationScreen> {
           ? _buildInstructionScreen(context)
           : Scaffold(
       appBar: AppBar(
-        title: Text(widget.test.title),
+        title: Consumer<PracticeViewModel>(
+          builder: (context, viewModel, child) {
+            final questions = viewModel.currentQuestions;
+            if (questions.isEmpty || _currentIndex >= questions.length) {
+               return Text(widget.test.title);
+            }
+            return Text('Câu ${questions[_currentIndex].questionNumber}');
+          },
+        ),
         actions: [
           IconButton(
             icon: Consumer<PracticeViewModel>(builder: (context, vm, child) {
@@ -964,7 +1013,7 @@ class _TestSimulationScreenState extends State<TestSimulationScreen> {
                                 const SizedBox(height: 16),
                                 _buildPassageHeader(currentPassage, currentQuestion.passageTranslations, currentQuestion.questionNumber, currentQuestion.passageImageUrls, currentQuestion.passageTitle),
                                 // Nếu câu hỏi có ảnh (Magic Scan image) — hiển thị tapable
-                                if (currentQuestion.imageUrl != null) ...[
+                                if (currentQuestion.imageUrl != null && currentQuestion.imageUrl!.isNotEmpty) ...[
                                   const SizedBox(height: 16),
                                   GestureDetector(
                                     onTap: () => _openFullscreenImage(context, currentQuestion.imageUrl!),
@@ -1069,6 +1118,15 @@ class _TestSimulationScreenState extends State<TestSimulationScreen> {
                   ),
                   child: Column(
                     children: [
+                      // Hiển thị trình phát audio nếu là Part Listening (1-4)
+                      if (_selectedPart != null && _selectedPart!.partNumber <= 4)
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                          child: CustomAudioPlayer(
+                            audioUrl: _selectedPart!.audioUrl ?? '',
+                            autoPlay: !widget.isReviewMode,
+                          ),
+                        ),
                       Expanded(
                         child: Center(
                           child: ConstrainedBox(
@@ -1183,7 +1241,7 @@ class _TestSimulationScreenState extends State<TestSimulationScreen> {
                 ),
               const SizedBox(height: 16),
               // NEW: Question Image (e.g. for Part 5 or specific Magic Scan)
-              if (question.imageUrl != null) ...[
+              if (question.imageUrl != null && question.imageUrl!.isNotEmpty) ...[
                 GestureDetector(
                   onTap: () => _openFullscreenImage(context, question.imageUrl!),
                   child: Hero(
@@ -1209,6 +1267,42 @@ class _TestSimulationScreenState extends State<TestSimulationScreen> {
                   ),
                 ),
                 const SizedBox(height: 8),
+              ],
+
+              // Nếu có ảnh passage (Part 3, 4 Graphic)
+              if (question.passageImageUrl != null && question.passageImageUrl!.isNotEmpty) ...[
+                GestureDetector(
+                  onTap: () => _openFullscreenImage(context, question.passageImageUrl!),
+                  child: Container(
+                    width: double.infinity,
+                    constraints: const BoxConstraints(maxHeight: 260),
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: AppShadows.softShadow,
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: Image.network(
+                        question.passageImageUrl!,
+                        fit: BoxFit.contain,
+                        loadingBuilder: (ctx, child, prog) =>
+                            prog == null ? child : const Center(child: CircularProgressIndicator()),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
+
+              const SizedBox(height: 24),
+
+              // Transcript Review for Listening Part 3/4
+              if ((widget.isReviewMode || _isSubmitted) && 
+                  (_selectedPart?.partNumber == 3 || _selectedPart?.partNumber == 4) &&
+                  question.passage != null && question.passage!.isNotEmpty) ...[
+                _buildTranscriptReview(question.passage!),
+                const SizedBox(height: 24),
               ],
               const SizedBox(height: 24),
               _buildOption(
@@ -1239,10 +1333,40 @@ class _TestSimulationScreenState extends State<TestSimulationScreen> {
                 question.optionD,
                 question.correctAnswer,
               ),
+
+              // Review Mode: Explanation
+              if (widget.isReviewMode || _isSubmitted) ...[
+                const SizedBox(height: 24),
+                const Divider(),
+                const SizedBox(height: 16),
+                _buildExplanationSection(question),
+              ],
             ],
           ),
         );
       },
+    );
+  }
+
+  Widget _buildExplanationSection(dynamic question) {
+    // Try to find AI feedback for this question
+    Map<String, dynamic>? qFeedback;
+    if (widget.aiFeedbacks != null) {
+      try {
+        qFeedback = widget.aiFeedbacks!.firstWhere(
+          (f) => f['questionNumber'] == question.questionNumber,
+          orElse: () => null,
+        );
+      } catch (e) {
+        // Not found
+      }
+    }
+
+    return ReadingReviewScreen.buildStaticExplanationCard(
+      context: context,
+      question: question,
+      aiData: qFeedback,
+      userAnswer: _userAnswers[question.id],
     );
   }
 
@@ -1271,7 +1395,18 @@ class _TestSimulationScreenState extends State<TestSimulationScreen> {
           Color textColor = AppColors.textSecondary;
           Color borderColor = AppColors.divider;
 
-          if (isCurrent) {
+          if ((_isSubmitted || widget.isReviewMode)) {
+            // Review/Result Mode: Show Correct/Incorrect
+            final userAnswer = _userAnswers[qId];
+            final correctAnswer = questions[index].correctAnswer;
+            final normUser = userAnswer?.trim().toUpperCase() ?? '';
+            final normCorrect = correctAnswer?.trim().toUpperCase() ?? '';
+            final isCorrect = normUser.isNotEmpty && normUser == normCorrect;
+
+            bgColor = isCorrect ? const Color(0xFF10B981) : const Color(0xFFEF4444);
+            textColor = Colors.white;
+            borderColor = isCorrect ? const Color(0xFF059669) : const Color(0xFFDC2626);
+          } else if (isCurrent) {
             bgColor = AppColors.primary;
             textColor = Colors.white;
             borderColor = AppColors.primary;
@@ -1340,19 +1475,56 @@ class _TestSimulationScreenState extends State<TestSimulationScreen> {
     }
 
     bool isSelected = _userAnswers[questionId] == optionLabel;
+    bool isCorrect = (_normalizeAnswer(correctAnswer) == optionLabel.toUpperCase());
+    bool isWrong = isSelected && !isCorrect;
+
+    Color itemColor = AppColors.divider;
+    Color bgColor = Colors.white;
+    Color textColor = AppColors.textPrimary;
+    Color circleColor = AppColors.background;
+    Color circleTextColor = AppColors.textSecondary;
+
+    if (widget.isReviewMode || _isSubmitted) {
+      if (isCorrect) {
+        itemColor = AppColors.success;
+        bgColor = AppColors.success.withValues(alpha: 0.1);
+        circleColor = AppColors.success;
+        circleTextColor = Colors.white;
+        textColor = AppColors.success;
+      } else if (isWrong) {
+        itemColor = AppColors.error;
+        bgColor = AppColors.error.withValues(alpha: 0.1);
+        circleColor = AppColors.error;
+        circleTextColor = Colors.white;
+        textColor = AppColors.error;
+      } else if (isSelected) {
+        itemColor = AppColors.primary;
+        bgColor = AppColors.indigo50;
+        circleColor = AppColors.primary;
+        circleTextColor = Colors.white;
+      }
+    } else {
+      if (isSelected) {
+        itemColor = AppColors.primary;
+        bgColor = AppColors.indigo50;
+        circleColor = AppColors.primary;
+        circleTextColor = Colors.white;
+        textColor = AppColors.primary;
+      }
+    }
 
     return GestureDetector(
-      onTap: () => _onOptionSelected(questionId, optionLabel),
+      onTap: (widget.isReviewMode || _isSubmitted) ? null : () => _onOptionSelected(questionId, optionLabel),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.indigo50 : Colors.white,
+          color: bgColor,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: isSelected ? AppColors.primary : AppColors.divider,
-            width: isSelected ? 2 : 1,
+            color: itemColor,
+            width: isSelected || isCorrect ? 2 : 1,
           ),
           boxShadow: isSelected ? AppShadows.softShadow : [],
         ),
@@ -1364,13 +1536,13 @@ class _TestSimulationScreenState extends State<TestSimulationScreen> {
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: isSelected ? AppColors.primary : AppColors.background,
+                color: circleColor,
               ),
               child: Text(
                 optionLabel,
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
-                  color: isSelected ? Colors.white : AppColors.textSecondary,
+                  color: circleTextColor,
                   fontSize: 16,
                 ),
               ),
@@ -1378,15 +1550,30 @@ class _TestSimulationScreenState extends State<TestSimulationScreen> {
             const SizedBox(width: 16),
             Expanded(
               child: Text(
-                optionText,
+                // Mask text for Part 1 & 2 during practice, reveal in review mode or for other parts
+                (_selectedPart?.partNumber == 1 || _selectedPart?.partNumber == 2) && !(widget.isReviewMode || _isSubmitted)
+                    ? "Option $optionLabel"
+                    : optionText,
                 style: TextStyle(
                   fontSize: 16,
-                  color: isSelected ? AppColors.primary : AppColors.textPrimary,
-                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                  color: textColor,
+                  fontWeight: (isSelected || isCorrect) ? FontWeight.bold : FontWeight.normal,
                 ),
               ),
             ),
-            if (isSelected)
+            if (isCorrect && (widget.isReviewMode || _isSubmitted))
+              const Icon(
+                Icons.check_circle,
+                color: AppColors.success,
+                size: 24,
+              ),
+            if (isWrong && (widget.isReviewMode || _isSubmitted))
+              const Icon(
+                Icons.cancel,
+                color: AppColors.error,
+                size: 24,
+              ),
+            if (isSelected && !(widget.isReviewMode || _isSubmitted))
               const Icon(
                 Icons.check_circle,
                 color: AppColors.primary,
@@ -1625,6 +1812,46 @@ class _TestSimulationScreenState extends State<TestSimulationScreen> {
         transitionsBuilder: (_, anim, __, child) =>
             FadeTransition(opacity: anim, child: child),
         transitionDuration: const Duration(milliseconds: 250),
+      ),
+    );
+  }
+
+  Widget _buildTranscriptReview(String transcript) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.1)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.description_outlined, color: AppColors.primary, size: 20),
+              const SizedBox(width: 12),
+              Text(
+                'Tapescript (Review)',
+                style: GoogleFonts.inter(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.primary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          HtmlWidget(
+            transcript,
+            textStyle: GoogleFonts.inter(
+              fontSize: 15,
+              height: 1.6,
+              color: AppColors.textPrimary,
+            ),
+          ),
+        ],
       ),
     );
   }

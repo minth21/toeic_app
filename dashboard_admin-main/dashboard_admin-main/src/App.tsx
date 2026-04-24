@@ -15,6 +15,7 @@ import Profile from './pages/Profile';
 import ComplaintManagement from './pages/ComplaintManagement';
 import RoadmapAudit from './pages/RoadmapAudit';
 import ClassFeedbackManagement from './pages/ClassFeedbackManagement';
+import PasswordResetManagement from './pages/PasswordResetManagement';
 import LoadingScreen from './components/LoadingScreen';
 import { ThemeProvider, useTheme } from './hooks/useThemeContext';
 import { theme as antdTheme } from 'antd'; // Import theme from antd for algorithm selection
@@ -104,6 +105,7 @@ const AppContent = ({ loading, isExiting }: { loading: boolean, isExiting: boole
                 <Route path="/complaints" element={<ComplaintManagement />} />
                 <Route path="/roadmap-audit" element={<RoadmapAudit />} />
                 <Route path="/class-feedback" element={<ClassFeedbackManagement />} />
+                <Route path="/password-reset" element={<PasswordResetManagement />} />
                 <Route path="/profile" element={<Profile />} />
               </Route>
             </Routes>

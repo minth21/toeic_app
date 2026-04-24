@@ -69,10 +69,29 @@ export class AuthController {
 
     /**
      * POST /api/auth/forgot-password
-     * Vô hiệu hóa tính năng quên mật khẩu
+     * Gửi yêu cầu cấp lại mật khẩu cho Admin
      */
-    async forgotPassword(_req: Request, res: Response): Promise<void> {
-        errorResponse(res, 'Chức năng Quên mật khẩu đã bị vô hiệu hóa. Vui lòng liên hệ Trung tâm.', HTTP_STATUS.FORBIDDEN);
+    async forgotPassword(req: Request, res: Response): Promise<void> {
+        try {
+            const { username, email, reason } = req.body;
+
+            if (!username) {
+                errorResponse(res, 'Username là bắt buộc', HTTP_STATUS.BAD_REQUEST);
+                return;
+            }
+
+            const result = await authService.requestPasswordReset(username, email, reason);
+
+            if (!result.success) {
+                res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(result);
+                return;
+            }
+
+            res.status(HTTP_STATUS.OK).json(result);
+        } catch (error) {
+            logger.error('Forgot password error:', error);
+            errorResponse(res, 'Internal server error', HTTP_STATUS.INTERNAL_SERVER_ERROR);
+        }
     }
 
     /**

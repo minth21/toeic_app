@@ -156,7 +156,7 @@ class _AiAssessmentDetailScreenState extends State<AiAssessmentDetailScreen> {
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Text(
-                            assessment.type == AiAssessmentType.coaching ? 'STRATEGIC ROADMAP' : 'AI PERFORMANCE',
+                            assessment.type == AiAssessmentType.roadmap ? 'BÁO CÁO TỔNG HỢP NĂNG LỰC' : (assessment.type == AiAssessmentType.coaching ? 'STRATEGIC ROADMAP' : 'AI PERFORMANCE'),
                             style: AppTypography.ui(
                               color: Colors.white,
                               fontSize: 10,
@@ -640,7 +640,7 @@ class _AiAssessmentDetailScreenState extends State<AiAssessmentDetailScreen> {
           MaterialPageRoute(
             builder: (context) => PdfViewerScreen(
               pdfBytes: pdfData,
-              title: 'Lộ trình - ${assessment.title}',
+              title: 'Báo cáo năng lực - ${assessment.title}',
             ),
           ),
         );

@@ -210,15 +210,17 @@ const RoadmapAudit: React.FC = () => {
         {
             title: 'Học viên',
             key: 'user',
+            width: 220,
+            align: 'center' as const,
             render: (_: any, record: any) => (
-                <Space size="middle">
+                <Space size="middle" style={{ width: '100%', justifyContent: 'center' }}>
                     <Avatar
                         size={48}
                         src={record.user?.avatarUrl}
                         icon={<UserOutlined />}
                         style={{ border: '2px solid #E2E8F0' }}
                     />
-                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', textAlign: 'left' }}>
                         <Text strong style={{ fontSize: 15, color: '#1E293B' }}>{record.user?.name}</Text>
                         <Text type="secondary" style={{ fontSize: 12 }}>@{record.user?.username}</Text>
                     </div>
@@ -226,11 +228,13 @@ const RoadmapAudit: React.FC = () => {
             )
         },
         {
-            title: 'Tiêu đề Lộ trình',
+            title: 'Tên lộ trình',
             dataIndex: 'title',
             key: 'title',
+            width: 200,
+            align: 'center' as const,
             render: (text: string) => (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
                     <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#3B82F6' }} />
                     <Text strong style={{ color: '#334155' }}>{text}</Text>
                 </div>
@@ -241,6 +245,7 @@ const RoadmapAudit: React.FC = () => {
             dataIndex: 'status',
             key: 'status',
             width: 180,
+            align: 'center' as const,
             render: (status: string) => {
                 switch (status) {
                     case 'PUBLISHED':
@@ -258,6 +263,8 @@ const RoadmapAudit: React.FC = () => {
             title: 'Thời gian tạo',
             dataIndex: 'createdAt',
             key: 'createdAt',
+            width: 160,
+            align: 'center' as const,
             render: (date: string) => (
                 <Text type="secondary" style={{ fontSize: 13 }}>
                     {dayjs(date).format('HH:mm - DD/MM/YYYY')}
@@ -267,7 +274,8 @@ const RoadmapAudit: React.FC = () => {
         {
             title: 'Thao tác',
             key: 'action',
-            align: 'right' as const,
+            width: 180,
+            align: 'center' as const,
             render: (_: any, record: any) => (
                 <Space>
                     <Button
@@ -322,26 +330,6 @@ const RoadmapAudit: React.FC = () => {
             {/* Premium Header */}
             <div style={{ marginBottom: 32, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
-                    <Space align="center" style={{ marginBottom: 8 }}>
-                        <div style={{
-                            width: 48,
-                            height: 48,
-                            background: 'linear-gradient(135deg, #6366F1 0%, #4F46E5 100%)',
-                            borderRadius: 14,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            boxShadow: '0 8px 16px rgba(79, 70, 229, 0.2)'
-                        }}>
-                            <SafetyCertificateOutlined style={{ color: '#fff', fontSize: 24 }} />
-                        </div>
-                        <Title level={2} style={{ margin: 0, letterSpacing: '-0.5px', fontWeight: 800 }}>
-                            Kiểm duyệt Lộ trình AI
-                        </Title>
-                    </Space>
-                    <Paragraph type="secondary" style={{ fontSize: 15, margin: 0, maxWidth: 600 }}>
-                        Hệ thống trung tâm quản lý, phê duyệt và tinh chỉnh các lộ trình học tập cá nhân hóa được tạo bởi AI Coach.
-                    </Paragraph>
                 </div>
                 <Button
                     type="primary"

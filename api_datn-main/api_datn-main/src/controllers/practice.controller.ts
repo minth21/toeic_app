@@ -13,6 +13,8 @@ interface SubmitPartRequest {
     answers: {
         questionId: string;
         selectedOption: string;
+        isFlagged?: boolean;
+        timeSpent?: number;
     }[];
     timeTaken?: number; // Seconds
 }
@@ -89,8 +91,12 @@ export const submitPart = async (
         let correctCount = 0;
         const totalQuestions = questions.length;
         const answerMap = new Map(answers.map(a => [a.questionId, a.selectedOption]));
+        const flaggedMap = new Map(answers.map(a => [a.questionId, a.isFlagged || false]));
+        const timeMap = new Map(answers.map(a => [a.questionId, a.timeSpent || 0]));
         const incorrectTags: string[] = [];
         const errorDetails: any[] = [];
+        const correctQuestionNumbers: number[] = [];
+        const incorrectQuestionNumbers: number[] = [];
 
         questions.forEach(q => {
             const selected = (answerMap.get(q.id) || '').toString().trim().toUpperCase();
@@ -98,7 +104,9 @@ export const submitPart = async (
             
             if (selected === correct && selected.length > 0) {
                 correctCount++;
+                correctQuestionNumbers.push(q.questionNumber);
             } else {
+                incorrectQuestionNumbers.push(q.questionNumber);
                 // Wrong answer, collect tag and details for AI
                 if (q.topic_tag) {
                     incorrectTags.push(q.topic_tag);
@@ -182,6 +190,8 @@ export const submitPart = async (
                     totalScore: toeicScore,
                     listeningScore: skillType === 'LISTENING' ? toeicScore : 0,
                     readingScore: skillType === 'READING' ? toeicScore : 0,
+                    correctQuestionNumbers,
+                    incorrectQuestionNumbers
                 }
             });
 
@@ -194,6 +204,8 @@ export const submitPart = async (
                     questionId: q.id,
                     userAnswer: answerMap.get(q.id) || null,
                     isCorrect: selected === correct && selected.length > 0,
+                    isFlagged: flaggedMap.get(q.id) || false,
+                    timeSpent: timeMap.get(q.id) || 0,
                 };
             });
 
@@ -336,7 +348,9 @@ export const submitPart = async (
                         questionResults.push({
                             id: q.id,
                             questionNumber: q.questionNumber,
-                            isCorrect: false
+                            isCorrect: false,
+                            userAnswer: selected || 'N/A',
+                            correctAnswer: correct
                         });
                     }
                 });
@@ -387,6 +401,18 @@ export const submitPart = async (
                         aiProgressScore: percentage
                     }
                 }).catch((err: any) => console.error("[AI] Failed to update UserPartProgress:", err));
+
+                // 4. Update individual question AI Feedbacks in AttemptDetail
+                if (finalAiResult.questionFeedbacks && Array.isArray(finalAiResult.questionFeedbacks)) {
+                    for (const fb of finalAiResult.questionFeedbacks) {
+                        if (fb.questionId && fb.comment) {
+                            await prisma.attemptDetail.updateMany({
+                                where: { attemptId: savedProgress.attempt.id, questionId: fb.questionId },
+                                data: { aiFeedback: fb.comment }
+                            }).catch((err: any) => console.error("[AI] Failed to update attempt detail feedback:", err));
+                        }
+                    }
+                }
 
                 // Secondary tasks - wrap in try/catch so they don't break the main flow
                 try {
@@ -489,6 +515,8 @@ export const submitFullTest = async (
         });
 
         const answerMap = new Map(answers.map((a: any) => [a.questionId, a.selectedOption]));
+        const flaggedMap = new Map(answers.map((a: any) => [a.questionId, a.isFlagged || false]));
+        const timeMap = new Map(answers.map((a: any) => [a.questionId, a.timeSpent || 0]));
         
         // 3. Calculate scores per Section
         let correctListening = 0;
@@ -497,11 +525,19 @@ export const submitFullTest = async (
         let totalReading = 0;
 
         const partCorrectCounts: Record<string, number> = {};
+        const correctQuestionNumbers: number[] = [];
+        const incorrectQuestionNumbers: number[] = [];
 
         allQuestions.forEach(q => {
             const selected = (answerMap.get(q.id) || '').toString().trim().toUpperCase();
             const correct = (q.correctAnswer || '').toString().trim().toUpperCase();
             const isCorrect = selected === correct && selected.length > 0;
+            
+            if (isCorrect) {
+                correctQuestionNumbers.push(q.questionNumber);
+            } else {
+                incorrectQuestionNumbers.push(q.questionNumber);
+            }
             
             if (q.partNumber <= 4) {
                 totalListening++;
@@ -569,7 +605,9 @@ export const submitFullTest = async (
                     totalQuestions: allQuestions.length,
                     totalScore,
                     listeningScore,
-                    readingScore
+                    readingScore,
+                    correctQuestionNumbers,
+                    incorrectQuestionNumbers
                 }
             });
 
@@ -582,7 +620,9 @@ export const submitFullTest = async (
                     attemptId: attempt.id,
                     questionId: q.id,
                     userAnswer: answerMap.get(q.id) || null,
-                    isCorrect: uAns === cAns && uAns.length > 0
+                    isCorrect: uAns === cAns && uAns.length > 0,
+                    isFlagged: flaggedMap.get(q.id) || false,
+                    timeSpent: timeMap.get(q.id) || 0
                 };
             });
 
@@ -679,7 +719,9 @@ export const submitFullTest = async (
                         questionResults.push({
                             id: q.id,
                             questionNumber: q.questionNumber,
-                            isCorrect: false
+                            isCorrect: false,
+                            userAnswer: selected || 'N/A',
+                            correctAnswer: q.correctAnswer
                         });
                     }
                 });
@@ -720,6 +762,18 @@ export const submitFullTest = async (
                         createdAt: new Date()
                     }
                 });
+
+                // Update individual question AI Feedbacks in AttemptDetail
+                if (finalAiResult.questionFeedbacks && Array.isArray(finalAiResult.questionFeedbacks)) {
+                    for (const fb of finalAiResult.questionFeedbacks) {
+                        if (fb.questionId && fb.comment) {
+                            await prisma.attemptDetail.updateMany({
+                                where: { attemptId: result.id, questionId: fb.questionId },
+                                data: { aiFeedback: fb.comment }
+                            }).catch((err: any) => console.error("[FullTest AI] Failed to update attempt detail feedback:", err));
+                        }
+                    }
+                }
 
                 // Update User aggregate if needed
                 if (user) {
@@ -782,9 +836,15 @@ export const getPartHistory = async (
             }
         });
 
+        // Map correctCount to score for legacy frontend compatibility
+        const mappedHistory = history.map(item => ({
+            ...item,
+            score: item.correctCount
+        }));
+
         res.status(200).json({
             success: true,
-            data: history
+            data: mappedHistory
         });
     } catch (error) {
         next(error);
@@ -897,9 +957,14 @@ export const getUserHistory = async (req: Request, res: Response, next: NextFunc
             }
         });
 
+        const mappedAttempts = attempts.map(item => ({
+            ...item,
+            score: (item as any).correctCount
+        }));
+
         res.status(200).json({
             success: true,
-            data: attempts
+            data: mappedAttempts
         });
     } catch (error) {
         next(error);

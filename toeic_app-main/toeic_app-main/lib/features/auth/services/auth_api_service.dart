@@ -148,4 +148,26 @@ class AuthApiService {
       rethrow;
     }
   }
+
+  /// Gửi yêu cầu cấp lại mật khẩu cho Admin
+  Future<Map<String, dynamic>> requestPasswordReset({
+    required String username,
+    String? email,
+    String? reason,
+  }) async {
+    try {
+      final response = await _apiService.post(
+        ApiConfig.authForgotPassword,
+        body: {
+          'username': username,
+          'email': email,
+          'reason': reason,
+        },
+      );
+
+      return response;
+    } catch (e) {
+      rethrow;
+    }
+  }
 }

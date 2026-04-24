@@ -333,6 +333,10 @@ export const questionApi = {
         const response = await api.patch('/questions/bulk-status', { questionIds, status });
         return response.data;
     },
+    createBatch: async (partId: string, data: any): Promise<{ success: boolean; count: number; message?: string }> => {
+        const response = await api.post(`/parts/${partId}/questions/batch`, data);
+        return response.data;
+    },
 };
 
 /**
@@ -377,6 +381,10 @@ export const userApi = {
     },
     toggleStatus: async (userId: string, status: 'ACTIVE' | 'LOCKED'): Promise<{ success: boolean; message: string }> => {
         const response = await api.patch(`/users/${userId}/status`, { status });
+        return response.data;
+    },
+    delete: async (userId: string): Promise<{ success: boolean; message: string }> => {
+        const response = await api.delete(`/users/${userId}`);
         return response.data;
     },
     getLeaderboard: async (): Promise<{ success: boolean; data: any[] }> => {
@@ -449,6 +457,10 @@ export const aiApi = {
         const response = await api.post('/ai/magic-scan-part7', formData, {
             headers: { 'Content-Type': 'multipart/form-data' }
         });
+        return response.data;
+    },
+    generateListeningExplanation: async (data: { transcript: string; questions: any[] }): Promise<{ success: boolean; data: any; message?: string }> => {
+        const response = await api.post('/ai/generate-part4', data);
         return response.data;
     },
     getAiTimeline: async (userId: string, page: number = 1): Promise<{ 
@@ -639,6 +651,21 @@ export const feedbackApi = {
     },
     resolve: async (id: string): Promise<{ success: boolean; message: string }> => {
         const response = await api.patch(`/feedbacks/${id}/resolve`);
+        return response.data;
+    }
+};
+
+export const passwordRequestApi = {
+    list: async (): Promise<{ success: boolean; data: any[]; message?: string }> => {
+        const response = await api.get('/admin/password-requests');
+        return response.data;
+    },
+    fulfill: async (id: string, data: { newPassword: string; adminNote?: string }): Promise<{ success: boolean; message: string }> => {
+        const response = await api.post(`/admin/password-requests/${id}/fulfill`, data);
+        return response.data;
+    },
+    reject: async (id: string, data: { adminNote: string }): Promise<{ success: boolean; message: string }> => {
+        const response = await api.post(`/admin/password-requests/${id}/reject`, data);
         return response.data;
     }
 };

@@ -1,276 +1,422 @@
-import { useState, useEffect } from 'react';
-import { Modal, Select, message, Button, Row, Col, Card, Input, Tooltip } from 'antd';
-import { FileExcelOutlined } from '@ant-design/icons';
+import React, { useState, useEffect } from 'react';
+import { Modal, Button, Typography, Space, Input, Row, Col, Card, Select, Badge, message } from 'antd';
+import { 
+    AudioOutlined, 
+    FileExcelOutlined, 
+    DownloadOutlined, 
+    CheckCircleFilled, 
+    EditOutlined
+} from '@ant-design/icons';
 import * as XLSX from 'xlsx';
-import api, { uploadApi, partApi } from '../services/api';
+import { partApi } from '../services/api';
 import AudioBanner from './AudioBanner';
 
-const { Option } = Select;
+const { Title, Text } = Typography;
 const { TextArea } = Input;
+const { Option } = Select;
 
 interface CreatePart2BulkModalProps {
     open: boolean;
     onCancel: () => void;
     onSuccess: () => void;
-    partId: string | null;
+    testId: string;
+    partId: string;
     currentAudioUrl?: string;
-    partName?: string;
     partNumber?: number;
+    initialData?: any[];
 }
 
-interface QuestionData {
+interface Part2Question {
     questionNumber: number;
     questionText: string;
     optionA: string;
     optionB: string;
     optionC: string;
-    correctAnswer: string | undefined;
+    correctAnswer: string;
+    explanation: string;
 }
 
-export default function CreatePart2BulkModal({ open, onCancel, onSuccess, partId, currentAudioUrl, partName, partNumber }: CreatePart2BulkModalProps) {
+const CreatePart2BulkModal: React.FC<CreatePart2BulkModalProps> = ({
+    open,
+    onCancel,
+    onSuccess,
+    testId,
+    partId,
+    currentAudioUrl,
+    initialData
+}) => {
+    const [questions, setQuestions] = useState<Part2Question[]>([]);
+    const [activeQuestionIndex, setActiveQuestionIndex] = useState(0);
     const [loading, setLoading] = useState(false);
-    const [questions, setQuestions] = useState<QuestionData[]>([]);
-    const [audioFile, setAudioFile] = useState<File | null>(null);
     const [excelImporting, setExcelImporting] = useState(false);
+    const [audioFile, setAudioFile] = useState<File | null>(null);
 
     useEffect(() => {
         if (open) {
-            const initQuestions: QuestionData[] = [];
-            for (let i = 7; i <= 31; i++) {
-                initQuestions.push({
-                    questionNumber: i,
+            if (initialData && initialData.length > 0) {
+                const mappedQuestions = initialData.map((row: any, index: number) => ({
+                    questionNumber: row['Số câu'] || row['questionNumber'] || (index + 7),
+                    questionText: String(row['Câu hỏi'] || row['questionText'] || ''),
+                    optionA: String(row['A'] || row['optionA'] || ''),
+                    optionB: String(row['B'] || row['optionB'] || ''),
+                    optionC: String(row['C'] || row['optionC'] || ''),
+                    correctAnswer: String(row['Đáp án'] || row['Đáp án đúng'] || row['correctAnswer'] || '').toUpperCase(),
+                    explanation: String(row['Giải thích'] || row['explanation'] || '')
+                }));
+
+                const finalQuestions = Array.from({ length: 25 }, (_, i) => ({
+                    questionNumber: i + 7,
                     questionText: '',
                     optionA: '',
                     optionB: '',
                     optionC: '',
-                    correctAnswer: undefined
+                    correctAnswer: '',
+                    explanation: ''
+                }));
+
+                mappedQuestions.forEach((q, i) => {
+                    if (i < 25) finalQuestions[i] = q;
                 });
+                setQuestions(finalQuestions);
+            } else {
+                const initialQuestions = Array.from({ length: 25 }, (_, i) => ({
+                    questionNumber: i + 7,
+                    questionText: '',
+                    optionA: '',
+                    optionB: '',
+                    optionC: '',
+                    correctAnswer: '',
+                    explanation: ''
+                }));
+                setQuestions(initialQuestions);
             }
-            setQuestions(initQuestions);
+            setActiveQuestionIndex(0);
             setAudioFile(null);
         }
-    }, [open]);
+    }, [open, initialData]);
 
-    const handleQuestionChange = (index: number, field: keyof QuestionData, value: string) => {
+    const handleQuestionChange = (index: number, field: keyof Part2Question, value: string) => {
         const newQuestions = [...questions];
-        (newQuestions[index] as any)[field] = value;
+        newQuestions[index] = { ...newQuestions[index], [field]: value };
         setQuestions(newQuestions);
     };
 
-    const handleDownloadTemplate = () => {
-        const rows = [];
-        for (let i = 7; i <= 31; i++) {
-            rows.push({
-                'Số câu': i,
-                'Transcript (câu hỏi)': '',
-                'A': '',
-                'B': '',
-                'C': '',
-                'Đáp án đúng': '',
-            });
-        }
-        const ws = XLSX.utils.json_to_sheet(rows);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, 'Part 2');
-        XLSX.writeFile(wb, 'Part2_template.xlsx');
-    };
-
-    const handleExcelImport = (file: File) => {
+    const handleExcelImport = async (file: File) => {
         setExcelImporting(true);
         try {
             const reader = new FileReader();
             reader.onload = (e) => {
-                try {
-                    const data = new Uint8Array(e.target?.result as ArrayBuffer);
-                    const workbook = XLSX.read(data, { type: 'array' });
-                    const sheet = workbook.Sheets[workbook.SheetNames[0]];
-                    const rows: any[] = XLSX.utils.sheet_to_json(sheet);
+                const data = e.target?.result;
+                const workbook = XLSX.read(data, { type: 'binary' });
+                const sheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[sheetName];
+                const json = XLSX.utils.sheet_to_json(worksheet);
 
-                    const newQuestions = [...questions];
-                    rows.forEach((row: any) => {
-                        const num = Number(row['Số câu'] || row['questionNumber'] || 0);
-                        const idx = newQuestions.findIndex(q => q.questionNumber === num);
-                        if (idx !== -1) {
-                            newQuestions[idx] = {
-                                ...newQuestions[idx],
-                                questionText: String(row['Transcript (câu hỏi)'] || row['Transcript'] || row['questionText'] || ''),
-                                optionA: String(row['A'] || row['optionA'] || ''),
-                                optionB: String(row['B'] || row['optionB'] || ''),
-                                optionC: String(row['C'] || row['optionC'] || ''),
-                                correctAnswer: String(row['Đáp án đúng'] || row['correctAnswer'] || '').toUpperCase() || undefined,
-                            };
-                        }
-                    });
-                    setQuestions(newQuestions);
-                    message.success(`Đã nạp dữ liệu từ Excel! Kiểm tra và nhấn "Lưu tất cả" để lưu.`);
-                } catch (err: any) {
-                    message.error('Lỗi khi đọc file Excel: ' + err.message);
-                } finally {
-                    setExcelImporting(false);
-                }
+                const mappedQuestions = json.map((row: any, index) => ({
+                    questionNumber: row['Số câu'] || row['questionNumber'] || (index + 7),
+                    questionText: String(row['Câu hỏi'] || row['questionText'] || ''),
+                    optionA: String(row['A'] || row['optionA'] || ''),
+                    optionB: String(row['B'] || row['optionB'] || ''),
+                    optionC: String(row['C'] || row['optionC'] || ''),
+                    correctAnswer: String(row['Đáp án'] || row['correctAnswer'] || '').toUpperCase(),
+                    explanation: String(row['Giải thích'] || row['explanation'] || '')
+                }));
+
+                // Pad or trim to 25 questions
+                const finalQuestions = [...questions];
+                mappedQuestions.forEach((q, i) => {
+                    if (i < 25) {
+                        finalQuestions[i] = q;
+                    }
+                });
+                
+                setQuestions(finalQuestions);
+                message.success(`Đã nhập ${mappedQuestions.length} câu hỏi từ Excel`);
             };
-            reader.readAsArrayBuffer(file);
-        } catch (err: any) {
-            message.error('Lỗi khi đọc file Excel: ' + err.message);
+            reader.readAsBinaryString(file);
+        } catch (error) {
+            message.error('Lỗi khi đọc file Excel');
+        } finally {
             setExcelImporting(false);
         }
-        return false;
+    };
+
+    const handleDownloadTemplate = () => {
+        const template = [
+            { 'Số câu': 7, 'Câu hỏi': 'Who is the manager?', 'A': 'John Doe', 'B': 'The office', 'C': 'By car', 'Đáp án': 'A', 'Giải thích': 'Manager is John Doe' }
+        ];
+        const ws = XLSX.utils.json_to_sheet(template);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Part2');
+        XLSX.writeFile(wb, 'Part2.xlsx');
     };
 
     const handleSubmit = async () => {
-        if (!partId) return;
-
-        const missingAnswers = questions.filter(q => !q.correctAnswer);
-        if (missingAnswers.length > 0) {
-            message.error(`Vui lòng chọn đáp án cho tất cả 25 câu hỏi!`);
+        const filledQuestions = questions.filter(q => q.questionText.trim() !== '' && q.correctAnswer);
+        
+        if (filledQuestions.length === 0) {
+            message.warning('Vui lòng nhập ít nhất một câu hỏi');
             return;
         }
 
-        if (!currentAudioUrl && !audioFile) {
-            message.error('Vui lòng upload Audio chung cho Part 2!');
-            return;
-        }
-
+        setLoading(true);
         try {
-            setLoading(true);
-
-            let newAudioUrl = currentAudioUrl;
+            const formData = new FormData();
+            formData.append('testId', testId);
+            formData.append('partId', partId);
+            formData.append('questions', JSON.stringify(filledQuestions));
             if (audioFile) {
-                const audioRes = await uploadApi.audio(audioFile);
-                if (audioRes.success) {
-                    newAudioUrl = audioRes.url;
-                    await partApi.update(partId, { audioUrl: newAudioUrl });
-                } else {
-                    throw new Error('Upload Audio thất bại');
-                }
+                formData.append('audio', audioFile);
             }
 
-            const promises = questions.map(q => {
-                const payload = {
-                    questionNumber: q.questionNumber,
-                    questionText: q.questionText || 'Listen to the question and mark your answer.',
-                    optionA: q.optionA,
-                    optionB: q.optionB,
-                    optionC: q.optionC,
-                    optionD: null,
-                    correctAnswer: q.correctAnswer,
-                    explanation: ''
-                };
-                return api.post(`/parts/${partId}/questions`, payload);
-            });
-
-            await Promise.all(promises);
-
-            message.success('Đã tạo thành công Part 2 (Audio + 25 câu hỏi)!');
+            await partApi.importQuestions(partId, formData);
+            message.success('Đã lưu thành công các câu hỏi Part 2');
             onSuccess();
             onCancel();
         } catch (error: any) {
-            console.error('Error creating batch:', error);
-            message.error(error.response?.data?.message || error.message || 'Có lỗi xảy ra');
+            message.error(error.message || 'Lỗi khi lưu câu hỏi');
         } finally {
             setLoading(false);
         }
     };
 
+    const currentQ = questions[activeQuestionIndex];
+
     return (
         <Modal
-            title={
-                <div style={{ textAlign: 'center', width: '100%', fontSize: 20, fontWeight: 800, textTransform: 'uppercase', color: '#1E293B' }}>
-                    {partName
-                        ? (partName.toUpperCase().startsWith('PART') ? partName : `PART ${partNumber}: ${partName}`)
-                        : 'TẠO CÂU HỎI CHO PART 2'}
-                </div>
-            }
+            title={null}
             open={open}
             onCancel={onCancel}
             width={1200}
-            footer={[
-                <Button key="cancel" onClick={onCancel}>Hủy</Button>,
-                <Button key="submit" type="primary" loading={loading} onClick={handleSubmit}
-                    style={{ background: 'linear-gradient(135deg, #2563EB 0%, #1E40AF 100%)', border: 'none', fontWeight: 700, borderRadius: 8 }}>
-                    Lưu tất cả
-                </Button>,
-            ]}
-            destroyOnClose={true}
+            footer={null}
+            destroyOnClose
+            centered
+            styles={{ body: { padding: 0, overflow: 'hidden', borderRadius: 20 } }}
         >
-            {/* ─── AUDIO BANNER (top) ─── */}
-            <AudioBanner
-                currentAudioUrl={currentAudioUrl}
-                newAudioFile={audioFile}
-                onAudioFileChange={setAudioFile}
-            />
+            <div style={{ display: 'flex', height: '85vh', background: '#F8FAFC' }}>
+                {/* Sidebar */}
+                <div style={{ width: 300, background: '#fff', borderRight: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column' }}>
+                    <div style={{ padding: '24px 20px', borderBottom: '1px solid #F1F5F9' }}>
+                        <Title level={4} style={{ margin: 0, color: '#1E293B', display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <div style={{ width: 32, height: 32, background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 16 }}>
+                                <AudioOutlined />
+                            </div>
+                            Nhập câu hỏi Part 2
+                        </Title>
+                        <Text type="secondary" style={{ fontSize: 12, marginTop: 4, display: 'block' }}>
+                            Questions 7 - 31 (25 total)
+                        </Text>
+                    </div>
 
-            {/* ─── EXCEL IMPORT ROW ─── */}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginBottom: 16 }}>
-                <Tooltip title="Tải file Excel mẫu (25 câu, Part 2)">
-                    <Button icon={<FileExcelOutlined />} onClick={handleDownloadTemplate} style={{ borderRadius: 8, color: '#16A34A', borderColor: '#16A34A' }}>
-                        Tải file mẫu
-                    </Button>
-                </Tooltip>
-                <Button
-                    icon={<FileExcelOutlined />}
-                    loading={excelImporting}
-                    style={{ borderRadius: 8, background: '#16A34A', color: '#fff', border: 'none', fontWeight: 600 }}
-                    onClick={() => {
-                        const input = document.createElement('input');
-                        input.type = 'file';
-                        input.accept = '.xlsx,.xls';
-                        input.onchange = (e) => {
-                            const file = (e.target as HTMLInputElement).files?.[0];
-                            if (file) handleExcelImport(file);
-                        };
-                        input.click();
-                    }}
-                >
-                    Import Excel
-                </Button>
-            </div>
-
-            <div style={{ maxHeight: '60vh', overflowY: 'auto', padding: '0 8px' }}>
-                <Row gutter={[16, 16]}>
-                    {questions.map((q, index) => (
-                        <Col span={12} key={q.questionNumber}>
-                            <Card
-                                size="small"
-                                title={<span style={{ fontWeight: 700, color: '#1E293B' }}>Câu {q.questionNumber}</span>}
-                                bodyStyle={{ padding: 12 }}
-                                style={{ borderRadius: 12, border: '1px solid #E2E8F0' }}
+                    <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px' }}>
+                        <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+                            <Button 
+                                icon={<DownloadOutlined />} 
+                                onClick={handleDownloadTemplate} 
+                                style={{ flex: 1, borderRadius: 8, fontSize: 12 }}
                             >
-                                <div style={{ marginBottom: 12 }}>
-                                    <TextArea
-                                        placeholder="Nhập nội dung câu hỏi (Transcript)..."
-                                        rows={2}
-                                        value={q.questionText}
-                                        onChange={(e) => handleQuestionChange(index, 'questionText', e.target.value)}
-                                        style={{ borderRadius: 8 }}
-                                    />
-                                </div>
+                                Mẫu
+                            </Button>
+                            <Button 
+                                type="primary" 
+                                icon={<FileExcelOutlined />} 
+                                loading={excelImporting}
+                                onClick={() => {
+                                    const input = document.createElement('input');
+                                    input.type = 'file';
+                                    input.accept = '.xlsx,.xls';
+                                    input.onchange = (e) => {
+                                        const file = (e.target as HTMLInputElement).files?.[0];
+                                        if (file) handleExcelImport(file);
+                                    };
+                                    input.click();
+                                }}
+                                style={{ flex: 2, borderRadius: 8, background: '#16A34A', border: 'none', fontSize: 12 }}
+                            >
+                                Nhập Excel
+                            </Button>
+                        </div>
 
-                                <div style={{ marginBottom: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                                    <Input addonBefore="A" value={q.optionA} onChange={(e) => handleQuestionChange(index, 'optionA', e.target.value)} placeholder="Đáp án A" style={{ borderRadius: 8 }} />
-                                    <Input addonBefore="B" value={q.optionB} onChange={(e) => handleQuestionChange(index, 'optionB', e.target.value)} placeholder="Đáp án B" style={{ borderRadius: 8 }} />
-                                    <Input addonBefore="C" value={q.optionC} onChange={(e) => handleQuestionChange(index, 'optionC', e.target.value)} placeholder="Đáp án C" style={{ borderRadius: 8 }} />
-                                </div>
+                        {questions.map((q, idx) => {
+                            const isFilled = q.questionText.trim() !== '' && q.correctAnswer;
+                            const isActive = activeQuestionIndex === idx;
 
-                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid #f0f0f0', paddingTop: 8 }}>
-                                    <span style={{ fontWeight: 600, color: '#F59E0B' }}>Đáp án đúng:</span>
-                                    <Select
-                                        placeholder="Chọn đáp án"
-                                        style={{ width: 120 }}
-                                        value={q.correctAnswer}
-                                        onChange={(val) => handleQuestionChange(index, 'correctAnswer', val)}
-                                        status={!q.correctAnswer ? 'warning' : ''}
-                                    >
-                                        <Option value="A">Đáp án A</Option>
-                                        <Option value="B">Đáp án B</Option>
-                                        <Option value="C">Đáp án C</Option>
-                                    </Select>
+                            return (
+                                <div
+                                    key={q.questionNumber}
+                                    onClick={() => setActiveQuestionIndex(idx)}
+                                    style={{
+                                        padding: '10px 14px',
+                                        borderRadius: 10,
+                                        marginBottom: 6,
+                                        cursor: 'pointer',
+                                        transition: 'all 0.2s',
+                                        background: isActive ? '#FFFBEB' : 'transparent',
+                                        border: isActive ? '1px solid #FDE68A' : '1px solid transparent',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'space-between'
+                                    }}
+                                >
+                                    <Space size={10}>
+                                        <Badge count={q.questionNumber} color={isActive ? '#D97706' : '#94A3B8'} style={{ boxShadow: 'none' }} />
+                                        <span style={{ fontWeight: isActive ? 600 : 500, color: isActive ? '#92400E' : '#64748B', fontSize: 13 }}>
+                                            Câu hỏi {q.questionNumber}
+                                        </span>
+                                    </Space>
+                                    {isFilled && <CheckCircleFilled style={{ color: '#10B981', fontSize: 14 }} />}
                                 </div>
+                            );
+                        })}
+                    </div>
+
+                    <div style={{ padding: 20, borderTop: '1px solid #F1F5F9' }}>
+                        <Button 
+                            type="primary" 
+                            block 
+                            size="large" 
+                            loading={loading}
+                            onClick={handleSubmit}
+                            style={{ borderRadius: 12, height: 48, fontWeight: 700, background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)', border: 'none', boxShadow: '0 4px 12px rgba(245, 158, 11, 0.2)' }}
+                        >
+                            Lưu tất cả
+                        </Button>
+                    </div>
+                </div>
+
+                {/* Content */}
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                    <div style={{ padding: '16px 24px', background: '#fff', borderBottom: '1px solid #E2E8F0' }}>
+                        <AudioBanner 
+                            currentAudioUrl={currentAudioUrl} 
+                            newAudioFile={audioFile} 
+                            onAudioFileChange={setAudioFile} 
+                        />
+                    </div>
+
+                    <div style={{ flex: 1, overflowY: 'auto', padding: 32 }}>
+                        <div style={{ maxWidth: 800, margin: '0 auto' }}>
+                            <Card 
+                                title={
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                                        <div style={{ width: 40, height: 40, borderRadius: 10, background: '#FFFBEB', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#D97706' }}>
+                                            <EditOutlined />
+                                        </div>
+                                        <div>
+                                            <div style={{ fontSize: 16, fontWeight: 700, color: '#1E293B' }}>Chỉnh sửa Câu {currentQ?.questionNumber}</div>
+                                            <div style={{ fontSize: 12, color: '#64748B', fontWeight: 400 }}>Nhập transcript và các lựa chọn đáp án</div>
+                                        </div>
+                                    </div>
+                                }
+                                style={{ borderRadius: 20, boxShadow: '0 10px 15px -3px rgba(0,0,0,0.05)' }}
+                            >
+                                <Space direction="vertical" size={24} style={{ width: '100%' }}>
+                                    <div>
+                                        <Text strong style={{ display: 'block', marginBottom: 8, color: '#475569' }}>Transcript (Câu hỏi / Câu khẳng định)</Text>
+                                        <TextArea
+                                            placeholder="Nhập nội dung câu hỏi nghe được..."
+                                            rows={3}
+                                            value={currentQ?.questionText}
+                                            onChange={(e) => handleQuestionChange(activeQuestionIndex, 'questionText', e.target.value)}
+                                            style={{ borderRadius: 12, padding: 12, fontSize: 15 }}
+                                        />
+                                    </div>
+
+                                    <Row gutter={16}>
+                                        <Col span={8}>
+                                            <Text strong style={{ display: 'block', marginBottom: 8, color: '#475569' }}>Lựa chọn A</Text>
+                                            <Input 
+                                                prefix={<Text type="secondary">A</Text>} 
+                                                value={currentQ?.optionA} 
+                                                onChange={(e) => handleQuestionChange(activeQuestionIndex, 'optionA', e.target.value)} 
+                                                placeholder="Lựa chọn A" 
+                                                style={{ borderRadius: 8 }}
+                                            />
+                                        </Col>
+                                        <Col span={8}>
+                                            <Text strong style={{ display: 'block', marginBottom: 8, color: '#475569' }}>Lựa chọn B</Text>
+                                            <Input 
+                                                prefix={<Text type="secondary">B</Text>} 
+                                                value={currentQ?.optionB} 
+                                                onChange={(e) => handleQuestionChange(activeQuestionIndex, 'optionB', e.target.value)} 
+                                                placeholder="Lựa chọn B" 
+                                                style={{ borderRadius: 8 }}
+                                            />
+                                        </Col>
+                                        <Col span={8}>
+                                            <Text strong style={{ display: 'block', marginBottom: 8, color: '#475569' }}>Lựa chọn C</Text>
+                                            <Input 
+                                                prefix={<Text type="secondary">C</Text>} 
+                                                value={currentQ?.optionC} 
+                                                onChange={(e) => handleQuestionChange(activeQuestionIndex, 'optionC', e.target.value)} 
+                                                placeholder="Lựa chọn C" 
+                                                style={{ borderRadius: 8 }}
+                                            />
+                                        </Col>
+                                    </Row>
+
+                                    <Row gutter={16} align="middle">
+                                        <Col span={12}>
+                                            <Text strong style={{ display: 'block', marginBottom: 8, color: '#475569' }}>Đáp án đúng</Text>
+                                            <Select
+                                                placeholder="Chọn đáp án"
+                                                style={{ width: '100%' }}
+                                                size="large"
+                                                value={currentQ?.correctAnswer}
+                                                onChange={(val) => handleQuestionChange(activeQuestionIndex, 'correctAnswer', val)}
+                                            >
+                                                <Option value="A">Đáp án A</Option>
+                                                <Option value="B">Đáp án B</Option>
+                                                <Option value="C">Đáp án C</Option>
+                                            </Select>
+                                        </Col>
+                                        <Col span={12}>
+                                            <div style={{ marginTop: 24, padding: '12px 16px', background: '#F8FAFC', borderRadius: 12, border: '1px solid #E2E8F0' }}>
+                                                <Text type="secondary" style={{ fontSize: 12 }}>
+                                                    * Part 2 chỉ có 3 lựa chọn A, B, C. Đáp án D sẽ được bỏ qua.
+                                                </Text>
+                                            </div>
+                                        </Col>
+                                    </Row>
+
+                                    <div>
+                                        <Text strong style={{ display: 'block', marginBottom: 8, color: '#475569' }}>Giải thích chi tiết</Text>
+                                        <TextArea
+                                            placeholder="Nhập lời giải thích hoặc bản dịch cho câu hỏi này..."
+                                            rows={4}
+                                            value={currentQ?.explanation}
+                                            onChange={(e) => handleQuestionChange(activeQuestionIndex, 'explanation', e.target.value)}
+                                            style={{ borderRadius: 12, padding: 12 }}
+                                        />
+                                    </div>
+                                </Space>
                             </Card>
-                        </Col>
-                    ))}
-                </Row>
+
+                            <div style={{ marginTop: 24, display: 'flex', justifyContent: 'space-between' }}>
+                                <Button 
+                                    disabled={activeQuestionIndex === 0}
+                                    onClick={() => setActiveQuestionIndex(activeQuestionIndex - 1)}
+                                    size="large"
+                                    style={{ borderRadius: 10 }}
+                                >
+                                    Câu trước
+                                </Button>
+                                <Button 
+                                    type="primary"
+                                    disabled={activeQuestionIndex === questions.length - 1}
+                                    onClick={() => setActiveQuestionIndex(activeQuestionIndex + 1)}
+                                    size="large"
+                                    style={{ borderRadius: 10, background: '#1E293B', border: 'none' }}
+                                >
+                                    Câu tiếp theo
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </Modal>
     );
-}
+};
+
+export default CreatePart2BulkModal;

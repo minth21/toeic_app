@@ -13,7 +13,8 @@ import {
     enrichPart5QuestionService,
     enrichPart5BatchService,
     generateBatchExplanationsService,
-    generatePersonalizedRoadmapService
+    generatePersonalizedRoadmapService,
+    generatePart4ExplanationService
 } from '../services/ai.service';
 import { calculateEstimatedScore } from '../services/user.service';
 import axios from 'axios';
@@ -61,6 +62,36 @@ export const generatePart6Explanations = async (req: Request, res: Response) => 
         return res.status(500).json({
             success: false,
             message: error.message || 'Failed to generate explanations'
+        });
+    }
+};
+
+export const generatePart4Explanations = async (req: Request, res: Response) => {
+    try {
+        let { transcript, questions }: { transcript: string; questions: any } = req.body;
+
+        if (typeof questions === 'string') questions = JSON.parse(questions);
+        
+        if (!transcript || !questions || questions.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Transcript and questions are required'
+            });
+        }
+
+        const aiResponse = await generatePart4ExplanationService(transcript, questions);
+        console.log(`[INFO] AI Part 4 generated successfully for ${questions.length} questions`);
+
+        return res.json({
+            success: true,
+            data: aiResponse
+        });
+
+    } catch (error: any) {
+        console.error('AI Part 4 Error:', error);
+        return res.status(500).json({
+            success: false,
+            message: error.message || 'Failed to generate explanations for Part 4'
         });
     }
 };

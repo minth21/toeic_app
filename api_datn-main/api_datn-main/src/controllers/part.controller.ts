@@ -72,6 +72,13 @@ export const getPartById = async (
 
         const part = await prisma.part.findUnique({
             where: { id: partId },
+            include: {
+                questions: {
+                    orderBy: {
+                        questionNumber: 'asc'
+                    }
+                }
+            }
         });
 
         if (!part) {
@@ -246,7 +253,6 @@ export const deletePart = async (
     next: NextFunction
 ): Promise<void> => {
     try {
-        const { partId } = req.params;
         const user = (req as any).user;
 
         if (user.role !== 'ADMIN') {
@@ -257,46 +263,10 @@ export const deletePart = async (
             return;
         }
 
-        // Check if part has questions
-        const part = await prisma.part.findUnique({
-            where: { id: partId },
-            include: {
-                _count: {
-                    select: {
-                        questions: true,
-                    },
-                },
-            },
-        });
-
-        if (!part) {
-            res.status(404).json({
-                success: false,
-                message: 'Không tìm thấy Part',
-            });
-            return;
-        }
-
-        if (part._count.questions > 0) {
-            res.status(400).json({
-                success: false,
-                message: `Không thể xóa Part vì còn ${part._count.questions} câu hỏi. Vui lòng xóa câu hỏi trước.`,
-            });
-            return;
-        }
-
-        await prisma.part.delete({
-            where: { id: partId },
-        });
-
-        // Cleanup Cloudinary assets
-        const { cleanupCloudinaryAssets } = await import('../config/cloudinary.config');
-        cleanupCloudinaryAssets(part.instructionImgUrl);
-        cleanupCloudinaryAssets(part.audioUrl);
-
-        res.status(200).json({
-            success: true,
-            message: 'Part đã được xóa thành công',
+        // Permanent deletion is disabled to protect data integrity
+        res.status(400).json({
+            success: false,
+            message: 'Hệ thống không cho phép xóa vĩnh viễn phần thi. Vui lòng sử dụng tính năng "Khóa" để ẩn phần thi khỏi App học viên.',
         });
     } catch (error) {
         next(error);

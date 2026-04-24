@@ -1,3 +1,5 @@
+import '../../../constants/app_constants.dart';
+
 class PartModel {
   final String id;
   final int partNumber;
@@ -33,9 +35,9 @@ class PartModel {
       partName: (json['partName'] ?? _getDefaultPartName(partNumber)).toString(),
       totalQuestions: int.tryParse((json['totalQuestions'] ?? '0').toString()) ?? 0,
       completedQuestions: int.tryParse((json['_count']?['questions'] ?? '0').toString()) ?? 0,
-      instructionImgUrl: json['instructionImgUrl']?.toString(),
+      instructionImgUrl: AppConstants.getFullUrl(json['instructionImgUrl']?.toString()),
       instructions: json['instructions']?.toString(),
-      audioUrl: json['audioUrl']?.toString(),
+      audioUrl: AppConstants.getFullUrl(json['audioUrl']?.toString()),
       timeLimit: json['timeLimit'] != null ? int.tryParse(json['timeLimit'].toString()) : null,
       userProgress: json['userProgress'] != null ? int.tryParse(json['userProgress'].toString()) : null,
       status: (json['status'] ?? 'ACTIVE').toString(),

@@ -128,22 +128,23 @@ export const createQuestion = async (
 
         // Validate question number range based on part number
         const qNum = parseInt(questionNumber);
-        if (part.partNumber === 5) {
-            if (qNum < 101 || qNum > 130) {
-                res.status(400).json({
-                    success: false,
-                    message: 'Part 5 chỉ chấp nhận câu hỏi từ 101 đến 130',
-                });
-                return;
-            }
-        } else if (part.partNumber === 6) {
-            if (qNum < 131 || qNum > 146) {
-                res.status(400).json({
-                    success: false,
-                    message: 'Part 6 chỉ chấp nhận câu hỏi từ 131 đến 146',
-                });
-                return;
-            }
+        const partRanges: Record<number, { min: number; max: number }> = {
+            1: { min: 1, max: 6 },
+            2: { min: 7, max: 31 },
+            3: { min: 32, max: 70 },
+            4: { min: 71, max: 100 },
+            5: { min: 101, max: 130 },
+            6: { min: 131, max: 146 },
+            7: { min: 147, max: 200 },
+        };
+
+        const range = partRanges[part.partNumber];
+        if (range && (qNum < range.min || qNum > range.max)) {
+            res.status(400).json({
+                success: false,
+                message: `Part ${part.partNumber} chỉ chấp nhận câu hỏi từ ${range.min} đến ${range.max}`,
+            });
+            return;
         }
 
         // Check if question number already exists in the ENTIRE TEST
@@ -190,7 +191,7 @@ export const createQuestion = async (
                 audioUrl,
                 imageUrl, // Add imageUrl
                 transcript,
-                status: 'PENDING' as any // Default to PENDING for new questions
+                status: part.status as any // Inherit status from Part (if ACTIVE, question becomes ACTIVE)
             },
         });
 
@@ -239,6 +240,36 @@ export const updateQuestion = async (
             questionScanUrl, // ✅ New: dedicated question scan URLs
             passageTranslationData,
         } = req.body;
+
+        // --- Range Validation ---
+        if (questionNumber) {
+            const qNum = parseInt(questionNumber);
+            const question = await prisma.question.findUnique({
+                where: { id },
+                include: { part: true }
+            });
+            
+            if (question) {
+                const partRanges: Record<number, { min: number; max: number }> = {
+                    1: { min: 1, max: 6 },
+                    2: { min: 7, max: 31 },
+                    3: { min: 32, max: 70 },
+                    4: { min: 71, max: 100 },
+                    5: { min: 101, max: 130 },
+                    6: { min: 131, max: 146 },
+                    7: { min: 147, max: 200 },
+                };
+
+                const range = partRanges[question.part.partNumber];
+                if (range && (qNum < range.min || qNum > range.max)) {
+                    res.status(400).json({
+                        success: false,
+                        message: `Part ${question.part.partNumber} chỉ chấp nhận câu hỏi từ ${range.min} đến ${range.max}`,
+                    });
+                    return;
+                }
+            }
+        }
 
         // Validate and Standardize
         let sanitizedData: string | null = null;
@@ -299,10 +330,10 @@ export const deleteQuestion = async (
         const { id } = req.params;
         const user = (req as any).user;
 
-        if (user.role !== 'ADMIN') {
+        if (user.role !== 'ADMIN' && user.role !== 'SPECIALIST') {
             res.status(403).json({
                 success: false,
-                message: 'Chỉ ADMIN mới có quyền xóa câu hỏi.',
+                message: 'Chỉ ADMIN hoặc Chuyên viên mới có quyền xóa câu hỏi.',
             });
             return;
         }
@@ -320,9 +351,19 @@ export const deleteQuestion = async (
         }
 
         // Delete from database
-        await prisma.question.delete({
-            where: { id },
-        });
+        await (prisma.question as any).delete({ where: { id } });
+
+        // Cleanup Cloudinary assets (Async)
+        if (question) {
+            import('../config/cloudinary.config').then(({ cleanupCloudinaryAssets }) => {
+                cleanupCloudinaryAssets([
+                    question.imageUrl,
+                    question.audioUrl,
+                    question.passageImageUrl,
+                    question.questionScanUrl
+                ].filter((url): url is string => !!url));
+            }).catch(err => console.error('Cloudinary cleanup error:', err));
+        }
 
         res.status(200).json({
             success: true,
@@ -346,10 +387,10 @@ export const deleteAllQuestionsByPartId = async (
         const { partId } = req.params;
         const user = (req as any).user;
 
-        if (user.role !== 'ADMIN') {
+        if (user.role !== 'ADMIN' && user.role !== 'SPECIALIST') {
             res.status(403).json({
                 success: false,
-                message: 'Chỉ ADMIN mới có quyền xóa toàn bộ câu hỏi của phần thi.',
+                message: 'Chỉ ADMIN hoặc Chuyên viên mới có quyền xóa nội dung này.',
             });
             return;
         }
@@ -369,14 +410,17 @@ export const deleteAllQuestionsByPartId = async (
             where: { partId },
         });
 
-        // Cleanup Cloudinary assets
-        const { cleanupCloudinaryAssets } = await import('../config/cloudinary.config');
-        questions.forEach(q => {
-            cleanupCloudinaryAssets(q.imageUrl);
-            cleanupCloudinaryAssets(q.audioUrl);
-            cleanupCloudinaryAssets(q.passageImageUrl);
-            cleanupCloudinaryAssets(q.questionScanUrl);
-        });
+        // Cleanup Cloudinary assets (Batch)
+        import('../config/cloudinary.config').then(({ cleanupCloudinaryAssets }) => {
+            const allUrls: string[] = [];
+            questions.forEach(q => {
+                if (q.imageUrl) allUrls.push(q.imageUrl);
+                if (q.audioUrl) allUrls.push(q.audioUrl);
+                if (q.passageImageUrl) allUrls.push(q.passageImageUrl);
+                if (q.questionScanUrl) allUrls.push(q.questionScanUrl);
+            });
+            if (allUrls.length > 0) cleanupCloudinaryAssets(allUrls);
+        }).catch(err => console.error('Cloudinary bulk cleanup error:', err));
 
         res.status(200).json({
             success: true,
@@ -400,10 +444,10 @@ export const bulkDeleteQuestions = async (
     try {
         const user = (req as any).user;
 
-        if (user.role !== 'ADMIN') {
+        if (user.role !== 'ADMIN' && user.role !== 'SPECIALIST') {
             res.status(403).json({
                 success: false,
-                message: 'Chỉ ADMIN mới có quyền xóa hàng loạt câu hỏi.',
+                message: 'Chỉ ADMIN hoặc Chuyên viên mới có quyền xóa hàng loạt câu hỏi.',
             });
             return;
         }
@@ -543,26 +587,8 @@ export const createBatchQuestions = async (
         // For Part 6/7, use standard logic. For Part 5, check start number
         let startQuestionNumber = lastQuestion ? lastQuestion.questionNumber + 1 : (part.partNumber === 6 ? 131 : part.partNumber === 5 ? 101 : 1);
 
-        // Check for duplicate question numbers in existing questions
-        const existingQuestions = await prisma.question.findMany({
-            where: { partId },
-            select: { questionNumber: true }
-        });
-        const existingNumbers = new Set(existingQuestions.map(q => q.questionNumber));
-
-        // Check for duplicates in incoming questions
-        const incomingNumbers = questions.map((q: any, index: number) =>
-            q.questionNumber ? q.questionNumber : (startQuestionNumber + index)
-        );
-
-        const duplicates = incomingNumbers.filter(num => existingNumbers.has(num));
-        if (duplicates.length > 0) {
-            res.status(400).json({
-                success: false,
-                message: `Các câu sau đã tồn tại: ${duplicates.join(', ')}. Vui lòng kiểm tra lại.`,
-            });
-            return;
-        }
+        // --- Removed same-part duplicate check to allow for batch updates (Upsert will handle this) ---
+        // Duplicate check across different parts of the same test is still performed below.
 
         // Prepare data
         const questionsToInsert = questions.map((q: any, index: number) => {
@@ -576,26 +602,25 @@ export const createBatchQuestions = async (
                 throw new Error(`Câu ${qNum} thiếu một hoặc nhiều lựa chọn (A-D).`);
             }
 
-            // Validate Part 5 question number range
-            if (part.partNumber === 5 && (qNum < 101 || qNum > 130)) {
-                throw new Error(`Part 5 chỉ chấp nhận câu hỏi từ 101-130. Câu ${qNum} không hợp lệ.`);
-            }
+            // Validate question number range based on part number
+            const partRanges: Record<number, { min: number; max: number }> = {
+                1: { min: 1, max: 6 },
+                2: { min: 7, max: 31 },
+                3: { min: 32, max: 70 },
+                4: { min: 71, max: 100 },
+                5: { min: 101, max: 130 },
+                6: { min: 131, max: 146 },
+                7: { min: 147, max: 200 },
+            };
 
-            // Validate Part 6 question number range
-            if (part.partNumber === 6 && (qNum < 131 || qNum > 146)) {
-                throw new Error(`Part 6 chỉ chấp nhận câu hỏi từ 131-146. Câu ${qNum} không hợp lệ.`);
-            }
-
-            // Validate Part 7 question number range
-            if (part.partNumber === 7 && (qNum < 147 || qNum > 200)) {
-                throw new Error(`Part 7 chỉ chấp nhận câu hỏi từ 147-200. Câu ${qNum} không hợp lệ.`);
+            const range = partRanges[part.partNumber];
+            if (range && (qNum < range.min || qNum > range.max)) {
+                throw new Error(`Part ${part.partNumber} chỉ chấp nhận câu hỏi từ ${range.min}-${range.max}. Câu ${qNum} không hợp lệ.`);
             }
 
             return {
                 partId,
                 questionNumber: qNum,
-                passage: passage,
-                passageTranslationData: sanitizedData,
                 passageImageUrl: q.passageImageUrl || null,
                 questionScanUrl: q.questionScanUrl || null,
                 questionText: q.questionText,
@@ -613,9 +638,11 @@ export const createBatchQuestions = async (
                 passageTitle: q.passageTitle || null, // ✅ New
                 level: sanitizeDifficulty(q.level), // ✅ Sanitized
                 audioUrl: audioUrl || q.audioUrl,
+                passage: q.passage || passage, // ✅ Allow individual passages
+                passageTranslationData: q.passageTranslationData || sanitizedData, // ✅ Allow individual translations
                 transcript: transcript || q.transcript,
                 imageUrl: q.imageUrl || null,
-                status: 'PENDING' as any // Default to PENDING for batch questions
+                status: part.status as any // Inherit status from Part
             };
         });
 
@@ -624,31 +651,26 @@ export const createBatchQuestions = async (
 
         const existingQuestionsInTest = await prisma.question.findMany({
             where: {
-                part: {
-                    testId: part.testId
-                },
-                questionNumber: {
-                    in: questionNumbers
-                }
+                part: { testId: part.testId },
+                questionNumber: { in: questionNumbers }
             },
             select: {
                 questionNumber: true,
+                partId: true,
                 part: {
                     select: { partNumber: true }
                 }
             }
         });
 
-        // Only check for duplicates if NOT in replace mode
-        if (mode !== 'replace' && existingQuestionsInTest.length > 0) {
-            const duplicateNumbers = existingQuestionsInTest.map(q => q.questionNumber).sort((a, b) => a - b);
-            // Show where they exist
-            const duplicatesInfo = existingQuestionsInTest.map(q => `${q.questionNumber} (Part ${q.part.partNumber})`).join(', ');
-
+        // 6. Check for cross-part duplicates
+        const crossPartDuplicates = existingQuestionsInTest.filter(q => q.partId !== partId);
+        
+        if (mode !== 'replace' && crossPartDuplicates.length > 0) {
+            const duplicatesInfo = crossPartDuplicates.map(q => `${q.questionNumber} (Part ${q.part.partNumber})`).join(', ');
             res.status(400).json({
                 success: false,
-                message: `Các câu hỏi sau đã tồn tại trong bài test: ${duplicatesInfo}. Vui lòng kiểm tra lại.`,
-                duplicates: duplicateNumbers
+                message: `Các câu hỏi sau đã tồn tại ở Part khác: ${duplicatesInfo}. Vui lòng kiểm tra lại số câu!`,
             });
             return;
         }
@@ -659,15 +681,31 @@ export const createBatchQuestions = async (
         console.log('First Question Data:', JSON.stringify(questionsToInsert[0], null, 2));
         console.log('--- DIAGNOSTIC END ---');
 
-        // Bulk insert
-        await (prisma.question as any).createMany({
-            data: questionsToInsert,
-        });
+        // 7. Perform Upsert (Create or Update) for each question
+        const results = await prisma.$transaction(
+            questionsToInsert.map((qData) => {
+                const { questionNumber, ...data } = qData;
+                return prisma.question.upsert({
+                    where: {
+                        partId_questionNumber: {
+                            partId,
+                            questionNumber,
+                        }
+                    },
+                    update: data,
+                    create: {
+                        ...data,
+                        partId,
+                        questionNumber,
+                    }
+                });
+            })
+        );
 
         res.status(201).json({
             success: true,
-            message: `Đã tạo ${questionsToInsert.length} câu hỏi thành công`,
-            count: questionsToInsert.length,
+            message: `Đã xử lý thành công ${results.length} câu hỏi (Tạo mới/Cập nhật).`,
+            count: results.length,
         });
     } catch (error) {
         next(error);
@@ -716,10 +754,14 @@ export const importQuestions = async (
 
         // Choose parser based on Part number
         let questions: any[];
-        if (part.partNumber === 5) {
+        if (part.partNumber >= 1 && part.partNumber <= 4) {
+            questions = ExcelParser.parseListeningTemplate(req.file.buffer, part.partNumber);
+        } else if (part.partNumber === 5) {
             questions = ExcelParser.parsePart5Template(req.file.buffer);
         } else if (part.partNumber === 6) {
             questions = ExcelParser.parsePart6Template(req.file.buffer);
+        } else if (part.partNumber === 7) {
+            questions = ExcelParser.parsePart7Template(req.file.buffer);
         } else {
             res.status(400).json({
                 success: false,
@@ -753,7 +795,8 @@ export const importQuestions = async (
 
         // 2. Check if part is already full (only for append mode)
         if (mode === 'append') {
-            const maxQuestions = part.partNumber === 5 ? 30 : part.partNumber === 6 ? 16 : null;
+            const maxCounts: Record<number, number> = { 1: 6, 2: 25, 3: 39, 4: 30, 5: 30, 6: 16, 7: 54 };
+            const maxQuestions = maxCounts[part.partNumber];
             if (maxQuestions && existingQuestions.length >= maxQuestions) {
                 res.status(400).json({
                     success: false,
@@ -768,21 +811,24 @@ export const importQuestions = async (
         const invalidQuestions: number[] = [];
 
         questions.forEach((q, index) => {
-            // Use questionNumber from Excel if available, otherwise fallback to index + 1 (NOT RECOMMENDED for Part 5)
-            // For Part 5, we expect the Excel to have 101-130 range.
-            const contentNumber = (q as any).questionNumber || (index + 1);
+            // Use questionNumber from Excel if available
+            const contentNumber = (q as any).questionNumber;
 
-            // Validate question number range for Part 5 and Part 6
-            if (part.partNumber === 5) {
-                if (contentNumber < 101 || contentNumber > 130) {
-                    invalidQuestions.push(contentNumber);
-                    return; // Skip this question
-                }
-            } else if (part.partNumber === 6) {
-                if (contentNumber < 131 || contentNumber > 146) {
-                    invalidQuestions.push(contentNumber);
-                    return; // Skip this question
-                }
+            // Validate question number range based on part number
+            const partRanges: Record<number, { min: number; max: number }> = {
+                1: { min: 1, max: 6 },
+                2: { min: 7, max: 31 },
+                3: { min: 32, max: 70 },
+                4: { min: 71, max: 100 },
+                5: { min: 101, max: 130 },
+                6: { min: 131, max: 146 },
+                7: { min: 147, max: 200 },
+            };
+
+            const range = partRanges[part.partNumber];
+            if (range && (contentNumber < range.min || contentNumber > range.max)) {
+                invalidQuestions.push(contentNumber);
+                return; // Skip this question
             }
 
             if (!existingSet.has(contentNumber)) {
@@ -790,13 +836,16 @@ export const importQuestions = async (
                     partId,
                     questionNumber: contentNumber,
                     passage: (q as any).passage || null,
+                    passageTitle: (q as any).passageTitle || null,
                     questionText: q.questionText,
                     optionA: q.optionA,
                     optionB: q.optionB,
                     optionC: q.optionC,
-                    optionD: q.optionD,
+                    optionD: q.optionD || null,
                     correctAnswer: q.correctAnswer,
-                    explanation: q.explanation,
+                    explanation: q.explanation || null,
+                    transcript: (q as any).transcript || null,
+                    level: (q as any).level || null,
                     status: 'PENDING' as any // Default to PENDING for imported questions
                 });
             }

@@ -120,10 +120,11 @@ export const getTests = async (
 
             completedEntries.forEach(entry => {
                 const tId = entry.part?.testId;
-                if (tId) {
+                const pId = entry.partId;
+                if (tId && pId) {
                     if (!userProgressMap[tId]) userProgressMap[tId] = [];
-                    if (!userProgressMap[tId].includes(entry.partId)) {
-                        userProgressMap[tId].push(entry.partId);
+                    if (!userProgressMap[tId].includes(pId)) {
+                        userProgressMap[tId].push(pId);
                     }
                 }
             });
@@ -459,60 +460,51 @@ export const deleteTest = async (
         if (user.role !== 'ADMIN') {
             res.status(403).json({
                 success: false,
-                message: 'Chỉ ADMIN mới có quyền xóa đề thi.',
+                message: 'Chỉ ADMIN mới có quyền xóa vĩnh viễn đề thi.',
             });
             return;
         }
 
-        // Get all parts and questions to cleanup assets
-        const testData = await prisma.test.findUnique({
+        // 1. Check if test exists
+        const test = await prisma.test.findUnique({
             where: { id },
-            include: {
-                parts: {
-                    include: {
-                        questions: {
-                            select: {
-                                imageUrl: true,
-                                audioUrl: true,
-                                passageImageUrl: true,
-                                questionScanUrl: true
-                            }
-                        }
-                    }
-                }
-            }
+            include: { parts: { select: { id: true } } }
         });
 
-        if (!testData) {
-            res.status(404).json({ success: false, message: 'Test not found' });
+        if (!test) {
+            res.status(404).json({
+                success: false,
+                message: 'Không tìm thấy đề thi để xóa.',
+            });
             return;
         }
 
-        // Delete from database
-        await prisma.test.delete({
-            where: { id },
-        });
+        const partIds = test.parts.map(p => p.id);
 
-        // Cleanup Cloudinary assets
-        const { cleanupCloudinaryAssets } = await import('../config/cloudinary.config');
-        
-        for (const part of testData.parts) {
-            cleanupCloudinaryAssets(part.instructionImgUrl);
-            cleanupCloudinaryAssets(part.audioUrl);
-            
-            for (const q of part.questions) {
-                cleanupCloudinaryAssets(q.imageUrl);
-                cleanupCloudinaryAssets(q.audioUrl);
-                cleanupCloudinaryAssets(q.passageImageUrl);
-                cleanupCloudinaryAssets(q.questionScanUrl);
-            }
-        }
+        // 2. Execute cascading delete in a transaction
+        await prisma.$transaction([
+            // Delete all questions belonging to parts of this test
+            ...(partIds.length > 0 ? [
+                (prisma.question as any).deleteMany({
+                    where: { partId: { in: partIds } }
+                })
+            ] : []),
+            // Delete all parts of this test
+            prisma.part.deleteMany({
+                where: { testId: id }
+            }),
+            // Delete the test itself
+            prisma.test.delete({
+                where: { id }
+            })
+        ]);
 
         res.status(200).json({
             success: true,
-            message: 'Test deleted successfully',
+            message: `Đã xóa vĩnh viễn đề thi "${test.title}" cùng toàn bộ dữ liệu liên quan thành công.`,
         });
     } catch (error) {
+        console.error('Error deleting test:', error);
         next(error);
     }
 };

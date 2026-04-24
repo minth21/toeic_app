@@ -7,6 +7,7 @@ class UserModel {
   final String role; // STUDENT or ADMIN
   final String? phoneNumber;
   final DateTime? dateOfBirth;
+  final String? email;
   final String? gender; // MALE, FEMALE, OTHER
   final String? avatarUrl;
   final String? difficulty; // A1_A2, B1_B2, C1
@@ -29,6 +30,7 @@ class UserModel {
     required this.username,
     required this.name,
     required this.role,
+    this.email,
     this.phoneNumber,
     this.dateOfBirth,
     this.gender,
@@ -59,6 +61,7 @@ class UserModel {
       dateOfBirth: json['dateOfBirth'] != null
           ? DateTime.parse(json['dateOfBirth'] as String)
           : null,
+      email: json['email'] as String?,
       gender: json['gender'] as String?,
       avatarUrl: json['avatarUrl'] as String?,
       difficulty: json['difficulty'] as String?,
@@ -84,6 +87,7 @@ class UserModel {
       'username': username,
       'name': name,
       'role': role,
+      if (email != null) 'email': email,
       if (phoneNumber != null) 'phoneNumber': phoneNumber,
       if (dateOfBirth != null) 'dateOfBirth': dateOfBirth!.toIso8601String(),
       if (gender != null) 'gender': gender,
@@ -112,6 +116,7 @@ class UserModel {
     String? role,
     String? phoneNumber,
     DateTime? dateOfBirth,
+    String? email,
     String? gender,
     String? avatarUrl,
     String? difficulty,
@@ -136,6 +141,7 @@ class UserModel {
       role: role ?? this.role,
       phoneNumber: phoneNumber ?? this.phoneNumber,
       dateOfBirth: dateOfBirth ?? this.dateOfBirth,
+      email: email ?? this.email,
       gender: gender ?? this.gender,
       avatarUrl: avatarUrl ?? this.avatarUrl,
       difficulty: difficulty ?? this.difficulty,

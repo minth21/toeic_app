@@ -216,6 +216,7 @@ const ClassManagement: React.FC = () => {
             title: 'Mã lớp',
             dataIndex: 'classCode',
             key: 'classCode',
+            align: 'center' as const,
             render: (code: string) => <Tag color="blue" style={{ fontWeight: 500 }}>{code || '-'}</Tag>,
             width: 120,
         },
@@ -223,13 +224,17 @@ const ClassManagement: React.FC = () => {
             title: 'Tên lớp học',
             dataIndex: 'className',
             key: 'className',
+            width: 200,
+            align: 'center' as const,
             render: (text: string) => <Text strong style={{ color: '#1E3A8A' }}>{text}</Text>,
         },
         {
             title: 'Giáo viên phụ trách',
             key: 'teacher',
+            width: 220,
+            align: 'center' as const,
             render: (_: any, record: Class) => (
-                <Space>
+                <Space style={{ width: '100%', justifyContent: 'center' }}>
                     <Avatar
                         size="small"
                         src={record.teacher?.avatarUrl ? (record.teacher.avatarUrl.startsWith('http') ? record.teacher.avatarUrl : `http://localhost:3000${record.teacher.avatarUrl}`) : undefined}
@@ -254,6 +259,7 @@ const ClassManagement: React.FC = () => {
             title: 'Sĩ số',
             dataIndex: 'studentCount',
             key: 'studentCount',
+            align: 'center' as const,
             render: (count: number) => (
                 <Space>
                     <TeamOutlined style={{ color: '#64748B' }} />
@@ -266,7 +272,8 @@ const ClassManagement: React.FC = () => {
             title: 'Trạng thái',
             dataIndex: 'status',
             key: 'status',
-            width: 150,
+            width: 160,
+            align: 'center' as const,
             render: (status: string) => {
                 let color = 'default';
                 let text = 'Không xác định';
@@ -282,6 +289,8 @@ const ClassManagement: React.FC = () => {
         {
             title: 'Hành động',
             key: 'action',
+            width: 180,
+            align: 'center' as const,
             render: (_: any, record: Class) => (
                 <Space size="middle">
                     <Tooltip title="Xem học viên">
@@ -320,7 +329,6 @@ const ClassManagement: React.FC = () => {
                     </Tooltip>
                 </Space>
             ),
-            width: 150,
         },
     ];
 
@@ -616,7 +624,7 @@ const ClassManagement: React.FC = () => {
                             </Form.Item>
                         </Col>
                         <Col span={12}>
-                            <Form.Item label="Trạng thái" name="status">
+                            <Form.Item label="Trạng thái" name="status" initialValue="ACTIVE">
                                 <Select>
                                     <Select.Option value="ACTIVE">Đang hoạt động</Select.Option>
                                     <Select.Option value="LOCKED">Khóa</Select.Option>
@@ -631,14 +639,16 @@ const ClassManagement: React.FC = () => {
                 title={
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
                         <span>Học viên lớp: <strong style={{ color: '#2563EB' }}>{selectedClass?.className}</strong></span>
-                        <Button
-                            type="primary"
-                            icon={<DownloadOutlined />}
-                            onClick={() => selectedClass && handleExportExcel(selectedClass.id, selectedClass.className)}
-                            style={{ background: '#10B981', borderRadius: 8 }}
-                        >
-                            Xuất Excel
-                        </Button>
+                        {JSON.parse(localStorage.getItem('admin_user') || '{}').role === 'TEACHER' && (
+                            <Button
+                                type="primary"
+                                icon={<DownloadOutlined />}
+                                onClick={() => selectedClass && handleExportExcel(selectedClass.id, selectedClass.className)}
+                                style={{ background: '#10B981', borderRadius: 8 }}
+                            >
+                                Xuất Excel
+                            </Button>
+                        )}
                     </div>
                 }
                 placement="right"

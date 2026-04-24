@@ -174,9 +174,9 @@ export class ExportService {
                 },
 
                 // Section II: AI Roadmap
-                { text: 'II. LỘ TRÌNH PHÁT TRIỂN NĂNG LỰC CÁ NHÂN HÓA', style: 'sectionHeader', margin: [0, 30, 0, 10] },
+                { text: 'II. LỘ TRÌNH PHÁT TRIỂN NĂNG LỰC CÁ NHÂN', style: 'sectionHeader', margin: [0, 30, 0, 10] },
                 aiAssessments.length === 0
-                    ? { text: 'Chưa có phân tích lộ trình AI cho học viên này.', italics: true, color: '#6B7280' }
+                    ? { text: 'Chưa có phân tích lộ trình cho học viên này.', italics: true, color: '#6B7280' }
                     : aiAssessments.map((item: any) => ({
                         stack: [
                             {
@@ -242,7 +242,7 @@ export class ExportService {
                 { text: 'ANTIGRAVITY TOEIC LEARNING SYSTEM', style: 'brand', alignment: centerAlign },
                 { canvas: [{ type: 'line' as any, x1: 0, y1: 5, x2: 515, y2: 5, lineWidth: 1, lineColor: '#1E3A8A' }] },
 
-                { text: 'LỘ TRÌNH PHÁT TRIỂN NĂNG LỰC CÁ NHÂN HÓA', style: 'pdfTitle', alignment: centerAlign, margin: [0, 25, 0, 10] },
+                { text: 'BÁO CÁO TỔNG HỢP NĂNG LỰC & LỘ TRÌNH CÁ NHÂN', style: 'pdfTitle', alignment: centerAlign, margin: [0, 25, 0, 10] },
                 { text: `Ngày tạo: ${assessment.createdAt.toLocaleDateString('vi-VN')}`, alignment: centerAlign, fontSize: 10, color: '#6B7280', margin: [0, 0, 0, 20] },
 
                 // Student Stats Info

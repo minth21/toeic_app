@@ -74,7 +74,7 @@ class _TouchablePassageWidgetState extends State<TouchablePassageWidget> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Không thể dịch từ này. Vui lòng thử lại.'),
+            content: Text('Dịch thất bại. Vui lòng thử lại sau.'),
           ),
         );
       }
@@ -177,7 +177,7 @@ class _TouchablePassageWidgetState extends State<TouchablePassageWidget> {
                 },
                 icon: const Icon(Icons.bookmark_add_rounded, size: 20),
                 label: const Text(
-                  'Lưu vào Flashcards',
+                  'Lưu Flashcard',
                   style: TextStyle(fontWeight: FontWeight.bold),
                 ),
                 style: ElevatedButton.styleFrom(
@@ -185,7 +185,7 @@ class _TouchablePassageWidgetState extends State<TouchablePassageWidget> {
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(16),
                   ),
                 ),
               ),
@@ -218,7 +218,7 @@ class _TouchablePassageWidgetState extends State<TouchablePassageWidget> {
                 const Icon(Icons.check_circle, color: Colors.white, size: 18),
                 const SizedBox(width: 8),
                 Text(
-                  'Đã lưu "$word" vào Từ vựng!',
+                  'Lưu thành công: $word',
                   style: GoogleFonts.inter(fontWeight: FontWeight.w600),
                 ),
               ],
@@ -232,7 +232,7 @@ class _TouchablePassageWidgetState extends State<TouchablePassageWidget> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Không thể lưu từ vựng: $e')),
+          SnackBar(content: Text('Lỗi: $e')),
         );
       }
     }

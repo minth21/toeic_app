@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Modal, Form, Input, Select, message, Upload, Button, Image, InputNumber, Row, Col, Space, Alert, Tooltip } from 'antd';
-import { InboxOutlined, UploadOutlined, PictureOutlined, DeleteOutlined, FileExcelOutlined } from '@ant-design/icons';
+import { Modal, Form, Input, Select, message, Upload, Button, Image, InputNumber, Row, Col, Space, Alert } from 'antd';
+import { InboxOutlined, UploadOutlined, PictureOutlined, DeleteOutlined } from '@ant-design/icons';
 import type { UploadFile } from 'antd/es/upload/interface';
-import * as XLSX from 'xlsx';
 import api, { uploadApi, partApi } from '../services/api';
 import AudioBanner from './AudioBanner';
 
@@ -18,14 +17,6 @@ interface CreatePart1ModalProps {
     partNumber?: number;
 }
 
-interface ExcelRow {
-    questionNumber: number;
-    optionA: string;
-    optionB: string;
-    optionC: string;
-    optionD: string;
-    correctAnswer: string;
-}
 
 export default function CreatePart1Modal({ open, onCancel, onSuccess, partId, partName, partNumber }: CreatePart1ModalProps) {
     const [form] = Form.useForm();
@@ -35,7 +26,6 @@ export default function CreatePart1Modal({ open, onCancel, onSuccess, partId, pa
     const [nextQuestionNumber, setNextQuestionNumber] = useState<number>(1);
     const [partAudioUrl, setPartAudioUrl] = useState<string | null>(null);
     const [newAudioFile, setNewAudioFile] = useState<File | null>(null);
-    const [excelImporting, setExcelImporting] = useState(false);
 
     useEffect(() => {
         if (open && partId) {
@@ -96,90 +86,6 @@ export default function CreatePart1Modal({ open, onCancel, onSuccess, partId, pa
         return false;
     };
 
-    /** Handle Excel import: parse and batch-create questions (no images, text only) */
-    const handleExcelImport = async (file: File) => {
-        setExcelImporting(true);
-        try {
-            const data = await file.arrayBuffer();
-            const workbook = XLSX.read(data, { type: 'array' });
-            const sheet = workbook.Sheets[workbook.SheetNames[0]];
-            const rows: any[] = XLSX.utils.sheet_to_json(sheet);
-
-            if (rows.length === 0) {
-                message.error('File Excel trống!');
-                return false;
-            }
-
-            const parsed: ExcelRow[] = rows.map((row: any) => ({
-                questionNumber: Number(row['Số câu'] || row['questionNumber'] || 0),
-                optionA: String(row['A'] || row['optionA'] || ''),
-                optionB: String(row['B'] || row['optionB'] || ''),
-                optionC: String(row['C'] || row['optionC'] || ''),
-                optionD: String(row['D'] || row['optionD'] || ''),
-                correctAnswer: String(row['Đáp án đúng'] || row['correctAnswer'] || '').toUpperCase(),
-            })).filter(r => r.questionNumber > 0);
-
-            if (parsed.length === 0) {
-                message.error('Không tìm thấy dữ liệu hợp lệ. Kiểm tra lại tiêu đề cột!');
-                return false;
-            }
-
-            // Upload audio first if needed
-            if (newAudioFile) {
-                const audioRes = await uploadApi.audio(newAudioFile);
-                if (audioRes.success) {
-                    await partApi.update(partId!, { audioUrl: audioRes.url });
-                    setPartAudioUrl(audioRes.url);
-                    setNewAudioFile(null);
-                }
-            }
-
-            // Batch create questions
-            const promises = parsed.map(q =>
-                api.post(`/parts/${partId}/questions`, {
-                    questionNumber: q.questionNumber,
-                    imageUrl: null, // Images must be added manually
-                    audioUrl: null,
-                    correctAnswer: q.correctAnswer,
-                    questionText: 'Look at the picture and listen to the four statements.',
-                    optionA: q.optionA || '(A)',
-                    optionB: q.optionB || '(B)',
-                    optionC: q.optionC || '(C)',
-                    optionD: q.optionD || '(D)',
-                    explanation: null,
-                })
-            );
-
-            await Promise.all(promises);
-            message.success(`Đã import ${parsed.length} câu hỏi từ Excel! (Lưu ý: chưa có hình ảnh, vui lòng thêm ảnh thủ công)`);
-            onSuccess();
-            onCancel();
-        } catch (err: any) {
-            console.error('Excel import error:', err);
-            message.error('Lỗi khi đọc file Excel: ' + (err.message || 'Vui lòng kiểm tra định dạng file'));
-        } finally {
-            setExcelImporting(false);
-        }
-        return false;
-    };
-
-    const handleDownloadTemplate = () => {
-        const rows = [];
-        for (let i = 1; i <= 6; i++) {
-            rows.push({
-                'Số câu': i,
-                'A': '',
-                'B': '',
-                'C': '',
-                'D': '',
-                'Đáp án đúng': '',
-            });
-        }
-        const ws = XLSX.utils.json_to_sheet(rows);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, 'Part 1');
-        XLSX.writeFile(wb, 'Part1_template.xlsx');
-    };
 
     const handleSubmit = async (values: any) => {
         if (!partId) return;
@@ -319,27 +225,6 @@ export default function CreatePart1Modal({ open, onCancel, onSuccess, partId, pa
                         }}
                     />
 
-                    {/* ─── IMPORT EXCEL ROW ─── */}
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginBottom: 16 }}>
-                        <Tooltip title="Tải file Excel mẫu về máy">
-                            <Button icon={<FileExcelOutlined />} onClick={handleDownloadTemplate} style={{ borderRadius: 8, color: '#16A34A', borderColor: '#16A34A' }}>
-                                Tải file mẫu
-                            </Button>
-                        </Tooltip>
-                        <Upload
-                            beforeUpload={handleExcelImport}
-                            showUploadList={false}
-                            accept=".xlsx,.xls"
-                        >
-                            <Button
-                                icon={<FileExcelOutlined />}
-                                loading={excelImporting}
-                                style={{ borderRadius: 8, background: '#16A34A', color: '#fff', border: 'none', fontWeight: 600 }}
-                            >
-                                Import Excel
-                            </Button>
-                        </Upload>
-                    </div>
 
                     <Row gutter={32}>
                         {/* LEFT COLUMN: IMAGE UPLOAD */}

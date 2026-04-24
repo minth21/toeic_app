@@ -34,6 +34,7 @@ import {
     CheckCircleOutlined,
     UndoOutlined,
     FlagOutlined,
+    DeleteOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 
@@ -157,13 +158,13 @@ export default function ExamBank() {
         try {
             const data = await testApi.update(editingExam.id, values);
             if (data.success) {
-                message.success('Cập nhật đề thi thành công!');
+                message.success('Cập nhật thành công');
                 setEditModalVisible(false);
-                setSearchText(''); // Clear search
-                setPage(1); // Jump to page 1
+                setSearchText('');
+                setPage(1);
                 fetchExams();
             } else {
-                message.error(data.message || 'Không thể cập nhật đề thi');
+                message.error(data.message || 'Cập nhật thất bại');
             }
         } catch (error) {
             console.error('Error updating exam:', error);
@@ -185,7 +186,7 @@ export default function ExamBank() {
 
     const handleCreateSubmit = async (values: any) => {
         try {
-            const payload = { ...values, status: 'PENDING' };
+            const payload = { ...values, status: values.status || 'PENDING' };
             const data = await testApi.create(payload);
             if (data.success) {
                 message.success('Tạo đề thi thành công!');
@@ -204,26 +205,19 @@ export default function ExamBank() {
 
     const handleApprove = async (examId: string, examTitle: string) => {
         Modal.confirm({
-            title: 'Xác nhận Duyệt',
-            content: (
-                <div>
-                    <p>Bạn có chắc chắn muốn xuất bản đề thi <strong>"{examTitle}"</strong>?</p>
-                    <p style={{ color: '#D97706', marginTop: 8 }}>
-                        ⚠️ Toàn bộ Parts và câu hỏi bên trong sẽ được hiển thị <strong>ngay lập tức</strong> trên App học viên.
-                    </p>
-                </div>
-            ),
-            okText: 'Duyệt & Xuất bản toàn bộ',
+            title: 'Duyệt đề thi',
+            content: `Xác nhận duyệt và xuất bản đề thi "${examTitle}"? Nội dung sẽ hiển thị ngay lập tức trên ứng dụng.`,
+            okText: 'Duyệt & Xuất bản',
             okType: 'primary',
             cancelText: 'Hủy',
             onOk: async () => {
                 try {
                     const data = await testApi.approveFull(examId);
                     if (data.success) {
-                        message.success(data.message || 'Đã duyệt và xuất bản toàn bộ đề thi thành công!');
+                        message.success('Duyệt thành công');
                         fetchExams();
                     } else {
-                        message.error(data.message || 'Không thể duyệt đề thi');
+                        message.error(data.message || 'Duyệt thất bại');
                     }
                 } catch (error) {
                     console.error('Error approving exam:', error);
@@ -247,14 +241,38 @@ export default function ExamBank() {
                 try {
                     const data = await testApi.toggleLock(examId);
                     if (data.success) {
-                        message.success(isLocking ? 'Đã khóa đề thi thành công!' : 'Đã khôi phục đề thi thành công!');
+                        message.success(isLocking ? 'Khóa thành công' : 'Khôi phục thành công');
                         fetchExams();
                     } else {
-                        message.error(data.message || 'Không thể thay đổi trạng thái đề thi');
+                        message.error(data.message || 'Thao tác thất bại');
                     }
                 } catch (error) {
                     console.error('Error toggling exam status:', error);
                     message.error('Có lỗi xảy ra khi cập nhật trạng thái');
+                }
+            },
+        });
+    };
+
+    const handleDeleteExam = async (examId: string, examTitle: string) => {
+        Modal.confirm({
+            title: 'Xóa đề thi',
+            content: `Xác nhận xóa vĩnh viễn đề thi "${examTitle}" và toàn bộ dữ liệu liên quan? Hành động không thể hoàn tác.`,
+            okText: 'Xác nhận xóa',
+            okType: 'danger',
+            cancelText: 'Hủy',
+            onOk: async () => {
+                try {
+                    const data = await testApi.delete(examId);
+                    if (data.success) {
+                        message.success('Xóa thành công');
+                        fetchExams();
+                    } else {
+                        message.error(data.message || 'Xóa thất bại');
+                    }
+                } catch (error) {
+                    console.error('Error deleting exam:', error);
+                    message.error('Có lỗi xảy ra khi xóa đề thi');
                 }
             },
         });
@@ -291,10 +309,10 @@ export default function ExamBank() {
             title: 'Tên đề thi',
             dataIndex: 'title',
             key: 'title',
-            width: 250,
+            width: 220,
+            align: 'center' as const,
             render: (title: string) => (
-                <div style={{ fontWeight: 700, color: token.colorText, fontSize: '15px' }}>
-                    <FileTextOutlined style={{ marginRight: 10, color: token.colorPrimary }} />
+                <div style={{ fontWeight: 700, color: token.colorText, fontSize: '14px', textAlign: 'center' }}>
                     {title}
                 </div>
             ),
@@ -302,7 +320,7 @@ export default function ExamBank() {
         {
             title: 'Loại bài',
             key: 'testType',
-            width: 120,
+            width: 140,
             align: 'center' as const,
             render: (_, record: Exam) => {
                 const hasListening = record.listeningQuestions > 0;
@@ -318,7 +336,7 @@ export default function ExamBank() {
             title: 'Độ khó',
             dataIndex: 'difficulty',
             key: 'difficulty',
-            width: 100,
+            width: 120,
             align: 'center' as const,
             render: (difficulty: string) => {
                 const difficultyConfig: { [key: string]: { color: string; label: string } } = {
@@ -334,7 +352,7 @@ export default function ExamBank() {
             title: 'Thời gian',
             dataIndex: 'duration',
             key: 'duration',
-            width: 100,
+            width: 120,
             align: 'center' as const,
             render: (duration: number) => <span style={{ fontWeight: 600, color: token.colorTextSecondary }}>{duration} phút</span>,
         },
@@ -350,7 +368,7 @@ export default function ExamBank() {
             title: 'Trạng thái',
             dataIndex: 'status',
             key: 'status',
-            width: 120,
+            width: 140,
             align: 'center' as const,
             render: (status: string) => {
                 const statusConfig: { [key: string]: { color: string; label: string; icon: any; bg: string } } = {
@@ -381,9 +399,8 @@ export default function ExamBank() {
         {
             title: 'Hành động',
             key: 'actions',
-            width: 120,
+            width: 180,
             align: 'center' as const,
-            fixed: 'right' as const,
             render: (_, record) => (
                 <Space>
                     <Button
@@ -427,6 +444,15 @@ export default function ExamBank() {
                             icon={<LockOutlined />}
                             onClick={() => handleToggleStatus(record.id, record.title, record.status)}
                             title="Khóa bài"
+                        />
+                    )}
+                    {isAdmin && (
+                        <Button
+                            type="text"
+                            style={{ color: '#DC2626', background: isDark ? 'rgba(220, 38, 38, 0.15)' : '#FEE2E2', borderRadius: '8px' }}
+                            icon={<DeleteOutlined />}
+                            onClick={() => handleDeleteExam(record.id, record.title)}
+                            title="Xóa đề thi"
                         />
                     )}
 
@@ -547,9 +573,10 @@ export default function ExamBank() {
                             onChange={(value) => {
                                 setDifficultyFilter(value);
                             }}
-                            style={{ width: 110 }}
+                            style={{ width: 130 }}
                             dropdownStyle={{ borderRadius: '12px' }}
                         >
+                            <Option value="ALL">Mức độ</Option>
                             <Option value="A1_A2">A1-A2</Option>
                             <Option value="B1_B2">B1-B2</Option>
                             <Option value="C1">C1</Option>
@@ -591,9 +618,10 @@ export default function ExamBank() {
             <Card
                 style={{
                     borderRadius: 20,
-                    border: `1px solid ${token.colorBorder}`,
+                    border: `1px solid ${token.colorBorderSecondary}`, // Dùng border nhẹ hơn
                     boxShadow: modernShadow,
-                    overflow: 'hidden'
+                    overflow: 'hidden',
+                    background: token.colorBgContainer
                 }}
                 bodyStyle={{ padding: 0 }}
             >
@@ -602,21 +630,60 @@ export default function ExamBank() {
                     dataSource={exams}
                     rowKey="id"
                     loading={loading}
+                    className="premium-table"
                     pagination={{
                         current: page,
                         pageSize: pageSize,
                         total: total,
                         showSizeChanger: true,
-                        showTotal: (total) => <span style={{ fontWeight: 600 }}>Tổng {total} đề thi</span>,
+                        showTotal: (total) => <span style={{ fontWeight: 600, color: token.colorTextSecondary }}>Tổng {total} đề thi</span>,
                         onChange: (page, pageSize) => {
                             setPage(page);
                             setPageSize(pageSize);
                         },
-                        style: { padding: '16px 24px', margin: 0 }
+                        style: { 
+                            padding: '16px 24px', 
+                            margin: 0, 
+                            borderTop: `1px solid ${token.colorBorderSecondary}`,
+                            background: isDark ? 'transparent' : '#F8FAFC' // Tạo dải màu nhẹ ở chân card cho chuyên nghiệp
+                        }
                     }}
-                    scroll={{ x: 1200 }}
+                    style={{ background: 'transparent' }}
                 />
             </Card>
+
+            <style>{`
+                .premium-table .ant-table {
+                    background: transparent !important;
+                }
+                .premium-table .ant-table-container {
+                    border-radius: 20px !important;
+                }
+                .premium-table .ant-table-thead > tr > th {
+                    background: ${isDark ? '#1E293B' : '#F8FAFC'} !important;
+                    border-bottom: 1px solid ${token.colorBorderSecondary} !important;
+                }
+                /* Sửa lỗi màu nền cho cột cố định (Hành động) */
+                .premium-table .ant-table-cell-fix-right,
+                .premium-table .ant-table-cell-fix-left {
+                    background: inherit !important;
+                }
+                .premium-table .ant-table-thead > tr > th.ant-table-cell-fix-right {
+                    background: ${isDark ? '#1E293B' : '#F8FAFC'} !important;
+                }
+                .premium-table .ant-table-tbody > tr > td {
+                    border-bottom: 1px solid ${token.colorBorderSecondary} !important;
+                }
+                .premium-table .ant-table-tbody > tr:last-child > td {
+                    border-bottom: none !important;
+                }
+                /* Khử bo góc mặc định của AntD để khớp với Card */
+                .premium-table .ant-table-container,
+                .premium-table .ant-table-content,
+                .premium-table table {
+                    border-radius: 20px !important;
+                }
+            `}</style>
 
             {/* Edit Modal */}
             <Modal

@@ -69,10 +69,40 @@ model User {
   feedbacksSent       StudentFeedback[] @relation("StudentFeedbackSender")
   feedbacksReceived   StudentFeedback[] @relation("StudentFeedbackReceiver")
   materialProgress    UserMaterialProgress[]
+  passwordResetRequests PasswordResetRequest[]
 
   @@index([username])
   @@index([createdAt])
   @@map("users")
+}
+
+// ... (existing code)
+
+model PasswordResetRequest {
+  id        String   @id @default(uuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  username  String   // In case user doesn't exist or ID is unknown
+  email     String?
+  reason    String?  @db.Text
+  
+  status    RequestStatus @default(PENDING)
+  
+  adminNote String?  @db.Text
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([username])
+  @@index([status])
+  @@map("password_reset_requests")
+}
+
+enum RequestStatus {
+  PENDING
+  COMPLETED
+  REJECTED
 }
 
 // ============================================
@@ -391,6 +421,10 @@ model TestAttempt {
   correctCount   Int?            @default(0)
   totalQuestions Int?            @default(0)
   
+  // 💎 NEW: Lưu trực tiếp mảng số thứ tự câu hỏi đúng/sai để Frontend tô màu cho lẹ
+  correctQuestionNumbers   Int[] @default([])
+  incorrectQuestionNumbers Int[] @default([])
+  
   aiAnalysis     String?         @db.Text // Lưu nhận xét JSON của AI cá nhân hóa
   teacherNote    String?         @db.Text // Ghi chú từ giáo viên sau khi xem bài
   
@@ -416,6 +450,9 @@ model AttemptDetail {
   userAnswer     String?         // Ví dụ: 'A', 'B', 'C', 'D'
   isCorrect      Boolean         @default(false)
   timeSpent      Int?            // Thời gian trả lời câu này (giây)
+  
+  isFlagged      Boolean         @default(false) // Đánh dấu câu hỏi để xem lại
+  aiFeedback     String?         @db.Text        // Lời khuyên cụ thể của AI cho câu này
 
   // Relations
   attempt        TestAttempt     @relation(fields: [attemptId], references: [id], onDelete: Cascade)

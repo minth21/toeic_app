@@ -4,7 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../viewmodels/notification_viewmodel.dart';
 import '../models/notification_model.dart';
 import '../../../../constants/app_constants.dart';
-import '../../practice/views/ai_assessment_detail_screen.dart';
+import './notification_detail_screen.dart';
 
 class NotificationScreen extends StatefulWidget {
   const NotificationScreen({super.key});
@@ -93,14 +93,18 @@ class _NotificationScreenState extends State<NotificationScreen> {
   Widget _buildNotificationItem(BuildContext context, NotificationViewModel vm, NotificationModel notification) {
     return InkWell(
       onTap: () {
-        if (notification.type == NotificationType.roadmapReceived && notification.relatedId != null) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => AiAssessmentDetailScreen(assessmentId: notification.relatedId!),
-            ),
-          );
+        // Đánh dấu đã đọc
+        if (!notification.isRead) {
+          vm.markAsRead(notification.id);
         }
+        
+        // Điều hướng đến màn hình chi tiết
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => NotificationDetailScreen(notification: notification),
+          ),
+        );
       },
       child: Container(
         color: notification.isRead ? Colors.transparent : AppColors.primary.withValues(alpha: 0.05),

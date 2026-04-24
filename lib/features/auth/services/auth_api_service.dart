@@ -45,6 +45,7 @@ class AuthApiService {
   /// Returns: {success, message, user}
   Future<Map<String, dynamic>> updateProfile({
     String? name,
+    String? email,
     String? phoneNumber,
     DateTime? dateOfBirth,
     String? avatarUrl,
@@ -54,6 +55,7 @@ class AuthApiService {
     try {
       final body = <String, dynamic>{};
       if (name != null) body['name'] = name;
+      if (email != null) body['email'] = email;
       if (phoneNumber != null) body['phoneNumber'] = phoneNumber;
       if (dateOfBirth != null) {
         body['dateOfBirth'] = DateFormat('yyyy-MM-dd').format(dateOfBirth);

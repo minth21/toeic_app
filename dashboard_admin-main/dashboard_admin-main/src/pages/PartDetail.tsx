@@ -22,6 +22,7 @@ import {
     Empty,
     Alert,
     Steps,
+    Tooltip
 } from 'antd';
 import {
     EditOutlined,
@@ -31,6 +32,8 @@ import {
     SettingOutlined,
     ArrowLeftOutlined,
     UploadOutlined,
+    DeleteOutlined,
+    ExclamationCircleOutlined,
 } from '@ant-design/icons';
 import { useParams, useNavigate, useOutletContext } from 'react-router-dom';
 import { useTheme } from '../hooks/useThemeContext';
@@ -45,8 +48,11 @@ import CreatePart6Modal from '../components/CreatePart6Modal';
 import CreatePart7Modal from '../components/CreatePart7Modal';
 import CreatePart1Modal from '../components/CreatePart1Modal';
 import EditPart1Modal from '../components/EditPart1Modal';
+import CreatePart1BulkModal from '../components/CreatePart1BulkModal';
 import CreatePart2BulkModal from '../components/CreatePart2BulkModal'; // Changed from CreatePart2Modal
 import CreatePart3Modal from '../components/CreatePart3Modal';
+import CreatePart3BulkModal from '../components/CreatePart3BulkModal';
+import CreatePart4BulkModal from '../components/CreatePart4BulkModal';
 import CreatePart5BulkModal from '../components/CreatePart5BulkModal';
 import AudioPlayer from '../components/AudioPlayer';
 import { uploadApi, partApi, questionApi, aiApi } from '../services/api';
@@ -112,6 +118,7 @@ interface Question {
     questionTranslation?: string;
     optionTranslations?: string;
     keyVocabulary?: string;
+    transcript?: string; // ✅ New
 }
 
 interface Part {
@@ -131,7 +138,7 @@ export default function PartDetail() {
     const { theme: currentTheme } = useTheme();
     const isDark = currentTheme === 'dark';
 
-    const modernShadow = isDark 
+    const modernShadow = isDark
         ? '0 10px 25px -5px rgba(0, 0, 0, 0.4)'
         : '0 10px 30px -5px rgba(37, 99, 235, 0.08), 0 4px 10px -6px rgba(37, 99, 235, 0.04)';
 
@@ -159,8 +166,14 @@ export default function PartDetail() {
     const [createPart2ModalVisible, setCreatePart2ModalVisible] = useState(false); // Now for bulk modal
     const [createPart3ModalVisible, setCreatePart3ModalVisible] = useState(false);
     const [createPart4ModalVisible, setCreatePart4ModalVisible] = useState(false);
+    const [createPart3BulkModalVisible, setCreatePart3BulkModalVisible] = useState(false);
+    const [createPart4BulkModalVisible, setCreatePart4BulkModalVisible] = useState(false);
     const [createPart5BulkModalVisible, setCreatePart5BulkModalVisible] = useState(false);
     const [partEditModalVisible, setPartEditModalVisible] = useState(false);
+    const [part1ImportData, setPart1ImportData] = useState<any[]>([]);
+    const [part2ImportData, setPart2ImportData] = useState<any[]>([]);
+    const [part3ImportData, setPart3ImportData] = useState<any[]>([]);
+    const [part4ImportData, setPart4ImportData] = useState<any[]>([]);
     const [part5ImportData, setPart5ImportData] = useState<Record<string, unknown>[]>([]);
     const [part5ImportMode, setPart5ImportMode] = useState<'new' | 'append' | 'replace'>('new'); // Track import mode
 
@@ -484,26 +497,80 @@ export default function PartDetail() {
     const handleDownloadTemplate = () => {
         if (!part) return;
         const partNum = part.partNumber;
-        const rows = [];
-        const questionCount = partNum === 5 ? 30 : partNum === 6 ? 16 : 10;
+        const rows: any[] = [];
+        let questionCount = 10;
+        let startNum = 1;
 
-        const startNum = partNum === 5 ? 101 : 1;
-        const endNum = partNum === 5 ? 130 : (startNum + questionCount - 1);
+        if (partNum === 1) { questionCount = 6; startNum = 1; }
+        else if (partNum === 2) { questionCount = 25; startNum = 7; }
+        else if (partNum === 3) { questionCount = 39; startNum = 32; }
+        else if (partNum === 4) { questionCount = 30; startNum = 71; }
+        else if (partNum === 5) { questionCount = 30; startNum = 101; }
+        else if (partNum === 6) { questionCount = 16; startNum = 131; }
+        else if (partNum === 7) { questionCount = 54; startNum = 147; }
+
+        const endNum = startNum + questionCount - 1;
 
         for (let i = startNum; i <= endNum; i++) {
-            const row: Record<string, string | number> = {
-                'Số câu': i,
-                'Nội dung câu hỏi': '',
-                'A': '',
-                'B': '',
-                'C': '',
-                'D': '',
-                'Đáp án đúng': ''
-            };
+            let row: any = {};
 
-            // Only add Passage column for Parts 6 & 7
-            if (partNum === 6 || partNum === 7) {
-                row['Nội dung (Part 6/7)'] = '';
+            if (partNum === 3 || partNum === 4) {
+                // Grouping logic (3 questions per group)
+                const isFirstInGroup = (i - startNum) % 3 === 0;
+                const groupNum = Math.floor((i - startNum) / 3) + 1;
+                row = {
+                    'Nhóm': groupNum,
+                    'Transcript (Hội thoại)': isFirstInGroup ? 'Nội dung bài nói/hội thoại...' : '',
+                    'Số câu': i,
+                    'Nội dung câu hỏi': '',
+                    'A': '',
+                    'B': '',
+                    'C': '',
+                    'D': '',
+                    'Đáp án đúng': ''
+                };
+            } else if (partNum === 1) {
+                row = {
+                    'Số câu': i,
+                    'A': '',
+                    'B': '',
+                    'C': '',
+                    'D': '',
+                    'Đáp án đúng': '',
+                    'Giải thích': ''
+                };
+            } else if (partNum === 2) {
+                row = {
+                    'Số câu': i,
+                    'A': '',
+                    'B': '',
+                    'C': '',
+                    'Đáp án đúng': '',
+                    'Giải thích': ''
+                };
+            } else if (partNum === 5) {
+                row = {
+                    'Số câu': i,
+                    'Nội dung câu hỏi': '',
+                    'A': '',
+                    'B': '',
+                    'C': '',
+                    'D': '',
+                    'Đáp án đúng': '',
+                    'Giải thích': ''
+                };
+            } else {
+                // Default for 6/7 if ever used
+                row = {
+                    'Số câu': i,
+                    'Nội dung (Part 6/7)': '',
+                    'Nội dung câu hỏi': '',
+                    'A': '',
+                    'B': '',
+                    'C': '',
+                    'D': '',
+                    'Đáp án đúng': ''
+                };
             }
 
             rows.push(row);
@@ -512,7 +579,7 @@ export default function PartDetail() {
         const worksheet = XLSX.utils.json_to_sheet(rows);
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, `Part ${partNum}`);
-        XLSX.writeFile(workbook, `Part_${partNum}.xlsx`);
+        XLSX.writeFile(workbook, `Part_${partNum}_Template.xlsx`);
     };
 
     const handleExcelUpload = async (file: File) => {
@@ -591,6 +658,35 @@ export default function PartDetail() {
             return false; // Stop upload
         }
 
+        // --- PART 1, 2, 3 & 4 SPECIAL HANDLING: Premium Bulk Preview ---
+        if (part?.partNumber && [1, 2, 3, 4].includes(part.partNumber)) {
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                const data = new Uint8Array(e.target?.result as ArrayBuffer);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+                const jsonData = XLSX.utils.sheet_to_json(worksheet) as any[];
+
+                if (part.partNumber === 1) {
+                    setPart1ImportData(jsonData);
+                    setCreatePart1ModalVisible(true);
+                } else if (part.partNumber === 2) {
+                    setPart2ImportData(jsonData);
+                    setCreatePart2ModalVisible(true);
+                } else if (part.partNumber === 3) {
+                    setPart3ImportData(jsonData);
+                    setCreatePart3BulkModalVisible(true);
+                } else {
+                    setPart4ImportData(jsonData);
+                    setCreatePart4BulkModalVisible(true);
+                }
+                setImportDrawerVisible(false);
+            };
+            reader.readAsArrayBuffer(file);
+            return false;
+        }
+
 
         try {
             message.loading({ content: 'Đang import...', key: 'importExcel' });
@@ -635,25 +731,29 @@ export default function PartDetail() {
         let currentGroup: { passageTitle?: string; passage: string; passageImageUrl?: string; audioUrl?: string; questions: Question[] } | null = null;
 
         // Normalization: Remove HTML tags and extra whitespace to compare text content only
-        const normalizePassageContent = (p?: string, a?: string, pImg?: string) => {
-            if (a) return a; // If audio exists, group by audio URL
-            if (pImg) return pImg; // ✅ If passage image exists, group by the image URL
-            if (!p) return '';
-            // If passage contains images (Part 7), do not strip tags as the URL differentiates groups
-            if (p.includes('<img')) {
-                return p.trim();
-            }
-            const textOnly = p.replace(/<[^>]*>?/gm, ' '); // Replace HTML tags with space
-            return textOnly.replace(/\s+/g, ' ').trim();
+        const normalizePassageContent = (p?: string, a?: string, pImg?: string, trans?: string) => {
+            // Priority for grouping: 1. Transcript text, 2. Passage text, 3. Image, 4. Audio
+            // We lower Audio priority because many questions share the same part-level audio file
+            let key = '';
+            if (trans && trans.trim() !== '') key = trans;
+            else if (p && p.trim() !== '' && !p.includes('<audio')) key = p;
+            else if (pImg) key = pImg;
+            else if (a) key = a;
+
+            if (!key) return '';
+            
+            // Clean HTML and whitespace for robust comparison
+            return key.replace(/<[^>]*>?/gm, ' ').replace(/\s+/g, ' ').trim();
         };
 
         sortedQuestions.forEach((q) => {
             const passage = q.passage || '';
-            const passageImageUrl = q.passageImageUrl; // ✅ 
+            const passageImageUrl = q.passageImageUrl; 
             const audioUrl = q.audioUrl;
+            const transcript = q.transcript || '';
 
-            const normalizedContent = normalizePassageContent(passage, audioUrl, passageImageUrl);
-            const lastGroupContent = currentGroup ? normalizePassageContent(currentGroup.passage, currentGroup.audioUrl, currentGroup.passageImageUrl) : '';
+            const normalizedContent = normalizePassageContent(passage, audioUrl, passageImageUrl, transcript);
+            const lastGroupContent = currentGroup ? normalizePassageContent(currentGroup.passage, currentGroup.audioUrl, currentGroup.passageImageUrl, currentGroup.questions[0]?.transcript) : '';
 
             // Group if content matches
             if (!currentGroup || normalizedContent !== lastGroupContent) {
@@ -679,18 +779,27 @@ export default function PartDetail() {
                     let aiQuestionsInfo: AIQuestionInfo[] = [];
 
                     const firstQ = group.questions[0];
-                    if (firstQ?.passageTranslationData) {
-                        try {
-                            const raw = JSON.parse(firstQ.passageTranslationData);
-                            if (Array.isArray(raw)) {
-                                aiTranslations = raw;
-                            } else {
-                                aiTranslations = raw.passages || raw.passageTranslations || [];
-                                vocabulary = raw.vocabulary || [];
-                                aiQuestionsInfo = raw.questions || [];
-                            }
-                        } catch (e: unknown) {
-                            console.error('Lỗi parse AI translations:', e);
+                    if (firstQ) {
+                        if (firstQ.passageTranslationData) {
+                            try {
+                                const raw = typeof firstQ.passageTranslationData === 'string' ? JSON.parse(firstQ.passageTranslationData) : firstQ.passageTranslationData;
+                                if (Array.isArray(raw)) {
+                                    aiTranslations = raw;
+                                } else {
+                                    aiTranslations = raw.passages || raw.passageTranslations || [];
+                                    if (Array.isArray(raw.vocabulary)) vocabulary = [...raw.vocabulary];
+                                    aiQuestionsInfo = raw.questions || [];
+                                }
+                            } catch (e: unknown) { console.error('Lỗi parse AI translations:', e); }
+                        }
+
+                        if (firstQ.keyVocabulary) {
+                            try {
+                                const rawVocab = typeof firstQ.keyVocabulary === 'string' ? JSON.parse(firstQ.keyVocabulary) : firstQ.keyVocabulary;
+                                if (Array.isArray(rawVocab)) {
+                                    vocabulary = [...vocabulary, ...rawVocab];
+                                }
+                            } catch (e: unknown) { console.error('Lỗi parse keyVocabulary:', e); }
                         }
                     }
 
@@ -743,12 +852,13 @@ export default function PartDetail() {
                                         </div>
                                     </div>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                                        {isListeningGroup && group.audioUrl && (
+                                        {/* Ẩn trình phát nhạc trong nhóm vì đã có trình phát tổng ở đầu trang */}
+                                        {/* {isListeningGroup && group.audioUrl && (
                                             <div style={{ width: 250 }}>
                                                 <AudioPlayer src={group.audioUrl} />
                                             </div>
-                                        )}
-                                        {canEditOrCreate && !isListeningGroup && (
+                                        )} */}
+                                        {canEditOrCreate && (
                                             <Button
                                                 size="middle"
                                                 type="primary"
@@ -761,21 +871,25 @@ export default function PartDetail() {
                                                         audioUrl: group.audioUrl,
                                                         questions: group.questions
                                                     });
-                                                    if (isPart6) {
-                                                        setCreatePart6ModalVisible(true);
-                                                    } else {
-                                                        setCreatePart7ModalVisible(true);
+                                                    if (isPart6) setCreatePart6ModalVisible(true);
+                                                    else if (part?.partNumber === 7) setCreatePart7ModalVisible(true);
+                                                    else if (part?.partNumber === 3) {
+                                                        setPart3ImportData(group.questions); 
+                                                        setCreatePart3BulkModalVisible(true);
+                                                    } else if (part?.partNumber === 4) {
+                                                        setPart4ImportData(group.questions);
+                                                        setCreatePart4BulkModalVisible(true);
                                                     }
                                                 }}>
-                                                Sửa nâng cao
+                                                Sửa nhóm này
                                             </Button>
                                         )}
                                     </div>
                                 </div>
 
-                                {/* Layout 2 cột Premium */}
-                                {!isListeningGroup ? (
-                                    <Row gutter={24}>
+                                {/* Layout 2 cột Premium - Hiện cho cả Reading và Listening nếu có nội dung */}
+                                {(group.passage || group.passageImageUrl || aiTranslations.length > 0) && (
+                                    <Row gutter={24} style={{ marginBottom: 16 }}>
                                         <Col span={12}>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
                                                 <span style={{ fontWeight: 600, color: '#475569' }}>Nội dung gốc</span>
@@ -799,22 +913,24 @@ export default function PartDetail() {
                                             >
                                                 {group.passageTitle && <div style={{ fontWeight: 800, fontSize: 16, color: '#1E293B', marginBottom: 12 }}>{group.passageTitle}</div>}
                                                 <div dangerouslySetInnerHTML={{
-                                                    __html: (group.passage || (group.passageImageUrl ? '' : '<p><i>(Không có nội dung đoạn văn)</i></p>'))
+                                                    __html: (isListeningGroup ? (group.questions[0]?.transcript || group.passage) : (group.passage.replace(/<audio.*<\/audio>/, '').trim() || group.questions[0]?.transcript || (group.passageImageUrl ? '' : '<p><i>(Không có nội dung đoạn văn)</i></p>')))
                                                         .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
-                                                        .replace(/<img[^>]*>/g, '') // Remove redundant img tags from HTML if they are handled by passageImageUrl
+                                                        .replace(/<img[^>]*>/g, '') 
                                                 }} />
 
                                                 {group.passageImageUrl && (
-                                                    <div style={{ marginTop: group.passage ? 16 : 0 }}>
+                                                    <div style={{ marginTop: 16 }}>
                                                         <AntImage.PreviewGroup>
                                                             {group.passageImageUrl.split(',').filter(Boolean).map((url, i) => (
                                                                 <div key={i} style={{
                                                                     borderRadius: 12,
                                                                     overflow: 'hidden',
                                                                     border: '1px solid #E2E8F0',
-                                                                    marginBottom: i < group.passageImageUrl!.split(',').filter(Boolean).length - 1 ? 12 : 0
+                                                                    marginBottom: i < group.passageImageUrl!.split(',').filter(Boolean).length - 1 ? 12 : 0,
+                                                                    background: '#fff',
+                                                                    padding: 4
                                                                 }}>
-                                                                    <AntImage src={url.trim()} style={{ width: '100%', display: 'block' }} />
+                                                                    <AntImage src={url.trim()} style={{ width: '100%', display: 'block', borderRadius: 8 }} />
                                                                 </div>
                                                             ))}
                                                         </AntImage.PreviewGroup>
@@ -870,9 +986,13 @@ export default function PartDetail() {
                                                                     TỪ VỰNG QUAN TRỌNG
                                                                 </div>
                                                                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                                                                    {vocabulary.map((v: VocabularyItem, i: number) => (
-                                                                        <Tag key={i} color="green" style={{ borderRadius: 6, margin: 0, padding: '2px 8px' }}>
-                                                                            <b>{v.word || v.text}</b>: {v.meaning}
+                                                                    {vocabulary.map((v: any, i: number) => (
+                                                                        <Tag key={i} color="green" style={{ borderRadius: 6, margin: 0, padding: '4px 10px', fontSize: 13 }}>
+                                                                            <b style={{ color: '#065F46' }}>{v.word || v.text}</b>
+                                                                            {(v.type || v.lemma) && <span style={{ color: '#059669', marginLeft: 4 }}>({v.type || v.lemma})</span>}
+                                                                            {v.ipa && <span style={{ color: '#6B7280', marginLeft: 4, fontStyle: 'italic' }}>/{v.ipa}/</span>}
+                                                                            <span style={{ margin: '0 4px' }}>:</span>
+                                                                            {v.meaning}
                                                                         </Tag>
                                                                     ))}
                                                                 </div>
@@ -909,7 +1029,7 @@ export default function PartDetail() {
                                             </div>
                                         </Col>
                                     </Row>
-                                ) : null}
+                                )}
                             </div>
                             <div style={{ padding: '24px', background: '#fff' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
@@ -966,6 +1086,13 @@ export default function PartDetail() {
                                                                 onClick={() => handleOpenEditModal(item)}
                                                                 title="Chỉnh sửa"
                                                             />
+                                                            <Button
+                                                                type="text"
+                                                                icon={<DeleteOutlined />}
+                                                                style={{ color: '#DC2626', background: '#FEE2E2', borderRadius: 8 }}
+                                                                onClick={() => handleDeleteQuestion(item.id)}
+                                                                title="Xóa câu hỏi"
+                                                            />
                                                         </Space>
                                                     )}
                                                 </div>
@@ -983,8 +1110,8 @@ export default function PartDetail() {
 
 
     const columns: ColumnsType<Question> = [
-        // Image Column first for Part 1 & 2
-        (part?.partNumber === 1 || part?.partNumber === 2) ? {
+        // Image Column first for Part 1
+        (part?.partNumber === 1) ? {
             title: 'Hình ảnh minh họa',
             key: 'content_media',
             width: 220,
@@ -1007,16 +1134,16 @@ export default function PartDetail() {
             title: part?.partNumber === 1 ? 'Nội dung' : 'Câu hỏi',
             dataIndex: 'questionText',
             key: 'questionText',
-            width: 300,
+            width: 450,
             render: (text: string, record: Question) => (
-                <div style={{ display: 'flex', alignItems: 'flex-start' }}>
-                    <b style={{ color: '#1E293B', marginRight: 8, whiteSpace: 'nowrap' }}>{record.questionNumber}.</b>
+                <div style={{ display: 'flex', alignItems: 'flex-start', wordBreak: 'break-word' }}>
+                    <b style={{ color: '#1E293B', marginRight: 8 }}>{record.questionNumber}.</b>
                     <div
                         dangerouslySetInnerHTML={{
                             __html: (text || '(Không có nội dung)')
                                 .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
                         }}
-                        style={{ margin: 0, fontWeight: 600, color: '#1E3A8A' }}
+                        style={{ margin: 0, fontWeight: 600, color: '#1E3A8A', flex: 1 }}
                     />
                 </div>
             )
@@ -1026,12 +1153,38 @@ export default function PartDetail() {
             title: 'Dịch câu hỏi',
             dataIndex: 'questionTranslation',
             key: 'translation',
-            width: 250,
-            render: (text: string) => (
-                <div style={{ fontSize: '13px', color: '#64748B', fontStyle: 'italic' }}>
-                    {text || <span style={{ color: '#CBD5E1' }}>Chưa có</span>}
-                </div>
-            )
+            width: 350,
+            render: (text: string, record: Question) => {
+                let vocabList: any[] = [];
+                if (record.keyVocabulary) {
+                    try {
+                        vocabList = typeof record.keyVocabulary === 'string' 
+                            ? JSON.parse(record.keyVocabulary) 
+                            : record.keyVocabulary;
+                    } catch (e) {
+                        console.error('Error parsing vocab for row', record.questionNumber, e);
+                    }
+                }
+
+                return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', wordBreak: 'break-word' }}>
+                        <div style={{ fontSize: '13px', color: '#64748B', fontStyle: 'italic' }}>
+                            {text || <span style={{ color: '#CBD5E1' }}>Chưa có bản dịch</span>}
+                        </div>
+                        {vocabList.length > 0 && (
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                                {vocabList.map((v: any, idx: number) => (
+                                    <Tooltip key={idx} title={`${v.ipa || ''} - ${v.meaning || ''}`}>
+                                        <Tag color="blue" style={{ fontSize: '11px', margin: 0, borderRadius: '4px', cursor: 'help' }}>
+                                            {v.word || v.text}
+                                        </Tag>
+                                    </Tooltip>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                );
+            }
         } : null,
         {
             title: 'A',
@@ -1054,13 +1207,13 @@ export default function PartDetail() {
             width: 150,
             render: (text: string) => <span style={{ fontSize: '13px' }}>{text}</span>
         },
-        {
+        part?.partNumber !== 2 ? {
             title: 'D',
             dataIndex: 'optionD',
             key: 'optionD',
             width: 150,
             render: (text: string) => <span style={{ fontSize: '13px' }}>{text}</span>
-        },
+        } : null,
         {
             title: 'Đáp án',
             dataIndex: 'correctAnswer',
@@ -1100,12 +1253,70 @@ export default function PartDetail() {
                             }}
                             title="Chỉnh sửa"
                         />
+                        <Button
+                            type="text"
+                            icon={<DeleteOutlined />}
+                            style={{ color: '#DC2626', background: '#FEE2E2', borderRadius: '8px' }}
+                            onClick={() => handleDeleteQuestion(record.id)}
+                            title="Xóa câu hỏi"
+                        />
                     </>
                     {!canEditOrCreate && <span style={{ color: '#94A3B8', fontSize: '12px' }}><i>Chỉ xem</i></span>}
                 </Space>
             )
         }
     ].filter(Boolean) as ColumnsType<Question>;
+
+    const handleDeleteQuestion = (questionId: string) => {
+        Modal.confirm({
+            title: 'Xác nhận xóa',
+            icon: <ExclamationCircleOutlined />,
+            content: 'Bạn có chắc muốn xóa câu hỏi này? Hành động không thể hoàn tác.',
+            okText: 'Xóa',
+            okType: 'danger',
+            cancelText: 'Hủy',
+            onOk: async () => {
+                try {
+                    const data = await questionApi.delete(questionId);
+                    if (data.success) {
+                        message.success('Xóa thành công');
+                        fetchQuestions();
+                    } else {
+                        message.error(data.message || 'Xóa thất bại');
+                    }
+                } catch (error) {
+                    console.error('Error deleting question:', error);
+                    message.error('Có lỗi xảy ra khi xóa câu hỏi');
+                }
+            },
+        });
+    };
+
+    const handleDeleteAllQuestions = () => {
+        if (!part) return;
+        Modal.confirm({
+            title: 'Xóa toàn bộ câu hỏi',
+            icon: <ExclamationCircleOutlined />,
+            content: `Xác nhận xóa sạch toàn bộ câu hỏi của Part ${part.partNumber}? Dữ liệu sẽ bị mất vĩnh viễn.`,
+            okText: 'Xóa tất cả',
+            okType: 'danger',
+            cancelText: 'Hủy',
+            onOk: async () => {
+                try {
+                    const data = await partApi.deleteAllQuestions(part.id);
+                    if (data.success) {
+                        message.success('Xóa toàn bộ thành công');
+                        fetchQuestions();
+                    } else {
+                        message.error(data.message || 'Xóa thất bại');
+                    }
+                } catch (error) {
+                    console.error('Error deleting all questions:', error);
+                    message.error('Có lỗi xảy ra khi xóa toàn bộ câu hỏi');
+                }
+            },
+        });
+    };
 
     const handleUpdatePart = async (values: any) => {
         if (!part) return;
@@ -1183,16 +1394,16 @@ export default function PartDetail() {
                             </h1>
                         </div>
 
-                        <Space size="middle">
+                        <div style={{ marginLeft: 'auto' }}>
                             <Button
                                 size="large"
                                 icon={<ArrowLeftOutlined />}
                                 onClick={() => navigate(`/exam-bank/${testId}`)}
                                 style={{ borderRadius: 12, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}
                             >
-                                Quay lại
+                                Trở về
                             </Button>
-                        </Space>
+                        </div>
                     </div>
 
                     {/* Bottom Row: Instructions (Full Width) */}
@@ -1313,21 +1524,45 @@ export default function PartDetail() {
                                             {isPart6 || part?.partNumber === 7 ? 'Thêm nội dung' : 'Thêm câu hỏi'}
                                         </Button>
 
+                                        {isAdmin && questions.length > 0 && (
+                                            <Button
+                                                danger
+                                                size="large"
+                                                onClick={handleDeleteAllQuestions}
+                                                style={{ borderRadius: 12, fontWeight: 700, height: 44 }}
+                                                icon={<DeleteOutlined />}
+                                            >
+                                                Xóa tất cả câu hỏi
+                                            </Button>
+                                        )}
                                     </Space>
 
                                     <Space size="middle">
-                                        {part?.partNumber === 5 && (
+                                        {(part?.partNumber && [1, 2, 3, 4, 5].includes(part.partNumber)) && (
                                             <Button
-                                                onClick={() => setImportDrawerVisible(true)}
+                                                onClick={() => {
+                                                    if (part?.partNumber === 5) setImportDrawerVisible(true);
+                                                    else {
+                                                        // Trigger file input for Parts 1, 2, 3, 4
+                                                        const input = document.createElement('input');
+                                                        input.type = 'file';
+                                                        input.accept = '.xlsx,.xls';
+                                                        input.onchange = (e) => {
+                                                            const file = (e.target as HTMLInputElement).files?.[0];
+                                                            if (file) handleExcelUpload(file);
+                                                        };
+                                                        input.click();
+                                                    }
+                                                }}
                                                 size="large"
                                                 style={{ borderRadius: 12, fontWeight: 600, height: 44 }}
                                                 icon={<ImportOutlined />}
                                             >
-                                                Import Excel
+                                                Nhập Excel
                                             </Button>
                                         )}
 
-                                        {part?.partNumber === 5 && (
+                                        {(part?.partNumber && [1, 2, 3, 4, 5].includes(part.partNumber)) && (
                                             <Button
                                                 onClick={handleDownloadTemplate}
                                                 size="large"
@@ -1349,7 +1584,7 @@ export default function PartDetail() {
                 )}
 
                 {/* Content */}
-                {isPart6 || part.partNumber === 7 ? renderGroupedLayout() : (
+                {(isPart6 || part.partNumber === 7 || isListeningGroup) ? renderGroupedLayout() : (
                     <Table
                         columns={columns}
                         dataSource={questions}
@@ -1371,10 +1606,22 @@ export default function PartDetail() {
                 open={createPart2ModalVisible}
                 onCancel={() => setCreatePart2ModalVisible(false)}
                 onSuccess={handleCreateSuccess}
+                testId={testId || ''}
+                partId={partId || ''}
+                currentAudioUrl={part?.audioUrl}
+                partNumber={part?.partNumber}
+                initialData={part2ImportData}
+            />
+
+            <CreatePart1BulkModal
+                open={createPart1ModalVisible}
+                onCancel={() => setCreatePart1ModalVisible(false)}
+                onSuccess={handleCreateSuccess}
                 partId={partId || null}
                 currentAudioUrl={part?.audioUrl}
                 partName={part?.partName}
                 partNumber={part?.partNumber}
+                initialData={part1ImportData}
             />
 
             <CreatePart3Modal
@@ -1384,6 +1631,7 @@ export default function PartDetail() {
                 partId={partId || null}
                 partNumber={3}
                 partName={part?.partNumber === 3 ? part?.partName : undefined}
+                currentAudioUrl={part?.audioUrl}
             />
 
             {/* Create Part 4 Modal */}
@@ -1394,6 +1642,7 @@ export default function PartDetail() {
                 partId={partId || null}
                 partNumber={4}
                 partName={part?.partNumber === 4 ? part?.partName : undefined}
+                currentAudioUrl={part?.audioUrl}
             />
 
 
@@ -1421,19 +1670,37 @@ export default function PartDetail() {
                 partId={partId || null}
                 mode={editingGroup ? 'edit' : 'add'}
                 initialData={editingGroup}
-                partName={part?.partName}
                 partNumber={part?.partNumber}
             />
 
             <CreatePart5BulkModal
                 open={createPart5BulkModalVisible}
-                onCancel={() => setCreatePart5BulkModalVisible(false)}
                 onSuccess={fetchQuestions}
+                onCancel={() => setCreatePart5BulkModalVisible(false)}
                 initialData={part5ImportData}
                 partId={partId || null}
                 importMode={part5ImportMode}
-                partName={part?.partName}
                 partNumber={part?.partNumber}
+            />
+
+            <CreatePart3BulkModal
+                open={createPart3BulkModalVisible}
+                onCancel={() => setCreatePart3BulkModalVisible(false)}
+                onSuccess={handleCreateSuccess}
+                partId={partId || null}
+                currentAudioUrl={part?.audioUrl}
+                partNumber={3}
+                initialData={part3ImportData}
+            />
+
+            <CreatePart4BulkModal
+                open={createPart4BulkModalVisible}
+                onCancel={() => setCreatePart4BulkModalVisible(false)}
+                onSuccess={handleCreateSuccess}
+                partId={partId || null}
+                currentAudioUrl={part?.audioUrl}
+                partNumber={4}
+                initialData={part4ImportData}
             />
 
 
@@ -2030,7 +2297,7 @@ export default function PartDetail() {
                                     description: <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Kéo thả file .xlsx đã điền nội dung vào khu vực phía trên.</span>,
                                 },
                                 {
-                                    title: <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>Xác thực & Làm giàu bằng AI</span>,
+                                    title: <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>Xác thực và Lời giải AI</span>,
                                     description: <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Xem trước dữ liệu và nhấn "Lời giải AI" để tự động tạo lời giải & dịch.</span>,
                                 },
                             ]}

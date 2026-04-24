@@ -15,6 +15,9 @@ import '../../auth/models/user_model.dart';
 import '../../class/views/class_materials_screen.dart';
 import '../../notifications/viewmodels/notification_viewmodel.dart';
 import '../../notifications/views/notification_screen.dart';
+import '../../practice/viewmodels/ai_timeline_viewmodel.dart';
+import '../../practice/models/ai_assessment.dart';
+import '../widgets/personal_roadmap_widget.dart';
 import '../../../l10n/app_localizations.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -33,8 +36,15 @@ class _HomeScreenState extends State<HomeScreen> {
       if (!mounted) return;
       context.read<DashboardViewModel>().loadDashboard();
       context.read<VocabularyViewModel>().loadFlashcards();
+      context.read<NotificationViewModel>().loadNotifications();
       final progressVM = context.read<ProgressViewModel>();
+      final timelineVM = context.read<AiTimelineViewModel>();
+      final userId = context.read<AuthViewModel>().currentUser?.id;
+
       await progressVM.loadUserStats();
+      if (userId != null && mounted) {
+        await timelineVM.loadTimeline(userId);
+      }
     });
   }
 
@@ -75,7 +85,12 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: RefreshIndicator(
-        onRefresh: () => dashboardViewModel.loadDashboard(),
+        onRefresh: () async {
+          await Future.wait([
+            dashboardViewModel.loadDashboard(),
+            if (mounted) context.read<NotificationViewModel>().loadNotifications(),
+          ]);
+        },
         child: CustomScrollView(
           slivers: [
             // A. SliverAppBar (Welcome Banner & Streak)
@@ -98,7 +113,22 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
 
-            // B2. Lớp học của tôi (Supplementary Materials Entry)
+            // B2. Lộ trình cá nhân (AI Roadmap) - NEW
+            SliverToBoxAdapter(
+              child: Consumer<AiTimelineViewModel>(
+                builder: (context, timelineVM, _) {
+                  if (timelineVM.isLoading) return const SizedBox.shrink();
+                  
+                  final roadmaps = timelineVM.assessments.where((a) => a.type == AiAssessmentType.roadmap).toList();
+                  if (roadmaps.isEmpty) return const SizedBox.shrink();
+                  
+                  // Show the most recent roadmap
+                  return PersonalRoadmapWidget(roadmap: roadmaps.first);
+                },
+              ),
+            ),
+
+            // B3. Lớp học của tôi (Supplementary Materials Entry)
             SliverToBoxAdapter(
               child: Consumer<AuthViewModel>(
                 builder: (context, authVM, _) {

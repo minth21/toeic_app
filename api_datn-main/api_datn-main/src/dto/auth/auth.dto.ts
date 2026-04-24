@@ -20,6 +20,7 @@ export interface UserDto {
     id: string;
     username: string; // Mã định danh
     name: string;
+    email?: string;
     role: string; // STUDENT, REVIEWER, SPECIALIST, ADMIN
     authProvider: string; // "LOCAL" or "GOOGLE"
     isFirstLogin?: boolean; // Bất buộc đổi mật khẩu lần đầu (trừ ADMIN)
@@ -61,9 +62,11 @@ export interface ApiResponse<T = any> {
 // PASSWORD RESET DTOs
 // ============================================
 
-// Forgot Password Request DTO
+// Forgot Password Request DTO (Manual Reset via Admin)
 export interface ForgotPasswordDto {
     username: string;
+    email?: string;
+    reason?: string;
 }
 
 // Verify Reset Code Request DTO

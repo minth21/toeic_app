@@ -289,7 +289,10 @@ export default function Overview() {
                             >
                                 <Flex vertical gap={12}>
                                     {stats?.topStudents && stats.topStudents.length > 0 ? (
-                                        stats.topStudents.slice(0, 5).map((student, index) => (
+                                        [...stats.topStudents]
+                                            .sort((a, b) => (b.estimatedScore || 0) - (a.estimatedScore || 0))
+                                            .slice(0, 5)
+                                            .map((student, index) => (
                                             <div
                                                 key={student.id}
                                                 style={{

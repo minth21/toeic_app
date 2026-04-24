@@ -491,24 +491,7 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
                               if (mounted) Navigator.of(context).pop();
                               if (!mounted) return;
 
-                              if (part.partNumber == 2) {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => Part2SimulationScreen(
-                                      questions: viewModel.currentQuestions,
-                                      partAudioUrl: part.audioUrl,
-                                      isReviewMode: true,
-                                      userAnswers: parsedUserAnswers,
-                                      aiFeedbacks: parsedAIFeedbacks,
-                                      overallFeedback:
-                                          latest['assessment'] ??
-                                          latest['aiAnalysis'] ??
-                                          latest['aiAssessment'],
-                                    ),
-                                  ),
-                                );
-                              } else if (part.partNumber <= 4) {
+                              if (part.partNumber == 1) {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
@@ -518,10 +501,36 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
                                       isReviewMode: true,
                                       initialUserAnswers: parsedUserAnswers,
                                       aiFeedbacks: parsedAIFeedbacks,
-                                      overallFeedback:
-                                          latest['assessment'] ??
-                                          latest['aiAnalysis'] ??
-                                          latest['aiAssessment'],
+                                      overallFeedback: latest['assessment'] ?? latest['aiAnalysis'] ?? latest['aiAssessment'],
+                                    ),
+                                  ),
+                                );
+                              } else if (part.partNumber == 2) {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => Part2SimulationScreen(
+                                      questions: viewModel.currentQuestions,
+                                      partAudioUrl: part.audioUrl,
+                                      isReviewMode: true,
+                                      userAnswers: parsedUserAnswers,
+                                      part: part,
+                                      aiFeedbacks: parsedAIFeedbacks,
+                                      overallFeedback: latest['assessment'] ?? latest['aiAnalysis'] ?? latest['aiAssessment'],
+                                    ),
+                                  ),
+                                );
+                              } else if (part.partNumber <= 4) {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => TestSimulationScreen(
+                                      test: _test,
+                                      partId: part.id,
+                                      isReviewMode: true,
+                                      initialUserAnswers: parsedUserAnswers,
+                                      aiFeedbacks: parsedAIFeedbacks,
+                                      overallFeedback: latest['assessment'] ?? latest['aiAnalysis'] ?? latest['aiAssessment'],
                                     ),
                                   ),
                                 );
@@ -534,10 +543,7 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
                                       userAnswers: parsedUserAnswers,
                                       partNumber: part.partNumber,
                                       aiFeedbacks: parsedAIFeedbacks,
-                                      overallFeedback:
-                                          latest['assessment'] ??
-                                          latest['aiAnalysis'] ??
-                                          latest['aiAssessment'],
+                                      overallFeedback: latest['assessment'] ?? latest['aiAnalysis'] ?? latest['aiAssessment'],
                                     ),
                                   ),
                                 );
@@ -1344,7 +1350,7 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
       }
     }
 
-    if (part.partNumber <= 4) {
+    if (part.partNumber == 1) {
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -1354,6 +1360,36 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
             isReviewMode: true,
             initialUserAnswers: parsedUserAnswers,
             aiFeedbacks: parsedAIFeedbacks,
+            overallFeedback: latest['assessment'] ?? latest['aiAnalysis'] ?? latest['aiAssessment'],
+          ),
+        ),
+      );
+    } else if (part.partNumber == 2) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => Part2SimulationScreen(
+            questions: viewModel.currentQuestions,
+            partAudioUrl: part.audioUrl,
+            isReviewMode: true,
+            userAnswers: parsedUserAnswers,
+            part: part,
+            aiFeedbacks: parsedAIFeedbacks,
+            overallFeedback: latest['assessment'] ?? latest['aiAnalysis'] ?? latest['aiAssessment'],
+          ),
+        ),
+      );
+    } else if (part.partNumber <= 4) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => TestSimulationScreen(
+            test: _test,
+            partId: part.id,
+            isReviewMode: true,
+            initialUserAnswers: parsedUserAnswers,
+            aiFeedbacks: parsedAIFeedbacks,
+            overallFeedback: latest['assessment'] ?? latest['aiAnalysis'] ?? latest['aiAssessment'],
           ),
         ),
       );
@@ -1366,6 +1402,7 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
             userAnswers: parsedUserAnswers,
             partNumber: part.partNumber,
             aiFeedbacks: parsedAIFeedbacks,
+            overallFeedback: latest['assessment'] ?? latest['aiAnalysis'] ?? latest['aiAssessment'],
           ),
         ),
       );

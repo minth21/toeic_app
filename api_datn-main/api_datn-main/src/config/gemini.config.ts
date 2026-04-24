@@ -19,11 +19,12 @@ export const getNextGenerativeModel = (modelName = 'gemini-2.5-flash-lite') => {
 
     console.log(`[AI] Using model: ${modelName} with key index: ${usedIndex}`);
     const genAI = new GoogleGenerativeAI(key);
+    // Sử dụng v1beta mặc định để hỗ trợ responseMimeType (JSON Mode)
     return genAI.getGenerativeModel({ 
         model: modelName,
         generationConfig: {
             maxOutputTokens: 2048,
-            temperature: 0.1, // Thấp hơn để AI tập trung vào tốc độ và độ chính xác JSON
+            temperature: 0.1, 
         }
-    });
+    }); 
 };

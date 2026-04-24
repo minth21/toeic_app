@@ -2,8 +2,20 @@ import 'package:flutter/material.dart';
 
 class AppConstants {
   // API Configuration
-  static const String baseUrl =
-      'http://10.0.2.2:3000/api'; // Android emulator localhost
+  static const String baseUrl = 'http://10.0.2.2:3000/api'; // Android emulator localhost
+  static const String baseServerUrl = 'http://10.0.2.2:3000'; // Server root for static files
+
+  // Utility to get absolute URL for local storage paths
+  static String getFullUrl(String? path) {
+    if (path == null) return '';
+    final trimmedPath = path.trim();
+    if (trimmedPath.isEmpty) return '';
+    if (trimmedPath.startsWith('http')) return trimmedPath;
+    
+    // Remove leading slash if present
+    final cleanPath = trimmedPath.startsWith('/') ? trimmedPath.substring(1) : trimmedPath;
+    return '$baseServerUrl/$cleanPath';
+  }
 }
 
 class AppColors {

@@ -200,9 +200,9 @@ class PracticeViewModel extends ChangeNotifier {
     const totalRetries = 50; // up to ~150s total
 
     for (int retries = 0; retries < totalRetries; retries++) {
-      // On first iteration, do a small delay to let the background job start
+      // On first iteration, check sooner (2s instead of 4s)
       if (retries == 0) {
-        await Future.delayed(const Duration(seconds: 4));
+        await Future.delayed(const Duration(seconds: 2));
       } else {
         await Future.delayed(retries < fastPhaseEnd ? fastInterval : slowInterval);
       }

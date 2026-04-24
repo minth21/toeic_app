@@ -19,7 +19,7 @@ export const executeAITaskWithRetry = async (requestPayload: any, maxRetries = 3
         } catch (error: any) {
             if ((error.status === 429 || error.status === 503) && attempt < maxRetries) {
                 // Khi gặp Rate Limit (429), cần chờ lâu hơn (Google thường yêu cầu 30-60s)
-                const waitTime = error.status === 429 ? (attempt * 30000) : (attempt * 5000); 
+                const waitTime = error.status === 429 ? (attempt * 15000) : (attempt * 5000); 
                 console.warn(`[AI WARNING] Quota/Rate Limit hit (429/503). Đang thử lại lần ${attempt} sau ${waitTime/1000}s...`);
                 await sleep(waitTime);
                 continue;
@@ -257,6 +257,7 @@ const generateSafeFeedback = (currentScore: number, totalQuestions: number, part
         },
         strengths: isExcellent ? ["Độ chính xác cao", "Phản xạ nhanh"] : (isGood ? ["Nắm vững kiến thức cơ bản"] : ["Tinh thần học tập tốt"]),
         weaknesses: isExcellent ? ["Các bẫy nâng cao"] : (isGood ? ["Quản lý thời gian", "Từ vựng chuyên sâu"] : ["Từ vựng cơ bản", "Ngữ pháp nền tảng"]),
+        questionFeedbacks: [] as any[],
         vocabularyFlashcards: [],
         detailedAssessment: `<p>Hệ thống ghi nhận bạn đã hoàn thành <b>${partName}</b> với kết quả <b>${currentScore}/${totalQuestions}</b>.</p>
                              <p><b>Nhận xét:</b> Bạn có nền tảng ${isExcellent ? 'rất vững chắc' : (isGood ? 'khá tốt' : 'cần cải thiện thêm')}. 
@@ -280,6 +281,7 @@ export const evaluateProgress = async (
 
     try {
         const isListening = ['Part 1', 'Part 2', 'Part 3', 'Part 4'].some(p => partName.includes(p));
+        const isPart34 = ['Part 3', 'Part 4'].some(p => partName.includes(p));
         
         const commonPromptContext = `
             Học viên: ${userName} | Mục tiêu: ${targetScore || 'Chưa đặt'}
@@ -297,12 +299,18 @@ export const evaluateProgress = async (
             1. PHÂN TÍCH CHIẾN THUẬT: ${isFullTest 
                 ? 'Dựa trên ma trận kiến thức, hãy lọc ra TOP 5 CHỦ ĐIỂM (Topic Tags) YẾU NHẤT.' 
                 : `Phân tích khả năng ${isListening ? 'phản xạ âm thanh' : 'đọc hiểu'} và đưa ra lời khuyên "chạm đúng chỗ ngứa".`}
-            2. CÁ NHÂN HÓA PHẢN HỒI (BẮT BUỘC): Trả về mảng "questionFeedbacks" chứa các gợi ý cụ thể cho những câu học viên làm SAI.
+            2. CÁ NHÂN HÓA PHẢN HỒI (BẮT BUỘC): ${isPart34 
+                ? 'Vì đây là bài dài, bạn chỉ chọn ra đúng 3 CÂU SAI TIÊU BIỂU NHẤT để nhận xét cực ngắn gọn trong mảng "questionFeedbacks".' 
+                : 'Trả về mảng "questionFeedbacks" chứa các gợi ý cụ thể cho những câu học viên làm SAI.'}
+               Dựa trên "userAnswer" và "correctAnswer" được cung cấp trong CHI TIẾT CÂU SAI để giải thích ngắn gọn tại sao chọn đáp án đó lại sai.
+            3. TRÍCH XUẤT TỪ VỰNG (QUAN TRỌNG): Tìm ra 3-5 từ vựng hoặc cụm từ quan trọng/mới xuất hiện trong các câu SAI (hoặc trong ngữ cảnh của chúng) để đưa vào mảng "vocabularyFlashcards".
             
             NGUYÊN TẮC "VOICE & TONE":
-            ... (giữ nguyên)
-            
-            OUTPUT JSON THUẦN TÚY:
+            1. TRỰC TIẾP: Đi thẳng vào nội dung, không giải thích dài dòng.
+            2. NGẮN GỌN: Ưu tiên các câu dịch và giải thích súc tích, tránh lặp lại ý.
+            3. CHUYÊN NGHIỆP: Sử dụng ngôn ngữ chuyên gia nhưng dễ hiểu.
+
+            OUTPUT JSON THUẦN TÚY (TUYỆT ĐỐI KHÔNG giải thích thêm ngoài JSON):
             {
                 "progressScore": ${currentPercentage},
                 "shortFeedback": "...",
@@ -310,9 +318,11 @@ export const evaluateProgress = async (
                 "strengths": ["...", "...", "..."],
                 "weaknesses": ["...", "...", "..."],
                 "questionFeedbacks": [
-                   { "questionId": "ID_CÂU_HỎI", "questionNumber": 123, "comment": "Gửi lời khuyên cực ngắn cho câu này", "isCorrect": false }
+                   { "questionId": "ID_CÂU_HỎI", "questionNumber": 123, "comment": "Gợi ý cực ngắn", "isCorrect": false }
                 ],
-                "vocabularyFlashcards": [],
+                "vocabularyFlashcards": [
+                   { "word": "...", "type": "n/v/adj/adv", "ipa": "/.../", "meaning": "..." }
+                ],
                 "detailedAssessment": "..."
             }
         `;
@@ -320,7 +330,7 @@ export const evaluateProgress = async (
         const result = await executeAITaskWithRetry({
             contents: [{ role: 'user', parts: [{ text: prompt }] }],
             generationConfig: {
-                maxOutputTokens: 1000,
+                maxOutputTokens: isPart34 ? 600 : 1000, // Speed up Part 3/4
                 temperature: 0.4,
                 responseMimeType: "application/json",
             }
@@ -896,4 +906,44 @@ export const generatePersonalizedRoadmapService = async (
     });
 
     return parseAIResponse(result.response.text());
+};
+
+export const generatePart4ExplanationService = async (transcript: string, questions: any[]) => {
+    const questionsText = questions.map(q => `
+    Question ${q.questionNumber}:
+    ${q.questionText}
+    A. ${q.optionA} | B. ${q.optionB} | C. ${q.optionC} | D. ${q.optionD}
+    Correct Answer: ${q.correctAnswer}
+    `).join('\n');
+
+    const prompt = `${MASTER_PROMPT_RULES}\nBạn là chuyên gia TOEIC. Hãy phân tích Transcript Part 4 (Short Talks) sau:
+    NHIỆM VỤ: Dịch transcript, phân đoạn câu và giải thích các câu hỏi.
+
+    TRANSCRIPT:
+    """${transcript}"""
+
+    DANH SÁCH CÂU HỎI:
+    ${questionsText}
+
+    YÊU CẦU OUTPUT JSON (Không Markdown):
+    1. "passageTranslations": [ { "type": "passage", "label": "Transcript", "items": [ { "id": "s1", "en": "...", "vi": "...", "vocab": [ { "text": "word", "meaning": "nghĩa" } ] } ] } ]
+    2. "vocabulary": [ { "word": "...", "type": "n/v/adj/adv", "ipa": "/.../", "meaning": "..." } ]
+    3. "questions": [ { "questionNumber": 71, "analysis": "...", "evidence": "..." } ]
+    `;
+
+    try {
+        const result = await executeAITaskWithRetry({
+            contents: [{ role: 'user', parts: [{ text: prompt }] }],
+            generationConfig: {
+                temperature: 0.2,
+                maxOutputTokens: 4000,
+                responseMimeType: "application/json",
+            }
+        });
+
+        return parseAIResponse(result.response.text());
+    } catch (error) {
+        console.error("AI Part 4 Error:", error);
+        throw new Error("Lỗi khi tạo giải thích AI cho Part 4");
+    }
 };

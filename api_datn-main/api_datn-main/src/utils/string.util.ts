@@ -8,15 +8,14 @@ export const cleanToEICData = (rawText: string): string => {
   if (!rawText || typeof rawText !== 'string') return rawText || '';
 
   // 1. Giải mã HTML Entities (&nbsp; -> ' ')
-  // Nếu không có entities, he.decode trả về nguyên bản.
   let clean = he.decode(rawText);
 
   // 2. Triệt hạ ký tự \u00A0 (Non-breaking space) ẩn
   clean = clean.replace(/\u00A0/g, ' ');
 
-  // 3. Chuẩn hóa khoảng trắng (nhiều dấu cách liền nhau -> 1 dấu cách)
-  // Giúp trình duyệt tự động ngắt dòng (word-wrap) cực chuẩn.
-  clean = clean.replace(/\s+/g, ' ');
+  // 3. Chuẩn hóa khoảng trắng ngang (nhiều dấu cách/tab liền nhau -> 1 dấu cách)
+  // NHƯNG PHẢI GIỮ LẠI XUỐNG DÒNG (\n) để không làm hỏng layout của AI (Lời giải, Transcript)
+  clean = clean.replace(/[ \t]+/g, ' ');
 
   return clean.trim();
 };

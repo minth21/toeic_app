@@ -12,11 +12,14 @@ import 'test_simulation_screen.dart';
 import 'part1_simulation_screen.dart';
 import 'part2_simulation_screen.dart';
 import 'reading_review_screen.dart';
+import 'listening_simulation_screen.dart';
 
 class TestDetailScreen extends StatefulWidget {
-  final ExamModel test;
+  final ExamModel? test;
+  final String? testId;
 
-  const TestDetailScreen({super.key, required this.test});
+  const TestDetailScreen({super.key, this.test, this.testId})
+      : assert(test != null || testId != null);
 
   @override
   State<TestDetailScreen> createState() => _TestDetailScreenState();
@@ -30,7 +33,20 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
   @override
   void initState() {
     super.initState();
-    _test = widget.test;
+    if (widget.test != null) {
+      _test = widget.test!;
+    } else {
+      // Skeleton test while loading
+      _test = ExamModel(
+        id: widget.testId!,
+        title: 'Đang tải...',
+        difficulty: '...',
+        duration: 0,
+        totalQuestions: 0,
+        listeningQuestions: 0,
+        readingQuestions: 0,
+      );
+    }
     _refreshTest();
   }
 
@@ -38,7 +54,7 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
     setState(() => _isLoading = true);
     try {
       final viewModel = Provider.of<PracticeViewModel>(context, listen: false);
-      final updatedTest = await viewModel.getTestById(widget.test.id);
+      final updatedTest = await viewModel.getTestById(_test.id);
       if (updatedTest != null && mounted) {
         setState(() {
           _test = updatedTest;
@@ -103,14 +119,22 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
 
       if (history.isNotEmpty) {
         final latest = history.first;
-        score = latest['score'];
-        total = latest['totalQuestions'];
+        score = latest['score'] ?? latest['correctCount'];
+        total = latest['totalQuestions'] ?? latest['total'];
 
         try {
           final rawAssessment = latest['aiAssessment'];
           if (rawAssessment != null && rawAssessment.isNotEmpty) {
+            String cleanJson = rawAssessment is String ? rawAssessment : '';
+            if (rawAssessment is String && rawAssessment.contains('```')) {
+              cleanJson = rawAssessment
+                  .replaceFirst(RegExp(r'```json'), '')
+                  .replaceFirst(RegExp(r'```'), '')
+                  .trim();
+            }
+            
             final dynamic parsed = rawAssessment is String
-                ? jsonDecode(rawAssessment)
+                ? jsonDecode(cleanJson.isNotEmpty ? cleanJson : rawAssessment)
                 : rawAssessment;
             if (parsed is Map<String, dynamic>) {
               final aiFeedback =
@@ -195,22 +219,23 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: 0.2),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Text(
-                                  'PART ${part.partNumber}',
-                                  style: GoogleFonts.inter(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w900,
-                                    fontSize: 12,
-                                    letterSpacing: 1.2,
+                              if (!part.partName.toUpperCase().contains('PART'))
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.2),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    'PART ${part.partNumber}',
+                                    style: GoogleFonts.inter(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w900,
+                                      fontSize: 12,
+                                      letterSpacing: 1.2,
+                                    ),
                                   ),
                                 ),
-                              ),
                               const SizedBox(height: 4),
                               Text(
                                 part.partName,
@@ -270,9 +295,9 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
                                 borderRadius: BorderRadius.circular(16),
                                 border: Border.all(color: const Color(0xFFE2E8F0)),
                               ),
-                              child: Text(
+                              child: HtmlWidget(
                                 instructionText,
-                                style: GoogleFonts.inter(
+                                textStyle: GoogleFonts.inter(
                                   fontSize: 14,
                                   height: 1.6,
                                   color: const Color(0xFF334155),
@@ -280,6 +305,25 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
                                 ),
                               ),
                             ),
+
+                            if (part.instructionImgUrl != null && part.instructionImgUrl!.trim().isNotEmpty) ...[
+                              const SizedBox(height: 16),
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(12),
+                                child: AppConstants.getFullUrl(part.instructionImgUrl).isEmpty
+                                    ? const Center(child: Icon(Icons.broken_image_outlined, color: Colors.grey))
+                                    : Image.network(
+                                        AppConstants.getFullUrl(part.instructionImgUrl),
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (ctx, err, stack) => Container(
+                                          height: 100,
+                                          width: double.infinity,
+                                          color: Colors.grey.shade100,
+                                          child: const Icon(Icons.broken_image_outlined, color: Colors.grey),
+                                        ),
+                                      ),
+                              ),
+                            ],
 
                             const SizedBox(height: 24),
 
@@ -408,6 +452,9 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
                 part: part,
               );
             }
+            if (part.partNumber == 3 || part.partNumber == 4) {
+              return ListeningSimulationScreen(test: _test, partId: part.id, part: part);
+            }
             return TestSimulationScreen(test: _test, partId: part.id);
           },
         ),
@@ -502,23 +549,38 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
       }
 
       if (part.partNumber <= 4) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => Part1SimulationScreen(
-              test: _test,
-              partId: part.id,
-              isReviewMode: true,
-              initialUserAnswers: parsedUserAnswers,
-              aiFeedbacks: parsedAIFeedbacks,
-              overallFeedback:
-                  detailedAttempt['assessment'] ??
-                  detailedAttempt['aiAnalysis'] ??
-                  detailedAttempt['aiAssessment'],
-              part: part,
+        if (part.partNumber == 3 || part.partNumber == 4) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ListeningSimulationScreen(
+                test: _test,
+                partId: part.id,
+                isReviewMode: true,
+                initialUserAnswers: parsedUserAnswers,
+                part: part,
+              ),
             ),
-          ),
-        );
+          );
+        } else {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => Part1SimulationScreen(
+                test: _test,
+                partId: part.id,
+                isReviewMode: true,
+                initialUserAnswers: parsedUserAnswers,
+                aiFeedbacks: parsedAIFeedbacks,
+                overallFeedback:
+                    detailedAttempt['assessment'] ??
+                    detailedAttempt['aiAnalysis'] ??
+                    detailedAttempt['aiAssessment'],
+                part: part,
+              ),
+            ),
+          );
+        }
       } else {
         Navigator.push(
           context,
@@ -1277,7 +1339,7 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Kết quả: $score/$total',
+                      'Kết quả: ${score ?? 0}/${total ?? 0}',
                       style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                     ),
                     const SizedBox(height: 2),

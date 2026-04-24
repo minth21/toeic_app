@@ -9,6 +9,7 @@ import '../viewmodels/practice_viewmodel.dart';
 import '../models/part_model.dart';
 import 'reading_review_screen.dart';
 import 'part1_simulation_screen.dart';
+import 'part2_simulation_screen.dart';
 import 'test_simulation_screen.dart';
 import '../models/question_model.dart';
 import 'widgets/vocab_flashcard_panel.dart';
@@ -149,7 +150,7 @@ class _PracticeResultScreenState extends State<PracticeResultScreen> {
           .toString()
           .trim()
           .toUpperCase();
-      final isCorrect = userAnswer == correctAnswer;
+      final isCorrect = d['isCorrect'] ?? (userAnswer != '' && userAnswer == correctAnswer);
 
       if (!isCorrect) {
         wrongQuestions.add({'question': qMap, 'userAnswer': userAnswer});
@@ -858,9 +859,11 @@ class _PracticeResultScreenState extends State<PracticeResultScreen> {
             .toList();
 
         final Map<String, String> userAnswers = {};
+        final Map<String, bool> correctStatus = {};
         for (var d in details) {
           final qId = d['questionId'].toString();
           userAnswers[qId] = d['userAnswer'] ?? '';
+          correctStatus[qId] = d['isCorrect'] ?? false;
         }
 
         if (widget.part.partNumber == 1) {
@@ -872,7 +875,24 @@ class _PracticeResultScreenState extends State<PracticeResultScreen> {
                 partId: widget.part.id,
                 isReviewMode: true,
                 initialUserAnswers: userAnswers,
+                correctStatus: correctStatus,
                 aiFeedbacks: _aiData?['questionFeedbacks'],
+                overallFeedback: _aiData?['detailedAssessment'],
+              ),
+            ),
+          );
+        } else if (widget.part.partNumber == 2) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => Part2SimulationScreen(
+                questions: questions,
+                partAudioUrl: widget.part.audioUrl,
+                isReviewMode: true,
+                userAnswers: userAnswers,
+                correctStatus: correctStatus,
+                aiFeedbacks: _aiData?['questionFeedbacks'],
+                overallFeedback: _aiData?['detailedAssessment'],
               ),
             ),
           );
@@ -888,7 +908,9 @@ class _PracticeResultScreenState extends State<PracticeResultScreen> {
                         ?.cast<String>() ??
                     [],
                 partNumber: widget.part.partNumber,
+                correctStatus: correctStatus,
                 aiFeedbacks: _aiData?['questionFeedbacks'],
+                overallFeedback: _aiData?['detailedAssessment'],
               ),
             ),
           );

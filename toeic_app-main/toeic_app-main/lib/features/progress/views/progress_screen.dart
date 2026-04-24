@@ -725,7 +725,9 @@ class _ProgressScreenState extends State<ProgressScreen> {
           );
         }
 
-        final assessments = timelineVM.assessments;
+        final allAssessments = timelineVM.assessments;
+        final assessments = allAssessments.where((a) => a.type != AiAssessmentType.roadmap).toList();
+        
         if (assessments.isEmpty) {
           return _buildChartPlaceholder(context, 'Chưa có tư vấn chiến thuật nào từ AI.');
         }
@@ -841,18 +843,6 @@ class _ProgressScreenState extends State<ProgressScreen> {
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 12),
-                              Text(
-                                item.summary,
-                                style: AppTypography.friendly(
-                                  fontSize: 13,
-                                  color: AppColors.textSecondary.withValues(alpha: 0.8),
-                                  height: 1.5,
-                                ),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              const SizedBox(height: 12),
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.end,
                                 children: [

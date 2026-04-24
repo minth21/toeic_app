@@ -495,7 +495,7 @@ class _TestSimulationScreenState extends State<TestSimulationScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Image (if any)
-                    if (_selectedPart!.instructionImgUrl != null)
+                    if (_selectedPart!.instructionImgUrl != null && _selectedPart!.instructionImgUrl!.trim().isNotEmpty)
                       Container(
                         width: double.infinity,
                         margin: const EdgeInsets.only(bottom: 24),
@@ -512,8 +512,9 @@ class _TestSimulationScreenState extends State<TestSimulationScreen> {
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(20),
                           child: Image.network(
-                            _selectedPart!.instructionImgUrl!,
+                            AppConstants.getFullUrl(_selectedPart!.instructionImgUrl!),
                             fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
                             loadingBuilder: (context, child, progress) {
                               if (progress == null) return child;
                               return Center(
@@ -733,10 +734,11 @@ class _TestSimulationScreenState extends State<TestSimulationScreen> {
           ),
           // Passage Images moved BELOW the text/title
           // [REQ] Hide for Part 6 & 7 to focus on Touch-to-Translate
-          if (passageImageUrls.isNotEmpty && _selectedPart?.partNumber != 6 && _selectedPart?.partNumber != 7) ...[
+          if (passageImageUrls.where((u) => u.isNotEmpty).isNotEmpty && 
+              _selectedPart?.partNumber != 6 && _selectedPart?.partNumber != 7) ...[
             const SizedBox(height: 16),
             Column(
-              children: passageImageUrls.map((url) => Padding(
+              children: passageImageUrls.where((u) => u.isNotEmpty).map((url) => Padding(
                 padding: const EdgeInsets.only(bottom: 12),
                 child: GestureDetector(
                   onTap: () => _openFullscreenImage(context, url),
@@ -750,12 +752,17 @@ class _TestSimulationScreenState extends State<TestSimulationScreen> {
                       ),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(16),
-                        child: Image.network(
-                          url,
-                          fit: BoxFit.contain,
-                          loadingBuilder: (ctx, child, prog) =>
-                              prog == null ? child : const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator())),
-                        ),
+                        child: AppConstants.getFullUrl(url).isEmpty
+                            ? const Center(child: Icon(Icons.broken_image_outlined, size: 48, color: Colors.grey))
+                            : Image.network(
+                                AppConstants.getFullUrl(url),
+                                fit: BoxFit.contain,
+                                errorBuilder: (ctx, err, stack) => const Center(
+                                  child: Icon(Icons.broken_image_outlined, size: 48, color: Colors.grey),
+                                ),
+                                loadingBuilder: (ctx, child, prog) =>
+                                    prog == null ? child : const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator())),
+                              ),
                       ),
                     ),
                   ),
@@ -836,12 +843,18 @@ class _TestSimulationScreenState extends State<TestSimulationScreen> {
       },
       child: _showInstruction &&
               _selectedPart != null &&
-              (_selectedPart!.instructions != null ||
-                  _selectedPart!.instructionImgUrl != null)
+              (_selectedPart!.instructions != null || (_selectedPart!.instructionImgUrl != null && _selectedPart!.instructionImgUrl!.trim().isNotEmpty))
           ? _buildInstructionScreen(context)
           : Scaffold(
       appBar: AppBar(
-        title: Text(widget.test.title),
+        title: Text(
+          _selectedPart?.partName ?? widget.test.title,
+          style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 18),
+        ),
+        backgroundColor: const Color(0xFF2563EB),
+        foregroundColor: Colors.white,
+        centerTitle: true,
+        elevation: 0,
         actions: [
           IconButton(
             icon: Consumer<PracticeViewModel>(builder: (context, vm, child) {
@@ -864,7 +877,7 @@ class _TestSimulationScreenState extends State<TestSimulationScreen> {
           IconButton(
             icon: const Icon(Icons.help_outline_rounded),
             onPressed: _showPartInstructions,
-            color: const Color(0xFF64748B),
+            color: Colors.white70,
             tooltip: 'Hướng dẫn làm bài',
           ),
           IconButton(
@@ -879,12 +892,10 @@ class _TestSimulationScreenState extends State<TestSimulationScreen> {
               padding: const EdgeInsets.only(right: 16.0),
               child: Text(
                 _formatDuration(_remainingTime),
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w800,
-                  color: _remainingTime.inMinutes < 5
-                      ? AppColors.error
-                      : AppColors.primary,
+                  color: Colors.white,
                   fontFamily: 'Courier',
                 ),
               ),
@@ -960,7 +971,7 @@ class _TestSimulationScreenState extends State<TestSimulationScreen> {
                                 const SizedBox(height: 16),
                                 _buildPassageHeader(currentPassage, currentQuestion.passageTranslations, currentQuestion.questionNumber, currentQuestion.passageImageUrls, currentQuestion.passageTitle),
                                 // Nếu câu hỏi có ảnh (Magic Scan image) — hiển thị tapable
-                                if (currentQuestion.imageUrl != null) ...[
+                                if (currentQuestion.imageUrl != null && currentQuestion.imageUrl!.isNotEmpty) ...[
                                   const SizedBox(height: 16),
                                   GestureDetector(
                                     onTap: () => _openFullscreenImage(context, currentQuestion.imageUrl!),
@@ -976,12 +987,19 @@ class _TestSimulationScreenState extends State<TestSimulationScreen> {
                                           ),
                                           child: ClipRRect(
                                             borderRadius: BorderRadius.circular(16),
-                                            child: Image.network(
-                                              currentQuestion.imageUrl!,
-                                              fit: BoxFit.contain,
-                                              loadingBuilder: (ctx, child, prog) =>
-                                                  prog == null ? child : const Center(child: CircularProgressIndicator()),
-                                            ),
+                                            child: AppConstants.getFullUrl(currentQuestion.imageUrl).isEmpty
+                                                ? const Center(child: Icon(Icons.broken_image_outlined, size: 48, color: Colors.grey))
+                                                : Image.network(
+                                                    AppConstants.getFullUrl(currentQuestion.imageUrl),
+                                                    fit: BoxFit.contain,
+                                                    width: double.infinity,
+                                                    height: double.infinity,
+                                                    errorBuilder: (context, error, stackTrace) => const Center(
+                                                      child: Icon(Icons.broken_image_outlined, size: 48, color: Colors.grey),
+                                                    ),
+                                                    loadingBuilder: (ctx, child, prog) =>
+                                                        prog == null ? child : const Center(child: CircularProgressIndicator()),
+                                                  ),
                                           ),
                                         ),
                                         Positioned(
@@ -1179,7 +1197,7 @@ class _TestSimulationScreenState extends State<TestSimulationScreen> {
                 ),
               const SizedBox(height: 16),
               // NEW: Question Image (e.g. for Part 5 or specific Magic Scan)
-              if (question.imageUrl != null) ...[
+              if (question.imageUrl != null && question.imageUrl!.isNotEmpty && _selectedPart?.partNumber != 2 && _selectedPart?.partNumber != 5) ...[
                 GestureDetector(
                   onTap: () => _openFullscreenImage(context, question.imageUrl!),
                   child: Hero(
@@ -1194,12 +1212,18 @@ class _TestSimulationScreenState extends State<TestSimulationScreen> {
                       ),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(16),
-                        child: Image.network(
-                          question.imageUrl!,
-                          fit: BoxFit.contain,
-                          loadingBuilder: (ctx, child, prog) =>
-                              prog == null ? child : const Center(child: CircularProgressIndicator()),
-                        ),
+                      child: AppConstants.getFullUrl(question.imageUrl).isEmpty
+                          ? const Center(child: Icon(Icons.broken_image_outlined, size: 48, color: Colors.grey))
+                          : Image.network(
+                              AppConstants.getFullUrl(question.imageUrl),
+                              fit: BoxFit.contain,
+                              width: double.infinity,
+                              errorBuilder: (context, error, stackTrace) => const Center(
+                                child: Icon(Icons.broken_image_outlined, size: 48, color: Colors.grey),
+                              ),
+                              loadingBuilder: (ctx, child, prog) =>
+                                  prog == null ? child : const Center(child: CircularProgressIndicator()),
+                            ),
                       ),
                     ),
                   ),
@@ -1331,7 +1355,7 @@ class _TestSimulationScreenState extends State<TestSimulationScreen> {
     String? optionText,
     String? correctAnswer,
   ) {
-    if (optionText == null) {
+    if (optionText == null || optionText.isEmpty) {
       return const SizedBox.shrink();
     }
 
@@ -1517,7 +1541,7 @@ class _TestSimulationScreenState extends State<TestSimulationScreen> {
                   const SizedBox(height: 24),
 
                   // Image (if any)
-                  if (_selectedPart!.instructionImgUrl != null)
+                  if (_selectedPart?.instructionImgUrl != null && _selectedPart!.instructionImgUrl!.trim().isNotEmpty)
                     Container(
                       width: double.infinity,
                       margin: const EdgeInsets.only(bottom: 24),
@@ -1533,10 +1557,15 @@ class _TestSimulationScreenState extends State<TestSimulationScreen> {
                       ),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(20),
-                        child: Image.network(
-                          _selectedPart!.instructionImgUrl!,
-                          fit: BoxFit.cover,
-                        ),
+                        child: AppConstants.getFullUrl(_selectedPart!.instructionImgUrl).isEmpty
+                            ? const Center(child: Icon(Icons.broken_image_outlined, size: 48, color: Colors.grey))
+                            : Image.network(
+                                AppConstants.getFullUrl(_selectedPart!.instructionImgUrl!),
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) => const Center(
+                                  child: Icon(Icons.broken_image_outlined, size: 48, color: Colors.grey),
+                                ),
+                              ),
                       ),
                     ),
 
@@ -1655,22 +1684,24 @@ class _FullscreenImageViewer extends StatelessWidget {
           minScale: 0.5,      // Thu nhỏ tối đa 0.5x
           maxScale: 5.0,      // Phóng to tối đa 5x
           boundaryMargin: const EdgeInsets.all(20), // Thêm vùng đệm khi kéo
-          child: Image.network(
-            imageUrl,
-            fit: BoxFit.contain,
-            loadingBuilder: (context, child, progress) {
-              if (progress == null) return child;
-              return Center(
-                child: CircularProgressIndicator(
-                  value: progress.expectedTotalBytes != null
-                      ? progress.cumulativeBytesLoaded /
-                          progress.expectedTotalBytes!
-                      : null,
-                  color: Colors.white,
+          child: AppConstants.getFullUrl(imageUrl).isEmpty
+              ? const Center(child: Icon(Icons.broken_image_outlined, size: 64, color: Colors.grey))
+              : Image.network(
+                  AppConstants.getFullUrl(imageUrl),
+                  fit: BoxFit.contain,
+                  errorBuilder: (context, error, stackTrace) => const Center(
+                    child: Icon(Icons.broken_image_outlined, size: 64, color: Colors.grey),
+                  ),
+                  loadingBuilder: (context, child, progress) {
+                    if (progress == null) return child;
+                    return Center(
+                      child: CircularProgressIndicator(
+                        value: progress.expectedTotalBytes != null ? progress.cumulativeBytesLoaded / progress.expectedTotalBytes! : null,
+                        color: Colors.white,
+                      ),
+                    );
+                  },
                 ),
-              );
-            },
-          ),
         ),
       ),
     );

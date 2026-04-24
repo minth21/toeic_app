@@ -162,20 +162,55 @@ export class AuthService {
     // PASSWORD RESET METHODS
     // ============================================
 
-    async requestPasswordReset(username: string): Promise<PasswordResetResponseDto> {
-        logger.info(`Password reset requested for username: ${username}`);
+    /**
+     * Gửi yêu cầu cấp lại mật khẩu cho Admin xử lý thủ công
+     */
+    async requestPasswordReset(username: string, email?: string, reason?: string): Promise<PasswordResetResponseDto> {
+        logger.info(`Manual password reset requested for username: ${username}`);
         try {
-            // Logic reset password qua email tạm thời vô hiệu hóa do đã xóa trường email
-            // Bạn có thể đăng ký lại logic này bằng cách sử dụng username hoặc một cơ chế khác
+            // 1. Kiểm tra xem user có tồn tại không để gán ID (nếu có)
+            const user = await prisma.user.findUnique({
+                where: { username },
+            });
+
+            // 2. Lưu yêu cầu vào database
+            const request = await (prisma as any).passwordResetRequest.create({
+                data: {
+                    userId: user?.id || null,
+                    username,
+                    email: email || user?.email || null,
+                    reason: reason || 'Quên mật khẩu',
+                    status: 'PENDING',
+                },
+            });
+
+            // 3. Thông báo cho Admin (Tìm admin đầu tiên hoặc tất cả admin)
+            const admins = await prisma.user.findMany({
+                where: { role: 'ADMIN' },
+                select: { id: true },
+            });
+
+            for (const admin of admins) {
+                await prisma.notification.create({
+                    data: {
+                        userId: admin.id,
+                        title: 'Yêu cầu cấp lại mật khẩu',
+                        content: `Người dùng ${username} đã gửi yêu cầu cấp lại mật khẩu. Lý do: ${reason || 'Không có'}`,
+                        type: 'SYSTEM',
+                        relatedId: request.id,
+                    },
+                });
+            }
+
             return {
-                success: false,
-                message: 'Chức năng reset mật khẩu qua email hiện chưa khả dụng. Vui lòng liên hệ Admin.',
+                success: true,
+                message: 'Yêu cầu của bạn đã được gửi tới Admin. Vui lòng chờ Admin xử lý và cấp lại mật khẩu mới.',
             };
         } catch (error) {
             logger.error('Request password reset error:', error);
             return {
                 success: false,
-                message: 'Đã xảy ra lỗi khi xử lý yêu cầu. Vui lòng thử lại sau.',
+                message: 'Đã xảy ra lỗi khi gửi yêu cầu. Vui lòng liên hệ trực tiếp Trung tâm.',
             };
         }
     }
@@ -460,6 +495,7 @@ export class AuthService {
             id: user.id,
             username: user.username,
             name: user.name,
+            email: user.email || undefined,
             role: user.role,
             authProvider: user.authProvider,
             isFirstLogin: user.isFirstLogin ?? true, // Bất buộc đổi mật khẩu lần đầu

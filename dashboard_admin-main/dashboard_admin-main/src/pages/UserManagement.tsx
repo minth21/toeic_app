@@ -33,6 +33,7 @@ import {
     PictureOutlined,
     CalendarOutlined,
     MailOutlined,
+    DeleteOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 
@@ -297,6 +298,23 @@ export default function UserManagement() {
             message.error('Có lỗi xảy ra khi cập nhật trạng thái tài khoản');
         }
     };
+    
+    // Xóa người dùng
+    const handleDelete = async (userId: string) => {
+        try {
+            const data = await userApi.delete(userId);
+            if (data.success) {
+                message.success('Đã xóa người dùng thành công');
+                fetchUsers();
+            } else {
+                message.error(data.message || 'Xóa thất bại');
+            }
+        } catch (error: any) {
+            console.error('Error deleting user:', error);
+            const errorMessage = error.response?.data?.message || 'Có lỗi xảy ra khi xóa người dùng';
+            message.error(errorMessage);
+        }
+    };
 
     // Định nghĩa columns cho table
     const columns: ColumnsType<User> = [
@@ -336,21 +354,24 @@ export default function UserManagement() {
             title: 'Họ và tên',
             dataIndex: 'name',
             key: 'name',
-            align: 'left' as const,
+            width: 200,
+            align: 'center' as const,
             sorter: (a, b) => a.name.localeCompare(b.name),
-            render: (name: string) => <span style={{ fontWeight: 500, color: token.colorText }}>{name}</span>,
+            render: (name: string) => <span style={{ fontWeight: 600, color: token.colorText }}>{name}</span>,
         },
         {
             title: 'Email',
             dataIndex: 'email',
             key: 'email',
-            align: 'left' as const,
+            width: 220,
+            align: 'center' as const,
+            sorter: (a: any, b: any) => (a.email || '').localeCompare(b.email || ''),
             render: (email: string) => email ? (
-                <span style={{ color: token.colorLink, display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <MailOutlined style={{ fontSize: 12 }} />
+                <span style={{ color: token.colorLink, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontWeight: 500 }}>
+                    <MailOutlined style={{ fontSize: 14, color: '#3B82F6' }} />
                     {email}
                 </span>
-            ) : <span style={{ color: '#94A3B8' }}>-</span>,
+            ) : <span style={{ color: '#94A3B8', fontStyle: 'italic' }}>Chưa cập nhật</span>,
         },
 
         {
@@ -441,6 +462,27 @@ export default function UserManagement() {
                                 borderRadius: '8px' 
                             }}
                             icon={<LockOutlined />}
+                        />
+                    </Popconfirm>
+                    <Popconfirm
+                        title="Xóa người dùng?"
+                        description="Hành động này không thể hoàn tác. Bạn có chắc chắn muốn xóa?"
+                        onConfirm={() => handleDelete(record.id)}
+                        okText="Xóa"
+                        cancelText="Hủy"
+                        okButtonProps={{ danger: true }}
+                        disabled={record.role === 'ADMIN'}
+                    >
+                        <Button
+                            type="text"
+                            danger
+                            disabled={record.role === 'ADMIN'}
+                            style={{ 
+                                background: record.role === 'ADMIN' ? '#F1F5F9' : '#FFF1F0', 
+                                color: record.role === 'ADMIN' ? '#94A3B8' : '#FF4D4F',
+                                borderRadius: '8px' 
+                            }}
+                            icon={<DeleteOutlined />}
                         />
                     </Popconfirm>
                 </Space>

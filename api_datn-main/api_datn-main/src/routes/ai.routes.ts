@@ -19,7 +19,8 @@ import {
     updateRoadmap,
     exportRoadmapPdf,
     getAllRoadmaps,
-    getAiAssessmentById
+    getAiAssessmentById,
+    generatePart4Explanations
 } from '../controllers/ai.controller';
 import { authMiddleware } from '../middlewares/auth.middleware';
 import multer from 'multer';
@@ -31,6 +32,7 @@ const router = Router();
 router.post('/generate-part6', authMiddleware, generatePart6Explanations);
 router.post('/generate-explanation', authMiddleware, generateExplanation);
 router.post('/generate-batch-explanations', authMiddleware, generateBatchExplanations);
+router.post('/generate-part4', authMiddleware, generatePart4Explanations);
 
 // Part 5 specific AI Auto-Parser routes
 router.post('/enrich-part5', authMiddleware, enrichPart5Question);

@@ -20,6 +20,7 @@ export const getAllUsers = async (
         where.OR = [
             { name: { contains: search, mode: 'insensitive' } },
             { username: { contains: search, mode: 'insensitive' } },
+            { email: { contains: search, mode: 'insensitive' } },
         ];
     }
 
@@ -38,6 +39,7 @@ export const getAllUsers = async (
                 id: true,
                 username: true,
                 name: true,
+                email: true,
                 phoneNumber: true,
                 dateOfBirth: true,
                 avatarUrl: true,
@@ -77,6 +79,7 @@ export const getUserById = async (id: string) => {
             id: true,
             username: true,
             name: true,
+            email: true,
             phoneNumber: true,
             avatarUrl: true,
             role: true,
@@ -101,6 +104,7 @@ export const updateUser = async (id: string, data: any) => {
         where: { id },
         data: {
             name: data.name,
+            email: data.email,
             username: data.username,
             phoneNumber: data.phoneNumber,
             dateOfBirth: data.dateOfBirth,
@@ -114,6 +118,7 @@ export const updateUser = async (id: string, data: any) => {
             id: true,
             username: true,
             name: true,
+            email: true,
             phoneNumber: true,
             dateOfBirth: true,
             gender: true,

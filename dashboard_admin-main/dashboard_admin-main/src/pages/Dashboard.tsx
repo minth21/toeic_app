@@ -16,6 +16,7 @@ import {
     FlagOutlined,
     MessageOutlined,
     BulbOutlined,
+    KeyOutlined,
 } from '@ant-design/icons';
 import { useTheme } from '../hooks/useThemeContext';
 import { useNavigate, Outlet, useLocation } from 'react-router-dom';
@@ -57,7 +58,7 @@ export default function Dashboard() {
         if (userData) {
             const parsedUser = JSON.parse(userData);
             setUser(parsedUser);
-            
+
             // Tự động bật Modal đổi mật khẩu nếu là lần đầu đăng nhập (Ngoại trừ ADMIN)
             if (parsedUser.isFirstLogin && parsedUser.role !== 'ADMIN') {
                 setIsPassModalVisible(true);
@@ -90,6 +91,8 @@ export default function Dashboard() {
             setSelectedMenu('8');
         } else if (path === '/roadmap-audit') {
             setSelectedMenu('9');
+        } else if (path === '/password-reset') {
+            setSelectedMenu('10');
         }
     }, [location.pathname]);
 
@@ -98,14 +101,14 @@ export default function Dashboard() {
     // ============================================
     useEffect(() => {
         if (!user) return;
-        
+
         const path = location.pathname;
         const role = user.role;
-        
+
         if (role === 'TEACHER') {
             const allowedPaths = ['/teacher/classes', '/teacher/materials', '/profile', '/dashboard', '/complaints', '/class-feedback'];
             const isAllowed = allowedPaths.some(p => path.startsWith(p));
-            
+
             if (!isAllowed && path !== '/') {
                 message.error('Bạn không có quyền truy cập trang này. Chuyển về Bài giảng và bài tập.');
                 navigate('/teacher/materials', { replace: true });
@@ -113,12 +116,12 @@ export default function Dashboard() {
             // Redirect from / or /dashboard to /teacher/materials for Teachers
             if (path === '/' || path === '/dashboard' || path === '/exam-bank') navigate('/teacher/materials', { replace: true });
         }
-        
+
         // 2. SPECIALIST (CV) Guard
         if (role === 'SPECIALIST') {
             const forbiddenPaths = ['/users', '/classes', '/teacher/classes'];
             const isForbidden = forbiddenPaths.some(p => path.startsWith(p));
-            
+
             if (isForbidden) {
                 message.error('Chuyên viên không có quyền quản lý Người dùng/Lớp học/Học viên. Chuyển về Ngân hàng đề.');
                 navigate('/exam-bank', { replace: true });
@@ -129,7 +132,7 @@ export default function Dashboard() {
 
         // 3. Prevent unauthorized direct access to sensitive paths (for other potential roles)
         if (role === 'STUDENT' && path === '/dashboard') {
-             navigate('/exam-bank', { replace: true });
+            navigate('/exam-bank', { replace: true });
         }
     }, [location.pathname, user?.role, navigate]);
 
@@ -139,7 +142,7 @@ export default function Dashboard() {
             content: 'Bạn có chắc chắn muốn đăng xuất khỏi hệ thống không?',
             okText: 'Đăng xuất',
             cancelText: 'Hủy',
-            okButtonProps: { 
+            okButtonProps: {
                 danger: true,
                 style: { borderRadius: '8px', fontWeight: 600 }
             },
@@ -167,7 +170,8 @@ export default function Dashboard() {
             '6': 'HỒ SƠ CÁ NHÂN',
             '7': 'QUẢN LÝ GÓP Ý',
             '8': 'Ý KIẾN HỌC VIÊN',
-            '9': 'KIỂM DUYỆT LỘ TRÌNH AI',
+            '9': 'QUẢN LÝ LỘ TRÌNH',
+            '10': 'CẤP LẠI MẬT KHẨU',
         };
         return menuTitles[menuKey] || 'TỔNG QUAN';
     };
@@ -212,6 +216,7 @@ export default function Dashboard() {
         if (key === '7') navigate('/complaints');
         if (key === '8') navigate('/class-feedback');
         if (key === '9') navigate('/roadmap-audit');
+        if (key === '10') navigate('/password-reset');
     };
 
     // ============================================
@@ -249,12 +254,20 @@ export default function Dashboard() {
                 label: <span style={{ fontWeight: 600 }}>Quản lý lớp học</span>,
                 style: { borderRadius: 12, marginBottom: 12, height: 54, display: 'flex', alignItems: 'center', fontSize: 15 },
             });
-            
+
             // NEW: Roadmap Audit - Admin only
             items.push({
                 key: '9',
                 icon: <BulbOutlined style={{ fontSize: 20 }} />,
                 label: <span style={{ fontWeight: 600 }}>Kiểm duyệt lộ trình</span>,
+                style: { borderRadius: 12, marginBottom: 12, height: 54, display: 'flex', alignItems: 'center', fontSize: 15 },
+            });
+
+            // NEW: Password Reset - Admin only
+            items.push({
+                key: '10',
+                icon: <KeyOutlined style={{ fontSize: 20 }} />,
+                label: <span style={{ fontWeight: 600 }}>Cấp lại mật khẩu</span>,
                 style: { borderRadius: 12, marginBottom: 12, height: 54, display: 'flex', alignItems: 'center', fontSize: 15 },
             });
         }
@@ -495,9 +508,9 @@ export default function Dashboard() {
                                 trigger={['click']}
                                 disabled={user.role === 'ADMIN'} // Admin không có đổi mật khẩu thì disable dropdown
                             >
-                                <div style={{ 
-                                    display: 'flex', 
-                                    flexDirection: 'column', 
+                                <div style={{
+                                    display: 'flex',
+                                    flexDirection: 'column',
                                     justifyContent: 'center',
                                     cursor: user.role !== 'ADMIN' ? 'pointer' : 'default'
                                 }}>

@@ -5,7 +5,8 @@ import '../../../constants/app_constants.dart';
 import '../../auth/viewmodels/auth_viewmodel.dart';
 
 class ChangePasswordScreen extends StatefulWidget {
-  const ChangePasswordScreen({super.key});
+  final bool isFirstLogin;
+  const ChangePasswordScreen({super.key, this.isFirstLogin = false});
 
   @override
   State<ChangePasswordScreen> createState() => _ChangePasswordScreenState();
@@ -32,12 +33,19 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     final authViewModel = context.read<AuthViewModel>();
-    final hasPassword = authViewModel.currentUser?.hasPassword ?? false;
-
-    final success = await authViewModel.changePassword(
-      oldPassword: hasPassword ? _oldPasswordController.text : null,
-      newPassword: _newPasswordController.text,
-    );
+    
+    bool success;
+    if (widget.isFirstLogin) {
+      success = await authViewModel.changeFirstPassword(
+        newPassword: _newPasswordController.text,
+      );
+    } else {
+      final hasPassword = authViewModel.currentUser?.hasPassword ?? false;
+      success = await authViewModel.changePassword(
+        oldPassword: hasPassword ? _oldPasswordController.text : null,
+        newPassword: _newPasswordController.text,
+      );
+    }
 
     if (mounted) {
       if (success) {
@@ -47,7 +55,13 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
             backgroundColor: AppColors.success,
           ),
         );
-        Navigator.pop(context);
+        
+        if (widget.isFirstLogin) {
+          // Nếu đổi mật khẩu lần đầu thành công, chuyển hướng vào Home
+          Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
+        } else {
+          Navigator.pop(context);
+        }
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -68,7 +82,9 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       backgroundColor: Colors.white,
       appBar: AppBar(
         title: Text(
-          hasPassword ? 'Đổi mật khẩu' : 'Thiết lập mật khẩu',
+          widget.isFirstLogin 
+              ? 'Thiết lập mật khẩu mới' 
+              : (hasPassword ? 'Đổi mật khẩu' : 'Thiết lập mật khẩu'),
           style: GoogleFonts.inter(
             color: AppColors.textPrimary,
             fontWeight: FontWeight.bold,
@@ -76,14 +92,16 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
         ),
         backgroundColor: Colors.white,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(
-            Icons.arrow_back_ios_new,
-            color: AppColors.textPrimary,
-            size: 20,
-          ),
-          onPressed: () => Navigator.pop(context),
-        ),
+        leading: widget.isFirstLogin 
+          ? null // Không cho quay lại nếu bắt buộc đổi pass
+          : IconButton(
+              icon: const Icon(
+                Icons.arrow_back_ios_new,
+                color: AppColors.textPrimary,
+                size: 20,
+              ),
+              onPressed: () => Navigator.pop(context),
+            ),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24.0),
@@ -93,9 +111,11 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                hasPassword
-                    ? 'Hãy nhập mật khẩu hiện tại và mật khẩu mới của bạn.'
-                    : 'Chào mừng! Vì bạn đã đăng nhập bằng Google, hãy thiết lập mật khẩu để có thêm lựa chọn đăng nhập sau này.',
+                widget.isFirstLogin
+                    ? 'Bạn cần thiết lập mật khẩu mới để tiếp tục sử dụng ứng dụng sau khi Admin đã cấp lại mật khẩu cho bạn.'
+                    : (hasPassword
+                        ? 'Hãy nhập mật khẩu hiện tại và mật khẩu mới của bạn.'
+                        : 'Chào mừng! Vì bạn đã đăng nhập bằng Google, hãy thiết lập mật khẩu để có thêm lựa chọn đăng nhập sau này.'),
                 style: GoogleFonts.inter(
                   color: AppColors.textSecondary,
                   fontSize: 14,
@@ -103,7 +123,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
               ),
               const SizedBox(height: 32),
 
-              if (hasPassword) ...[
+              if (hasPassword && !widget.isFirstLogin) ...[
                 _buildPasswordField(
                   controller: _oldPasswordController,
                   label: 'Mật khẩu hiện tại',

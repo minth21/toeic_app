@@ -243,7 +243,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           color: Colors.white,
                         ),
                       ),
-                      const SizedBox(height: 4),
                       // Username (Display as student code)
                       Text(
                         user?.username ?? '',
@@ -252,6 +251,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           color: Colors.white.withValues(alpha: 0.9),
                         ),
                       ),
+                      if (user?.email != null && user!.email!.isNotEmpty) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          user.email!,
+                          style: GoogleFonts.inter(
+                            fontSize: 13,
+                            color: Colors.white.withValues(alpha: 0.8),
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -289,7 +299,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       );
                     },
                   ),
-                  if (user?.classId != null)
+                  if (user?.isStudent == true)
                     _buildSettingItem(
                       icon: Icons.chat_bubble_outline_rounded,
                       title: 'Ý kiến giáo viên',

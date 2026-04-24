@@ -70,6 +70,21 @@ export const validateAndStandardizePassageData = (data: any): string | null => {
             };
         }
 
+        // Case 3: General format (simple content + vocabulary)
+        if (block.type === 'general' || block.content !== undefined) {
+            return {
+                type: 'general',
+                label: String(block.label || 'Bản dịch & Từ vựng'),
+                content: String(block.content || '').trim(),
+                vocabulary: Array.isArray(block.vocabulary) ? block.vocabulary.map((v: any) => ({
+                    text: String(v.text || '').trim(),
+                    pos: String(v.pos || v.wordType || '').trim(),
+                    ipa: String(v.ipa || '').trim(),
+                    meaning: String(v.meaning || '').trim()
+                })) : []
+            };
+        }
+
         // Case 2: Standard format (supports both 'sentences' and 'items')
         const rawItems = Array.isArray(block.items) ? block.items : (Array.isArray(block.sentences) ? block.sentences : []);
         
@@ -88,7 +103,7 @@ export const validateAndStandardizePassageData = (data: any): string | null => {
             label: String(block.label || (index === 0 ? 'Passage' : `Passage ${index + 1}`)),
             items
         };
-    }).filter((block: any) => block.items && block.items.length > 0);
+    }).filter((block: any) => (block.items && block.items.length > 0) || (block.type === 'general' && block.content));
 
     if (standardized.length === 0) return null;
 

@@ -103,7 +103,7 @@ class _FlashcardWidgetState extends State<FlashcardWidget>
           final angle = _animation.value * pi;
           return Transform(
             transform: Matrix4.identity()
-              ..setEntry(3, 2, 0.0012) // Improved Perspective
+              ..setEntry(3, 2, 0.001) // Perspective
               ..rotateY(angle),
             alignment: Alignment.center,
             child: angle < pi / 2
@@ -162,6 +162,7 @@ class _FlashcardWidgetState extends State<FlashcardWidget>
         ],
       ),
       child: Stack(
+        alignment: Alignment.center,
         children: [
           // Decorative background element
           Positioned(
@@ -177,53 +178,62 @@ class _FlashcardWidgetState extends State<FlashcardWidget>
             padding: const EdgeInsets.all(24),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                RichText(
+                // Word
+                Text(
+                  widget.flashcard.word,
+                  style: AppTypography.ui(
+                    fontSize: 34,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.white,
+                    letterSpacing: -0.5,
+                  ),
                   textAlign: TextAlign.center,
-                  text: TextSpan(
-                    children: [
-                      TextSpan(
-                        text: widget.flashcard.word,
-                        style: AppTypography.ui(
-                          fontSize: 34,
-                          fontWeight: FontWeight.w900,
-                          color: Colors.white,
-                          letterSpacing: -0.5,
+                ),
+                
+                // Type & IPA Row (Centered)
+                const SizedBox(height: 12),
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    if (typeStr.isNotEmpty)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(8),
                         ),
-                      ),
-                      if (typeStr.isNotEmpty)
-                        TextSpan(
-                          text: ' ($typeStr)',
+                        child: Text(
+                          typeStr,
                           style: AppTypography.ui(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white.withValues(alpha: 0.8),
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
                           ),
                         ),
-                    ],
-                  ),
-                ),
-                if (widget.flashcard.ipa != null && widget.flashcard.ipa!.isNotEmpty) ...[
-                  const SizedBox(height: 10),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(
-                      widget.flashcard.ipa!,
-                      style: AppTypography.ui(
-                        fontSize: 16,
-                        color: Colors.white,
-                        fontWeight: FontWeight.w500,
                       ),
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 24),
+                    if (widget.flashcard.ipa != null && widget.flashcard.ipa!.isNotEmpty)
+                      Text(
+                        widget.flashcard.ipa!,
+                        style: AppTypography.ui(
+                          fontSize: 16,
+                          color: Colors.white.withValues(alpha: 0.9),
+                          fontWeight: FontWeight.w500,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                  ],
+                ),
+                
+                const SizedBox(height: 32),
+                // Hint
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(
                       Icons.touch_app_rounded,
@@ -231,16 +241,13 @@ class _FlashcardWidgetState extends State<FlashcardWidget>
                       size: 16,
                     ),
                     const SizedBox(width: 8),
-                    Flexible(
-                      child: Text(
-                        context.tr('tap_to_flip').toUpperCase(),
-                        style: AppTypography.ui(
-                          color: Colors.white.withValues(alpha: 0.6),
-                          fontSize: 10,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 1.2,
-                        ),
-                        overflow: TextOverflow.ellipsis,
+                    Text(
+                      context.tr('tap_to_flip').toUpperCase(),
+                      style: AppTypography.ui(
+                        color: Colors.white.withValues(alpha: 0.6),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.2,
                       ),
                     ),
                   ],
@@ -251,11 +258,33 @@ class _FlashcardWidgetState extends State<FlashcardWidget>
         ],
       ),
     );
-  }
+}
 
   Widget _buildBack(Map<String, dynamic> palette) {
     final colors = palette['gradient'] as List<Color>;
     final primaryColor = colors[0];
+
+    final rawType = (widget.flashcard.wordType ?? '').toLowerCase();
+    String typeStr = '';
+    if (rawType.isNotEmpty) {
+      if (rawType.contains('noun')) {
+        typeStr = 'n';
+      } else if (rawType.contains('verb')) {
+        typeStr = 'v';
+      } else if (rawType.contains('adjective')) {
+        typeStr = 'adj';
+      } else if (rawType.contains('adverb')) {
+        typeStr = 'adv';
+      } else if (rawType.contains('preposition')) {
+        typeStr = 'prep';
+      } else if (rawType.contains('conjunction')) {
+        typeStr = 'conj';
+      } else if (rawType.contains('pronoun')) {
+        typeStr = 'pron';
+      } else {
+        typeStr = rawType;
+      }
+    }
 
     return Container(
       constraints: const BoxConstraints(minHeight: 200),
@@ -273,7 +302,8 @@ class _FlashcardWidgetState extends State<FlashcardWidget>
         ],
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
         children: [
           // Header
           Container(
@@ -316,65 +346,92 @@ class _FlashcardWidgetState extends State<FlashcardWidget>
             ),
           ),
           
-          Padding(
-              padding: const EdgeInsets.all(20),
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    widget.flashcard.meaning,
-                    style: AppTypography.friendly(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: const Color(0xFF1E293B),
-                    ),
+                  // Meaning and Word Type
+                  RichText(
                     textAlign: TextAlign.center,
+                    text: TextSpan(
+                      children: [
+                        TextSpan(
+                          text: widget.flashcard.meaning,
+                          style: AppTypography.friendly(
+                            fontSize: 26,
+                            fontWeight: FontWeight.bold,
+                            color: const Color(0xFF1E293B),
+                          ),
+                        ),
+                        if (typeStr.isNotEmpty)
+                          TextSpan(
+                            text: ' ($typeStr)',
+                            style: AppTypography.friendly(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: primaryColor.withValues(alpha: 0.6),
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
+                  
+                  // IPA with Background
                   if (widget.flashcard.ipa != null && widget.flashcard.ipa!.isNotEmpty) ...[
-                    const SizedBox(height: 6),
-                    Text(
-                      widget.flashcard.ipa!,
-                      style: AppTypography.friendly(
-                        fontSize: 16,
-                        color: primaryColor,
-                        fontStyle: FontStyle.italic,
-                        fontWeight: FontWeight.w500,
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: primaryColor.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(10),
                       ),
-                      textAlign: TextAlign.center,
+                      child: Text(
+                        widget.flashcard.ipa!,
+                        style: AppTypography.friendly(
+                          fontSize: 15,
+                          color: primaryColor,
+                          fontWeight: FontWeight.w600,
+                          fontStyle: FontStyle.italic,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
                     ),
                   ],
+
+                  // Example Section
                   if (widget.flashcard.exampleEn != null && widget.flashcard.exampleEn!.isNotEmpty) ...[
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 28),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF8FAFC), // slate-50
-                        borderRadius: BorderRadius.circular(12),
+                        color: const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: const Color(0xFFE2E8F0), width: 1),
                       ),
                       child: Column(
                         children: [
                           Text(
                             context.tr('example_caps'),
                             style: GoogleFonts.outfit(
-                              fontSize: 9,
+                              fontSize: 10,
                               fontWeight: FontWeight.w800,
-                              color: const Color(0xFF94A3B8),
-                              letterSpacing: 0.5,
+                              color: const Color(0xFF64748B),
+                              letterSpacing: 1.0,
                             ),
                           ),
-                          const SizedBox(height: 4),
+                          const SizedBox(height: 8),
                           Text(
                             widget.flashcard.exampleEn!,
                             style: AppTypography.friendly(
-                              fontSize: 13,
-                              color: const Color(0xFF475569),
+                              fontSize: 14,
+                              color: const Color(0xFF334155),
                               fontStyle: FontStyle.italic,
-                              height: 1.4,
+                              height: 1.5,
                             ),
                             textAlign: TextAlign.center,
-                            maxLines: 3,
-                            overflow: TextOverflow.ellipsis,
                           ),
                         ],
                       ),
@@ -383,6 +440,7 @@ class _FlashcardWidgetState extends State<FlashcardWidget>
                 ],
               ),
             ),
+          ),
         ],
       ),
     );

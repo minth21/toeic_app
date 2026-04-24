@@ -268,15 +268,21 @@ class PracticeApiService {
       );
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
+        final cleanedBody = _cleanAIResponse(response.body);
+        final data = jsonDecode(cleanedBody);
         if (data['success'] == true) {
           return data['data'];
         }
       }
       return null;
     } catch (e) {
+      debugPrint('Translation error: $e');
       return null;
     }
+  }
+
+  String _cleanAIResponse(String text) {
+    return text.replaceFirst(RegExp(r'^```json\s*'), '').replaceFirst(RegExp(r'\s*```$'), '').trim();
   }
 
   Future<bool> saveFlashcards(List<Map<String, dynamic>> flashcards, String partId) async {

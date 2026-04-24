@@ -376,4 +376,38 @@ class AuthViewModel extends ChangeNotifier {
       notifyListeners();
     }
   }
+
+  /// Gửi yêu cầu cấp lại mật khẩu cho Admin
+  Future<bool> requestPasswordReset({
+    required String username,
+    String? email,
+    String? reason,
+  }) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final response = await _authApiService.requestPasswordReset(
+        username: username,
+        email: email,
+        reason: reason,
+      );
+
+      _isLoading = false;
+      if (response['success'] == true) {
+        notifyListeners();
+        return true;
+      } else {
+        _errorMessage = response['message'] ?? 'Gửi yêu cầu thất bại';
+        notifyListeners();
+        return false;
+      }
+    } catch (e) {
+      _errorMessage = 'Lỗi kết nối: ${e.toString()}';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
 }

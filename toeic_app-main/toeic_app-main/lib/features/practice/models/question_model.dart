@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import '../../../constants/app_constants.dart';
 
 class QuestionModel {
   final String id;
@@ -66,13 +67,13 @@ class QuestionModel {
       questionNumber: parseInt(json['questionNumber'] ?? json['question_number'] ?? json['number']),
       passage: json['passage'],
       passageTitle: json['passageTitle'] ?? json['passage_title'],
-      passageImageUrl: (json['passageImageUrl'] ?? json['passage_image_url'])?.toString(),
+      passageImageUrl: AppConstants.getFullUrl((json['passageImageUrl'] ?? json['passage_image_url'])?.toString()),
       passageTranslationData: (json['passageTranslationData'] ?? json['passage_translation_data'])?.toString(),
       questionText: (json['questionText'] ?? json['question_text'])?.toString(),
       questionTranslation: (json['questionTranslation'] ?? json['question_translation'])?.toString(),
       optionTranslations: (json['optionTranslations'] ?? json['option_translations'])?.toString(),
       keyVocabulary: (json['keyVocabulary'] ?? json['key_vocabulary'])?.toString(),
-      imageUrl: (json['imageUrl'] ?? json['image_url'])?.toString(),
+      imageUrl: AppConstants.getFullUrl((json['imageUrl'] ?? json['image_url'])?.toString()),
       optionA: (json['optionA'] ?? json['option_a'])?.toString(),
       optionB: (json['optionB'] ?? json['option_b'])?.toString(),
       optionC: (json['optionC'] ?? json['option_c'])?.toString(),
@@ -81,7 +82,7 @@ class QuestionModel {
       explanation: (json['explanation'] ?? json['explanationText'])?.toString(),
       analysis: json['analysis']?.toString(),
       evidence: json['evidence']?.toString(),
-      audioUrl: (json['audioUrl'] ?? json['audio_url'])?.toString(),
+      audioUrl: AppConstants.getFullUrl((json['audioUrl'] ?? json['audio_url'])?.toString()),
       transcript: json['transcript']?.toString(),
       topicTag: (json['topic_tag'] ?? json['topicTag'] ?? json['topic'])?.toString(),
     );
@@ -120,6 +121,38 @@ class QuestionModel {
         if (item['type'] == '_meta') continue;
 
         try {
+          // --- NEW: General Translation Format (for Part 3/4) ---
+          if (item['type'] == 'general') {
+            final String content = item['content']?.toString() ?? '';
+            final List<dynamic> vocabItems = item['vocabulary'] ?? [];
+            
+            final List<Map<String, dynamic>> sentencesList = [
+              {
+                'en': '', // General format has only Vietnamese content
+                'vi': content,
+                'vocab': vocabItems.map((v) {
+                  if (v is Map) {
+                    return {
+                      'text': v['text']?.toString() ?? v['word']?.toString() ?? '',
+                      'meaning': v['meaning']?.toString() ?? '',
+                      'ipa': v['ipa']?.toString() ?? '',
+                      'pos': v['pos']?.toString() ?? v['type']?.toString() ?? '',
+                    };
+                  }
+                  return <String, String>{};
+                }).toList(),
+              }
+            ];
+
+            result.add({
+              'label': item['label']?.toString() ?? 'Bản dịch',
+              'sentences': sentencesList,
+              'type': 'general',
+              'content': content,
+            });
+            continue;
+          }
+
           // Standard Format: {label, sentences: [{en, vi, vocab: []}]}
           // Supports both 'items' (Project Contract) and 'sentences' (Legacy)
           final dynamic sData = item['items'] ?? item['sentences'] ?? item['translation'] ?? item['passage'] ?? [];

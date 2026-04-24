@@ -13,6 +13,7 @@ import 'test_simulation_screen.dart';
 import 'reading_review_screen.dart';
 import '../models/exam_model.dart';
 import '../models/question_model.dart';
+import 'listening_simulation_screen.dart';
 import 'widgets/vocab_flashcard_panel.dart';
 import '../../auth/viewmodels/auth_viewmodel.dart';
 import '../../home/viewmodels/dashboard_viewmodel.dart';
@@ -66,11 +67,11 @@ class _PracticeResultScreenState extends State<PracticeResultScreen> {
     ];
 
     Future.doWhile(() async {
-      await Future.delayed(const Duration(seconds: 8));
+      await Future.delayed(const Duration(seconds: 4));
       if (!mounted || !_isAnalyzing) return false;
       setState(() {
-        seconds += 8;
-        int index = (seconds ~/ 8) % messages.length;
+        seconds += 4;
+        int index = (seconds ~/ 4) % messages.length;
         _loadingMessage = messages[index];
       });
       return true;
@@ -363,6 +364,8 @@ class _PracticeResultScreenState extends State<PracticeResultScreen> {
                         : const Icon(Icons.visibility_rounded, size: 18),
                     label: Text(
                       _isLoadingDetail ? 'TẢI...' : 'LỜI GIẢI',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         fontWeight: FontWeight.w900,
                         fontSize: 12,
@@ -758,11 +761,11 @@ class _PracticeResultScreenState extends State<PracticeResultScreen> {
                                 ),
                                 const SizedBox(width: 8),
                                 Expanded(
-                                  child: Text(
+                                  child: HtmlWidget(
                                     (_aiData?['shortFeedback']?.toString() ?? "").isEmpty
                                         ? "AI đang tổng hợp đánh giá chi tiết cho bạn..."
                                         : _aiData!['shortFeedback'].toString(),
-                                    style: const TextStyle(
+                                    textStyle: const TextStyle(
                                       fontSize: 15,
                                       fontWeight: FontWeight.bold,
                                       color: Color(0xFF1E3A8A),
@@ -850,9 +853,9 @@ class _PracticeResultScreenState extends State<PracticeResultScreen> {
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: color.withValues(alpha: 0.2)),
             ),
-            child: Text(
+            child: HtmlWidget(
               item.toString(),
-              style: TextStyle(
+              textStyle: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
                 color: color.withValues(alpha: 0.9),
@@ -1084,6 +1087,22 @@ class _PracticeResultScreenState extends State<PracticeResultScreen> {
               ),
             ),
           );
+        } else if (widget.part.partNumber == 3 || widget.part.partNumber == 4) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ListeningSimulationScreen(
+                test: practiceTest!,
+                partId: widget.part.id,
+                isReviewMode: true,
+                initialUserAnswers: userAnswers,
+                correctQuestionIds: correctQuestionIds,
+                correctQuestionNumbers: correctQuestionNumbers,
+                aiFeedbacks: _aiData?['questionFeedbacks'],
+                overallFeedback: _aiData?['overallAssessment'],
+              ),
+            ),
+          );
         } else {
           Navigator.push(
             context,
@@ -1096,6 +1115,7 @@ class _PracticeResultScreenState extends State<PracticeResultScreen> {
                 correctQuestionNumbers: correctQuestionNumbers, // 🟢 Dual-Check
                 partNumber: widget.part.partNumber,
                 aiFeedbacks: _aiData?['questionFeedbacks'],
+                overallFeedback: _aiData?['overallAssessment'],
               ),
             ),
           );
@@ -1318,10 +1338,11 @@ class _PracticeResultScreenState extends State<PracticeResultScreen> {
                 subtitle: Text(
                   userAnswer.isEmpty 
                     ? 'Bạn chưa chọn đáp án cho câu này' 
-                    : 'Bạn chọn: $userAnswer - Đáp án: ${q.correctAnswer}',
+                    : 'Bạn chọn: $userAnswer — Đáp án đúng: ${q.correctAnswer}',
                   style: TextStyle(
                     fontSize: 12,
-                    color: AppColors.textSecondary,
+                    color: userAnswer.isEmpty ? AppColors.error : AppColors.textSecondary,
+                    fontWeight: userAnswer.isEmpty ? FontWeight.bold : FontWeight.normal,
                   ),
                 ),
                 trailing: const Icon(

@@ -5,11 +5,13 @@ import '../../../../constants/app_constants.dart';
 
 class CustomAudioPlayer extends StatefulWidget {
   final String audioUrl;
+  final String? subtitle;
   final bool autoPlay;
 
   const CustomAudioPlayer({
     super.key,
     required this.audioUrl,
+    this.subtitle,
     this.autoPlay = true,
   });
 
@@ -28,9 +30,18 @@ class _CustomAudioPlayerState extends State<CustomAudioPlayer> {
     _initPlayer();
   }
 
+  @override
+  void didUpdateWidget(CustomAudioPlayer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.audioUrl != widget.audioUrl) {
+      _initPlayer();
+    }
+  }
+
   Future<void> _initPlayer() async {
     try {
-      await _player.setUrl(widget.audioUrl);
+      final String normalizedUrl = AppConstants.getFullUrl(widget.audioUrl);
+      await _player.setUrl(normalizedUrl);
       if (widget.autoPlay) {
         _player.play();
       }
@@ -107,7 +118,7 @@ class _CustomAudioPlayerState extends State<CustomAudioPlayer> {
                     ),
                   ),
                   Text(
-                    'Part 1: Photographs',
+                    widget.subtitle ?? 'Listening Audio',
                     style: GoogleFonts.inter(
                       fontSize: 12,
                       color: AppColors.textSecondary,

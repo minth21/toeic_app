@@ -18,10 +18,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _nameController;
   late TextEditingController _phoneController;
+  late TextEditingController _emailController;
   late TextEditingController _dobController;
   DateTime? _selectedDate;
 
   bool _isLoading = false;
+  bool _emailFixed = false;
 
   @override
   void initState() {
@@ -29,6 +31,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     final user = context.read<AuthViewModel>().currentUser;
     _nameController = TextEditingController(text: user?.name ?? '');
     _phoneController = TextEditingController(text: user?.phoneNumber ?? '');
+    _emailController = TextEditingController(text: user?.email ?? '');
+    _emailFixed = user?.email != null && user!.email!.isNotEmpty;
 
     if (user?.dateOfBirth != null) {
       _selectedDate = user!.dateOfBirth;
@@ -44,6 +48,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   void dispose() {
     _nameController.dispose();
     _phoneController.dispose();
+    _emailController.dispose();
     _dobController.dispose();
     super.dispose();
   }
@@ -82,6 +87,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
     final success = await context.read<AuthViewModel>().updateProfile(
       name: _nameController.text.trim(),
+      email: _emailFixed ? null : _emailController.text.trim(), // Only send if not fixed
       phoneNumber: _phoneController.text.trim().isEmpty
           ? null
           : _phoneController.text.trim(),
@@ -159,6 +165,51 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   keyboardType: TextInputType.phone,
                   decoration: _buildInputDecoration('Nhập số điện thoại'),
                   style: GoogleFonts.inter(),
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    _buildLabel('Địa chỉ Email'),
+                    if (_emailFixed) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withAlpha(26),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          'Đã cố định',
+                          style: GoogleFonts.inter(
+                            fontSize: 10,
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                TextFormField(
+                  controller: _emailController,
+                  readOnly: _emailFixed,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: _buildInputDecoration('example@gmail.com').copyWith(
+                    fillColor: _emailFixed ? Colors.grey[100] : Colors.white,
+                    prefixIcon: const Icon(Icons.email_outlined, size: 20),
+                  ),
+                  style: GoogleFonts.inter(
+                    color: _emailFixed ? AppColors.textSecondary : AppColors.textPrimary,
+                  ),
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Vui lòng nhập email';
+                    }
+                    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
+                      return 'Email không hợp lệ';
+                    }
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 20),
                 _buildLabel('Ngày sinh'),

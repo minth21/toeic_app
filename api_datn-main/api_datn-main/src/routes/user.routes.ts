@@ -9,6 +9,7 @@ import {
     getProfile,
     toggleUserStatus,
     getLeaderboard,
+    deleteUser,
 } from '../controllers/user.controller';
 import { authMiddleware } from '../middlewares/auth.middleware';
 import { adminMiddleware } from '../middlewares/admin.middleware';
@@ -46,8 +47,6 @@ router.post('/', authMiddleware, adminMiddleware, createUser);
  */
 router.get('/', authMiddleware, adminMiddleware, getUsers);
 
-
-
 /**
  * GET /api/users/:id - Lấy thông tin chi tiết 1 user
  * Admin or Teacher only
@@ -66,6 +65,11 @@ router.get('/:id', authMiddleware, (req, res, next) => {
  * Admin only
  */
 router.patch('/:id', authMiddleware, adminMiddleware, updateUserById);
+
+/**
+ * DELETE /api/users/:id - Xóa người dùng (Admin only)
+ */
+router.delete('/:id', authMiddleware, adminMiddleware, deleteUser);
 
 /**
  * GET /api/users/leaderboard - Lấy bảng xếp hạng học viên
