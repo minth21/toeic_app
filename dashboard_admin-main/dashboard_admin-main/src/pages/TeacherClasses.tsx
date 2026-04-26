@@ -2,13 +2,13 @@ import React, { useState, useEffect } from 'react';
 import {
     Table, Card, Button, Input, Space, Tag, Typography,
     Row, Col, Statistic, Progress, Drawer, Tabs,
-    Avatar, message, Divider
+    Avatar, message, Divider, Modal
 } from 'antd';
 import {
     SearchOutlined, UserOutlined, BookOutlined,
     HistoryOutlined,
     BulbOutlined, EditOutlined, SaveOutlined,
-    PlusOutlined, DeleteOutlined, SendOutlined, TeamOutlined, DownloadOutlined, EyeOutlined, ReloadOutlined
+    PlusOutlined, DeleteOutlined, SendOutlined, TeamOutlined, DownloadOutlined, EyeOutlined, ReloadOutlined, CommentOutlined
 } from '@ant-design/icons';
 import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { classApi, teacherApi, aiApi } from '../services/api';
@@ -41,6 +41,11 @@ export default function TeacherClasses() {
     const [savingDraft, setSavingDraft] = useState(false);
     const [teacherNote, setTeacherNote] = useState('');
     const [analyzingRoadmap, setAnalyzingRoadmap] = useState(false);
+    
+    // States cho gửi ý kiến chủ động
+    const [opinionModalVisible, setOpinionModalVisible] = useState(false);
+    const [opinionContent, setOpinionContent] = useState('');
+    const [sendingOpinion, setSendingOpinion] = useState(false);
 
     // Tính toán thống kê
     const stats = {
@@ -209,6 +214,33 @@ export default function TeacherClasses() {
             message.error(error.response?.data?.message || 'Lỗi khi gọi AI');
         } finally {
             setAnalyzingRoadmap(false);
+        }
+    };
+
+    const openOpinionModal = (student: any) => {
+        setSelectedStudent(student);
+        setOpinionContent('');
+        setOpinionModalVisible(true);
+    };
+
+    const handleSendOpinion = async () => {
+        if (!selectedStudent || !opinionContent.trim() || !selectedClass) return;
+        setSendingOpinion(true);
+        try {
+            const { feedbackApi } = await import('../services/api');
+            const res = await feedbackApi.sendTeacherOpinion({
+                userId: selectedStudent.id,
+                classId: selectedClass.id,
+                content: opinionContent.trim()
+            });
+            if (res.success) {
+                message.success('Đã gửi nhận xét tới học viên thành công!');
+                setOpinionModalVisible(false);
+            }
+        } catch (error) {
+            message.error('Lỗi khi gửi nhận xét');
+        } finally {
+            setSendingOpinion(false);
         }
     };
 
@@ -423,16 +455,26 @@ export default function TeacherClasses() {
         {
             title: 'Hành động',
             key: 'action',
-            width: 140,
+            width: 220,
             render: (record: any) => (
-                <Button
-                    type="link"
-                    icon={<EyeOutlined />}
-                    onClick={() => handleViewHistory(record)}
-                    style={{ fontWeight: 500 }}
-                >
-                    Lịch sử
-                </Button>
+                <Space>
+                    <Button
+                        type="link"
+                        icon={<EyeOutlined />}
+                        onClick={() => handleViewHistory(record)}
+                        style={{ fontWeight: 500 }}
+                    >
+                        Lịch sử
+                    </Button>
+                    <Button
+                        type="link"
+                        icon={<CommentOutlined />}
+                        onClick={() => openOpinionModal(record)}
+                        style={{ fontWeight: 500, color: '#10B981' }}
+                    >
+                        Gửi ý kiến
+                    </Button>
+                </Space>
             )
         }
     ];
@@ -1173,6 +1215,37 @@ export default function TeacherClasses() {
                     </div>
                 )}
             </Drawer>
+
+            {/* Modal Gửi ý kiến chủ động */}
+            <Modal
+                title={
+                    <Space>
+                        <CommentOutlined style={{ color: '#10B981' }} />
+                        <span>Gửi nhận xét tới học viên: <strong>{selectedStudent?.name}</strong></span>
+                    </Space>
+                }
+                open={opinionModalVisible}
+                onOk={handleSendOpinion}
+                onCancel={() => setOpinionModalVisible(false)}
+                okText="Gửi nhận xét"
+                cancelText="Hủy"
+                confirmLoading={sendingOpinion}
+                width={500}
+                centered
+            >
+                <div style={{ marginBottom: 12 }}>
+                    <Typography.Text type="secondary">
+                        Nhận xét này sẽ xuất hiện trong mục "Ý kiến giáo viên" trên ứng dụng của học viên.
+                    </Typography.Text>
+                </div>
+                <Input.TextArea
+                    rows={5}
+                    value={opinionContent}
+                    onChange={(e) => setOpinionContent(e.target.value)}
+                    placeholder="Nhập nội dung nhận xét, lời khuyên hoặc góp ý cho học viên..."
+                    style={{ borderRadius: 12, padding: 12 }}
+                />
+            </Modal>
         </div>
     );
 }

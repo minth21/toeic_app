@@ -35,9 +35,11 @@ const safeParseArray = (str: any) => {
     try {
         let cleaned = typeof str === 'string' ? str.replace(/```json|```/g, '').trim() : str;
         let parsed = typeof cleaned === 'string' ? JSON.parse(cleaned) : cleaned;
-        // Handle double-stringified JSON
         if (typeof parsed === 'string') parsed = JSON.parse(parsed);
-        return Array.isArray(parsed) ? parsed : [];
+        
+        if (Array.isArray(parsed)) return parsed;
+        if (typeof parsed === 'object' && parsed !== null) return [parsed];
+        return [];
     } catch (e) {
         console.error('JSON Parse Error:', e);
         return [];
@@ -98,12 +100,27 @@ export default function CreatePart6Modal({ open, onCancel, onSuccess, partId, mo
                 const pUrls = firstQ.passageImageUrl ? firstQ.passageImageUrl.split(',').filter(Boolean) : [];
                 const sUrls = firstQ.questionScanUrl ? firstQ.questionScanUrl.split(',').filter(Boolean) : [];
 
-                // Handle nested items structure from DB [ { items: [...] } ] or flat [ { en, vi }, ... ]
+                console.log('[Edit Mode] initialData:', initialData);
+                console.log('[Edit Mode] firstQ.keyVocabulary raw:', firstQ.keyVocabulary);
+
+                // Handle nested items structure from DB [ { type, label, items: [...] } ]
                 const rawTransData = safeParseArray(firstQ.passageTranslationData);
-                let translationItems = [];
+                let passageSections = [];
                 if (rawTransData.length > 0) {
-                    if (rawTransData[0].items) translationItems = rawTransData[0].items;
-                    else translationItems = rawTransData;
+                    if (rawTransData[0].items) {
+                        passageSections = rawTransData.map((section: any) => ({
+                            label: section.label || 'ĐOẠN VĂN',
+                            items: section.items || []
+                        }));
+                    } else {
+                        // Fallback for old flat data
+                        passageSections = [{
+                            label: 'ĐOẠN VĂN',
+                            items: rawTransData
+                        }];
+                    }
+                } else {
+                    passageSections = [{ label: 'ĐOẠN VĂN', items: [] }];
                 }
 
                 form.setFieldsValue({
@@ -111,14 +128,20 @@ export default function CreatePart6Modal({ open, onCancel, onSuccess, partId, mo
                         passageTitle: cleanContent(passage.passage?.match(/<p[^>]*>\s*<b>\s*(.*?)\s*<\/b>\s*<\/p>/)?.[1] || ''),
                         passage: (passage.passage || '').replace(/<p[^>]*>\s*<b>\s*.*?\s*<\/b>\s*<\/p>/, '').trim(),
                         passageType: pUrls.length > 0 ? 'image' : 'text',
-                        passageTranslationData: translationItems,
-                        keyVocabulary: safeParseArray(firstQ.keyVocabulary),
+                        passageTranslationData: passageSections,
+                        keyVocabulary: safeParseArray(firstQ.keyVocabulary).filter(v => v !== null).map((v: any) => ({
+                            word: (v.word || v.text || '').trim(),
+                            type: v.type || v.lemma || '',
+                            pronunciation: v.pronunciation || v.ipa || '',
+                            meaning: v.meaning || ''
+                        })),
                         startQuestion: firstQ.questionNumber,
                         endQuestion: lastQ.questionNumber,
                         questions: questions.map((q: any) => ({
                             id: q.id,
                             questionNumber: q.questionNumber,
                             questionText: cleanContent(q.questionText || ''),
+                            imageUrl: q.imageUrl,
                             optionA: cleanContent(q.optionA || ''),
                             optionB: cleanContent(q.optionB || ''),
                             optionC: cleanContent(q.optionC || ''),
@@ -173,17 +196,30 @@ export default function CreatePart6Modal({ open, onCancel, onSuccess, partId, mo
                     passage: (aiData.passageHtml || '').replace(/<img[^>]*>/g, ''),
                     passageImageUrl: aiData.passageImageUrl || (passageFileLists[index] || []).map(f => f.url || f.response?.url).filter(Boolean).join(','),
                     passageTranslationData: (() => {
-                        const raw = aiData.passageTranslationData || aiData.passageTranslations || [];
-                        if (raw.length > 0 && raw[0].items) return raw[0].items;
-                        return raw;
+                        const raw = aiData.passageTranslationData || aiData.passageTranslations || aiData.translationData || [];
+                        if (raw.length > 0 && raw[0].items) {
+                            return raw.map((s: any) => ({
+                                label: s.label || 'ĐOẠN VĂN',
+                                items: s.items || []
+                            }));
+                        }
+                        // Fallback: wrap flat list
+                        return [{
+                            label: aiData.passageType || aiData.label || 'ĐOẠN VĂN',
+                            items: raw
+                        }];
                     })(),
-                    keyVocabulary: aiData.vocabulary || [],
+                    keyVocabulary: (aiData.vocabulary || []).map((v: any) => ({
+                        word: v.word || v.text || '',
+                        type: v.type || v.lemma || '',
+                        pronunciation: v.pronunciation || v.ipa || '',
+                        meaning: v.meaning || ''
+                    })),
                     questions: aiData.questions.map((q: any, idx: number) => ({
                         ...q,
-                        id: existingQuestions[idx]?.id, // Keep the existing ID if it exists
+                        id: existingQuestions[idx]?.id,
                         questionNumber: startNum + idx,
-                                                questionText: '',
-
+                        questionText: '',
                         optionA: cleanContent(q.optionA || ''),
                         optionB: cleanContent(q.optionB || ''),
                         optionC: cleanContent(q.optionC || ''),
@@ -215,11 +251,11 @@ export default function CreatePart6Modal({ open, onCancel, onSuccess, partId, mo
                 
                 console.log(`[Finish] Group ${i + 1}: pUrls="${pUrls}", sUrls="${sUrls}"`);
 
-                const transPayload = [{
+                const transPayload = (item.passageTranslationData || []).map((section: any) => ({
                     type: "passage",
-                    label: "ĐOẠN VĂN",
-                    items: item.passageTranslationData || []
-                }];
+                    label: section.label || "ĐOẠN VĂN",
+                    items: section.items || []
+                }));
 
                 const payload = {
                     passage: passageHtml,
@@ -387,9 +423,9 @@ export default function CreatePart6Modal({ open, onCancel, onSuccess, partId, mo
 
                                         <div style={{ marginBottom: 24 }}>
                                             <Form.Item name={[field.name, 'passageType']} initialValue="text" noStyle>
-                                                <Radio.Group buttonStyle="solid">
-                                                    <Radio.Button value="text" style={{ borderRadius: '8px 0 0 8px', height: 36, fontWeight: 800 }}>VĂN BẢN</Radio.Button>
-                                                    <Radio.Button value="image" style={{ borderRadius: '0 8px 8px 0', height: 36, fontWeight: 800 }}>HÌNH ẢNH</Radio.Button>
+                                                <Radio.Group buttonStyle="solid" size="large">
+                                                    <Radio.Button value="text" style={{ borderRadius: '12px 0 0 12px', height: 48, fontWeight: 800, fontSize: 15, display: 'inline-flex', alignItems: 'center', padding: '0 24px' }}>VĂN BẢN</Radio.Button>
+                                                    <Radio.Button value="image" style={{ borderRadius: '0 12px 12px 0', height: 48, fontWeight: 800, fontSize: 15, display: 'inline-flex', alignItems: 'center', padding: '0 24px' }}>HÌNH ẢNH</Radio.Button>
                                                 </Radio.Group>
                                             </Form.Item>
                                         </div>
@@ -409,90 +445,102 @@ export default function CreatePart6Modal({ open, onCancel, onSuccess, partId, mo
                                             style={{ borderRadius: 20, background: '#F8FAFC', border: '1px solid #E2E8F0', marginBottom: 40 }}
                                             styles={{ header: { borderBottom: 'none', padding: '16px 24px' }, body: { padding: '0 24px 24px' } }}>
 
-                                            <div style={{ display: 'grid', gridTemplateColumns: currentPassageType === 'text' ? '1fr' : '1fr 1.2fr', gap: 20 }}>
-                                                {currentPassageType === 'text' ? (
-                                                    <div style={{ background: '#fff', borderRadius: 16, padding: 20, border: '1px solid #E2E8F0' }}>
+                                                <div style={{ background: '#fff', borderRadius: 16, padding: 20, border: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column', gap: 20 }}>
+                                                    {currentPassageType === 'text' ? (
                                                         <Form.Item name={[field.name, 'passage']} label={<span style={{ fontWeight: 700, fontSize: 12 }}>NỘI DUNG VĂN BẢN GỐC</span>} style={{ marginBottom: 0 }}>
                                                             <ReactQuill theme="snow" style={{ height: 350, marginBottom: 40 }} modules={QUILL_MODULES} formats={QUILL_FORMATS} />
                                                         </Form.Item>
-                                                    </div>
-                                                ) : (
-                                                    <>
-                                                        <div style={{ background: '#fff', borderRadius: 16, padding: 20, border: '1px solid #E2E8F0' }}>
-                                                            <Space direction="vertical" style={{ width: '100%' }} size="large">
-                                                                <div>
-                                                                    <Text strong style={{ fontSize: 11, color: '#64748B' }}>1. ẢNH ĐOẠN VĂN</Text>
-                                                                    <Dragger multiple showUploadList={false} action={`${api.defaults.baseURL}/upload/image`} name="image" headers={{ Authorization: `Bearer ${localStorage.getItem('admin_token')}` }} onChange={({ fileList }) => setPassageFileLists(prev => ({ ...prev, [currentInsightIndex]: fileList }))} style={{ background: '#F8FAFC', borderRadius: 12, border: '1px dashed #BFDBFE', padding: 12, marginTop: 8 }}>
-                                                                        <CameraOutlined style={{ fontSize: 20, color: '#3B82F6' }} />
-                                                                        <div style={{ fontSize: 12, color: '#64748B' }}>Thêm ảnh</div>
-                                                                    </Dragger>
-                                                                    <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-                                                                        {getPreviewUrls(passageFileLists[currentInsightIndex]).map((url, i) => <div key={i} style={{ position: 'relative' }}><Image src={url} width={50} height={50} style={{ borderRadius: 8, objectFit: 'cover', border: '1px solid #E2E8F0' }} /><div style={{ position: 'absolute', top: -5, right: -5, background: '#EF4444', color: '#fff', borderRadius: '50%', width: 16, height: 16, fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>×</div></div>)}
-                                                                    </div>
+                                                    ) : (
+                                                        <Space direction="vertical" style={{ width: '100%' }} size="large">
+                                                            <div>
+                                                                <Text strong style={{ fontSize: 11, color: '#64748B' }}>1. ẢNH ĐOẠN VĂN</Text>
+                                                                <Dragger multiple showUploadList={false} action={`${api.defaults.baseURL}/upload/image`} name="image" headers={{ Authorization: `Bearer ${localStorage.getItem('admin_token')}` }} onChange={({ fileList }) => setPassageFileLists(prev => ({ ...prev, [currentInsightIndex]: fileList }))} style={{ background: '#F8FAFC', borderRadius: 12, border: '1px dashed #BFDBFE', padding: 12, marginTop: 8 }}>
+                                                                    <CameraOutlined style={{ fontSize: 20, color: '#3B82F6' }} />
+                                                                    <div style={{ fontSize: 12, color: '#64748B' }}>Thêm ảnh</div>
+                                                                </Dragger>
+                                                                <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+                                                                    {getPreviewUrls(passageFileLists[currentInsightIndex]).map((url, i) => (
+                                                                        <div key={i} style={{ position: 'relative' }}>
+                                                                            <Image src={url} width={50} height={50} style={{ borderRadius: 8, objectFit: 'cover', border: '1px solid #E2E8F0' }} />
+                                                                        </div>
+                                                                    ))}
                                                                 </div>
-                                                                <div>
-                                                                    <Text strong style={{ fontSize: 11, color: '#64748B' }}>2. ẢNH CÂU HỎI</Text>
-                                                                    <Dragger multiple showUploadList={false} action={`${api.defaults.baseURL}/upload/image`} name="image" headers={{ Authorization: `Bearer ${localStorage.getItem('admin_token')}` }} onChange={({ fileList }) => setQuestionFileLists(prev => ({ ...prev, [currentInsightIndex]: fileList }))} style={{ background: '#F8FAFC', borderRadius: 12, border: '1px dashed #BBF7D0', padding: 12, marginTop: 8 }}>
-                                                                        <CameraOutlined style={{ fontSize: 20, color: '#22C55E' }} />
-                                                                        <div style={{ fontSize: 12, color: '#64748B' }}>Thêm ảnh</div>
-                                                                    </Dragger>
-                                                                    <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-                                                                        {getPreviewUrls(questionFileLists[currentInsightIndex]).map((url, i) => <div key={i} style={{ position: 'relative' }}><Image src={url} width={50} height={50} style={{ borderRadius: 8, objectFit: 'cover', border: '1px solid #E2E8F0' }} /><div style={{ position: 'absolute', top: -5, right: -5, background: '#EF4444', color: '#fff', borderRadius: '50%', width: 16, height: 16, fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>×</div></div>)}
-                                                                    </div>
+                                                            </div>
+                                                            <div>
+                                                                <Text strong style={{ fontSize: 11, color: '#64748B' }}>2. ẢNH CÂU HỎI</Text>
+                                                                <Dragger multiple showUploadList={false} action={`${api.defaults.baseURL}/upload/image`} name="image" headers={{ Authorization: `Bearer ${localStorage.getItem('admin_token')}` }} onChange={({ fileList }) => setQuestionFileLists(prev => ({ ...prev, [currentInsightIndex]: fileList }))} style={{ background: '#F8FAFC', borderRadius: 12, border: '1px dashed #BBF7D0', padding: 12, marginTop: 8 }}>
+                                                                    <CameraOutlined style={{ fontSize: 20, color: '#22C55E' }} />
+                                                                    <div style={{ fontSize: 12, color: '#64748B' }}>Thêm ảnh</div>
+                                                                </Dragger>
+                                                                <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+                                                                    {getPreviewUrls(questionFileLists[currentInsightIndex]).map((url, i) => (
+                                                                        <div key={i} style={{ position: 'relative' }}>
+                                                                            <Image src={url} width={50} height={50} style={{ borderRadius: 8, objectFit: 'cover', border: '1px solid #E2E8F0' }} />
+                                                                        </div>
+                                                                    ))}
                                                                 </div>
-                                                            </Space>
-                                                        </div>
-                                                    </>
-                                                )}
+                                                            </div>
+                                                        </Space>
+                                                    )}
+                                                </div>
 
                                                 <div style={{ background: '#fff', borderRadius: 16, padding: 20, border: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column' }}>
-                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                                                        <Space><GlobalOutlined style={{ color: '#2563EB' }} /><span style={{ fontWeight: 800, fontSize: 13, color: '#475569' }}>BẢN DỊCH SONG NGỮ</span></Space>
-                                                    </div>
                                                     <div style={{ background: '#F0F9FF', padding: '10px 16px', borderRadius: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                                                        <Text strong style={{ fontSize: 13, color: '#2563EB' }}>ĐOẠN VĂN</Text>
+                                                        <Space><GlobalOutlined style={{ color: '#2563EB' }} /><Text strong style={{ fontSize: 13, color: '#2563EB' }}>PHÂN LOẠI & DỊCH SONG NGỮ</Text></Space>
                                                         <Form.List name={[field.name, 'passageTranslationData']}>
                                                             {(_, { add }) => (
-                                                                <Button size="small" type="primary" ghost icon={<PlusOutlined />} onClick={() => add()} style={{ borderRadius: 6, fontSize: 11, fontWeight: 700 }}>Thêm câu</Button>
+                                                                <Button size="small" type="primary" icon={<PlusOutlined />} onClick={() => add({ label: 'Đoạn mới', items: [] })} style={{ borderRadius: 6, fontSize: 11, fontWeight: 700 }}>Thêm đoạn mới</Button>
                                                             )}
                                                         </Form.List>
                                                     </div>
                                                     <div style={{ flex: 1, overflowY: 'auto', maxHeight: 350, paddingRight: 8 }} className="custom-scrollbar">
                                                         <Form.List name={[field.name, 'passageTranslationData']}>
-                                                            {(transFields, { remove }) => (
+                                                            {(sectionFields, { remove: removeSection }) => (
                                                                 <>
-                                                                    {transFields.length === 0 && <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} />}
-                                                                    {transFields.map((tf, tIdx) => (
-                                                                        <div key={tf.key} style={{ padding: '16px 0', borderBottom: '1px dashed #BFDBFE', position: 'relative' }}>
-                                                                            <Row gutter={12} align="middle">
-                                                                                <Col flex="40px">
-                                                                                    <Tag style={{ background: '#E0F2FE', color: '#0369A1', border: 'none', fontWeight: 800, margin: 0, borderRadius: 4, width: '100%', textAlign: 'center' }}>EN</Tag>
-                                                                                </Col>
-                                                                                <Col flex="auto">
-                                                                                    <Form.Item name={[tf.name, 'en']} noStyle><Input variant="borderless" style={{ fontWeight: 500, padding: 0 }} /></Form.Item>
-                                                                                </Col>
-                                                                            </Row>
-                                                                            <Row gutter={12} align="middle" style={{ marginTop: 8 }}>
-                                                                                <Col flex="40px">
-                                                                                    <Text strong style={{ color: '#059669', fontSize: 12, width: '100%', textAlign: 'center', display: 'block' }}>VI</Text>
-                                                                                </Col>
-                                                                                <Col flex="auto">
-                                                                                    <Form.Item name={[tf.name, 'vi']} noStyle><Input variant="borderless" style={{ fontStyle: 'italic', color: '#059669', padding: 0 }} /></Form.Item>
-                                                                                </Col>
-                                                                            </Row>
-                                                                            <Button
-                                                                                type="text" danger icon={<DeleteOutlined />}
-                                                                                size="small" onClick={() => remove(tIdx)}
-                                                                                style={{ position: 'absolute', top: 12, right: -8, opacity: 0.3 }}
-                                                                                onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
-                                                                                onMouseLeave={(e) => e.currentTarget.style.opacity = '0.3'}
-                                                                            />
+                                                                    {sectionFields.length === 0 && <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Chưa có bản dịch" />}
+                                                                    {sectionFields.map((sf) => (
+                                                                        <div key={sf.key} style={{ background: '#fff', borderRadius: 12, border: '1px solid #E2E8F0', padding: 16, marginBottom: 16 }}>
+                                                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                                                                                <Form.Item name={[sf.name, 'label']} noStyle>
+                                                                                    <Input placeholder="Tên đoạn (vd: Email, Thư tay...)" style={{ fontWeight: 800, width: '250px', borderRadius: 8, border: 'none', background: '#F8FAFC' }} />
+                                                                                </Form.Item>
+                                                                                <Space>
+                                                                                    <Form.List name={[sf.name, 'items']}>
+                                                                                        {(_, { add: addItem }) => (
+                                                                                            <Button size="small" type="primary" ghost icon={<PlusOutlined />} onClick={() => addItem()} style={{ borderRadius: 6, fontSize: 11, fontWeight: 700 }}>Thêm câu</Button>
+                                                                                        )}
+                                                                                    </Form.List>
+                                                                                    <Button type="text" danger icon={<DeleteOutlined />} onClick={() => removeSection(sf.name)} />
+                                                                                </Space>
+                                                                            </div>
+                                                                            <Form.List name={[sf.name, 'items']}>
+                                                                                {(itemFields, { remove: removeItem }) => (
+                                                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                                                                                        {itemFields.map((itemField, itemIdx) => (
+                                                                                            <div key={itemField.key} style={{ padding: '8px 0', borderBottom: '1px dashed #E2E8F0', position: 'relative' }}>
+                                                                                                <Row gutter={12} align="middle">
+                                                                                                    <Col flex="40px"><Tag color="blue" style={{ margin: 0 }}>EN</Tag></Col>
+                                                                                                    <Col flex="auto">
+                                                                                                        <Form.Item name={[itemField.name, 'en']} noStyle><Input variant="borderless" placeholder="English text" style={{ fontWeight: 500 }} /></Form.Item>
+                                                                                                    </Col>
+                                                                                                    <Col flex="30px"><Button type="text" danger size="small" icon={<DeleteOutlined />} onClick={() => removeItem(itemIdx)} /></Col>
+                                                                                                </Row>
+                                                                                                <Row gutter={12} align="middle" style={{ marginTop: 4 }}>
+                                                                                                    <Col flex="40px"><Tag color="green" style={{ margin: 0 }}>VI</Tag></Col>
+                                                                                                    <Col flex="auto">
+                                                                                                        <Form.Item name={[itemField.name, 'vi']} noStyle><Input variant="borderless" placeholder="Bản dịch tiếng Việt" style={{ fontStyle: 'italic', color: '#059669' }} /></Form.Item>
+                                                                                                    </Col>
+                                                                                                </Row>
+                                                                                            </div>
+                                                                                        ))}
+                                                                                    </div>
+                                                                                )}
+                                                                            </Form.List>
                                                                         </div>
                                                                     ))}
                                                                 </>
                                                             )}
                                                         </Form.List>
-                                                    </div>
                                                 </div>
                                             </div>
                                         </Card>

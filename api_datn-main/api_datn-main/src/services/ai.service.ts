@@ -530,7 +530,20 @@ export const scanPart7FromImageService = async (imageBuffer: Buffer, mimeType: s
     
     Output JSON: { 
         "passageHtml": "Nội dung đoạn văn (giữ nguyên layout, ngắt dòng bằng <p>, <br/>, <b>). LƯU Ý: Tuyệt đối không đưa tiêu đề câu hỏi (như 'Questions 147-148 refer to...') vào đây.", 
-        "passageTranslationData": [{"type": "passage", "label": "Passage 1: [Loại]", "items": [{"id": "s1", "en": "...", "vi": "...", "vocab": [{"text": "...", "type": "n/v/adj/adv", "meaning": "...", "ipa": "/.../"}]}]}], 
+        "passageTranslationData": [
+            {
+                "type": "passage", 
+                "label": "Passage 1: [Tên loại cụ thể, VD: Email, Letter, Invoice, Schedule]", 
+                "items": [
+                    {
+                        "id": "s1", 
+                        "en": "English line/sentence", 
+                        "vi": "Bản dịch tương ứng", 
+                        "vocab": [{"text": "...", "type": "n/v/adj/adv", "meaning": "...", "ipa": "/.../"}]
+                    }
+                ]
+            }
+        ], 
         "vocabulary": [{"word": "...", "type": "n/v/adj/adv", "ipa": "/.../", "meaning": "..."}],
         "questions": [{"questionNumber": 147, "questionText": "...", "optionA": "...", "optionB": "...", "optionC": "...", "optionD": "...", "correctAnswer": "...", "analysis": "...", "evidence": "..."}] 
     }`;
@@ -645,7 +658,7 @@ Trích xuất nội dung văn bản cực kỳ chi tiết dựa trên nhãn "${p
     }
   ],
   "items": [
-     { "id": "s1", "en": "English line/sentence", "vi": "Bản dịch dòng/câu tương ứng", "vocab": [{"text": "...", "type": "n/v/adj/adv", "meaning": "...", "ipa": "/.../"}] }
+     { "id": "s1", "en": "English line/sentence (Phải tách riêng From, Date, Subject thành các item khác nhau)", "vi": "Bản dịch tương ứng", "vocab": [{"text": "...", "type": "n/v/adj/adv", "meaning": "...", "ipa": "/.../"}] }
   ],
   "keyVocabulary": [
      { "word": "...", "type": "n/v/adj/adv", "meaning": "...", "ipa": "/.../" }
@@ -804,7 +817,15 @@ const enrichPart6WithInsights = async (passage: string, questions: any[]) => {
 
     OUTPUT JSON THUẦN TÚY (trả về đúng schema này, không bọc Markdown bằng \`\`\`json):
     {
-        "passageTranslations": [ { "type": "passage", "label": "Đoạn văn", "items": [{ "en": "...", "vi": "..." }] } ],
+        "passageTranslations": [ 
+            { 
+                "type": "passage", 
+                "label": "[Tên loại cụ thể, VD: Email, Letter, Article]", 
+                "items": [
+                    { "en": "English line/sentence (TÁCH RIÊNG From, Date, Subject...)", "vi": "Bản dịch tương ứng" }
+                ] 
+            } 
+        ],
         "vocabulary": [ { "word": "...", "type": "n/v/adj/adv", "ipa": "/.../", "meaning": "..." } ],
         "enrichedQuestions": [
             { "questionNumber": 131, "correctAnswer": "A", "optionTranslations": { "A": "...", "B": "...", "C": "...", "D": "..." }, "analysis": "...", "evidence": "..." }

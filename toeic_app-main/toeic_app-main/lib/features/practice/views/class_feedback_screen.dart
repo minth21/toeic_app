@@ -236,6 +236,55 @@ class _ClassFeedbackScreenState extends State<ClassFeedbackScreen> {
                     final item = vm.history[index];
                     final date = DateTime.parse(item['createdAt']);
                     final isResolved = item['status'] == 'RESOLVED';
+                    final bool isFromTeacher = item['isFromTeacher'] ?? false;
+
+                    if (isFromTeacher) {
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          side: const BorderSide(color: AppColors.primary, width: 0.5),
+                        ),
+                        color: AppColors.primary.withValues(alpha: 0.02),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  const Icon(Icons.tips_and_updates_rounded, size: 16, color: AppColors.primary),
+                                  const SizedBox(width: 8),
+                                  const Text(
+                                    'Lời khuyên từ Giáo viên',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppColors.primary,
+                                    ),
+                                  ),
+                                  const Spacer(),
+                                  Text(
+                                    DateFormat('dd/MM HH:mm').format(date),
+                                    style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                                  ),
+                                ],
+                              ),
+                              const Divider(height: 20),
+                              Text(
+                                item['content'] ?? '',
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                  color: AppColors.textPrimary,
+                                  height: 1.5,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }
 
                     return Card(
                       margin: const EdgeInsets.only(bottom: 12),
@@ -272,8 +321,42 @@ class _ClassFeedbackScreenState extends State<ClassFeedbackScreen> {
                             const SizedBox(height: 8),
                             Text(
                               item['content'] ?? '',
-                              style: const TextStyle(fontSize: 14),
+                              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
                             ),
+                            if (item['teacherReply'] != null && item['teacherReply'].toString().isNotEmpty) ...[
+                              const Divider(height: 24),
+                              Row(
+                                children: [
+                                  const Icon(Icons.comment_rounded, size: 14, color: Colors.green),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Phản hồi từ $teacherName:',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.green,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 6),
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Colors.green.withValues(alpha: 0.05),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: Colors.green.withValues(alpha: 0.1)),
+                                ),
+                                child: Text(
+                                  item['teacherReply'],
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    color: AppColors.textPrimary,
+                                    height: 1.4,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ],
                         ),
                       ),

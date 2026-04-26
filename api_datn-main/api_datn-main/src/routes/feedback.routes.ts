@@ -17,4 +17,10 @@ router.get('/', roleMiddleware(['ADMIN', 'TEACHER', 'STUDENT'] as any[]), Feedba
 // 3. GV xử lý xong ý kiến (Chỉ TEACHER hoặc ADMIN)
 router.patch('/:id/resolve', roleMiddleware(['ADMIN', 'TEACHER'] as any[]), FeedbackController.resolveFeedback);
 
+// 4. GV phản hồi ý kiến (Chỉ TEACHER hoặc ADMIN)
+router.patch('/:id/reply', roleMiddleware(['ADMIN', 'TEACHER'] as any[]), FeedbackController.replyFeedback);
+
+// 5. GV chủ động gửi nhận xét (Chỉ TEACHER hoặc ADMIN)
+router.post('/teacher', roleMiddleware(['ADMIN', 'TEACHER'] as any[]), FeedbackController.sendTeacherOpinion);
+
 export default router;

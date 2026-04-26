@@ -514,6 +514,11 @@ model StudentFeedback {
   classId   String   // Lớp học liên quan
   class     Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
 
+  teacherReply String?  @db.Text // Phản hồi của giáo viên (Dùng khi học viên hỏi)
+  repliedAt    DateTime?          // Thời điểm giáo viên phản hồi
+  
+  isFromTeacher Boolean @default(false) // Đánh dấu nếu đây là ý kiến chủ động từ GV gửi cho HV
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

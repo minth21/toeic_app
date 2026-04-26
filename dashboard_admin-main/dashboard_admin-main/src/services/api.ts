@@ -147,6 +147,8 @@ export interface StudentFeedback {
     teacher?: { name: string };
     classId: string;
     class?: { className: string; classCode?: string };
+    teacherReply?: string;
+    repliedAt?: string;
     createdAt: string;
 }
 
@@ -651,6 +653,14 @@ export const feedbackApi = {
     },
     resolve: async (id: string): Promise<{ success: boolean; message: string }> => {
         const response = await api.patch(`/feedbacks/${id}/resolve`);
+        return response.data;
+    },
+    reply: async (id: string, teacherReply: string): Promise<{ success: boolean; message: string }> => {
+        const response = await api.patch(`/feedbacks/${id}/reply`, { teacherReply });
+        return response.data;
+    },
+    sendTeacherOpinion: async (data: { userId: string; classId: string; content: string }): Promise<{ success: boolean; message: string }> => {
+        const response = await api.post('/feedbacks/teacher', data);
         return response.data;
     }
 };

@@ -173,4 +173,121 @@ export class FeedbackController {
             return errorResponse(res, 'Lỗi khi xử lý ý kiến');
         }
     }
+
+    /**
+     * 4. Giáo viên phản hồi ý kiến học viên
+     * PATCH /api/feedbacks/:id/reply
+     */
+    static async replyFeedback(req: Request, res: Response) {
+        try {
+            const { id } = req.params;
+            const { teacherReply } = req.body;
+            const teacherId = (req as any).user.id;
+            const teacherName = (req as any).user.name;
+
+            if (!teacherReply) {
+                return errorResponse(res, 'Vui lòng cung cấp nội dung phản hồi', HTTP_STATUS.BAD_REQUEST);
+            }
+
+            // Tìm feedback và kiểm tra quyền sở hữu
+            const existingFeedback = await (prisma as any).studentFeedback.findUnique({
+                where: { id }
+            });
+
+            if (!existingFeedback) {
+                return errorResponse(res, 'Không tìm thấy ý kiến', HTTP_STATUS.NOT_FOUND);
+            }
+
+            if (existingFeedback.teacherId !== teacherId && (req as any).user.role !== 'ADMIN') {
+                return errorResponse(res, 'Bạn không có quyền phản hồi ý kiến này', HTTP_STATUS.FORBIDDEN);
+            }
+
+            const feedback = await (prisma as any).studentFeedback.update({
+                where: { id },
+                data: { 
+                    teacherReply,
+                    repliedAt: new Date(),
+                    status: 'RESOLVED' 
+                },
+                include: {
+                    class: { select: { className: true } }
+                }
+            });
+
+            // Gửi thông báo cho Học viên
+            await NotificationService.createNotification({
+                userId: feedback.userId,
+                title: `📩 Giáo viên vừa phản hồi thắc mắc của bạn`,
+                content: `Giáo viên ${teacherName} đã trả lời ý kiến của bạn trong lớp ${feedback.class.className}.`,
+                type: 'FEEDBACK_RESOLVED' as NotificationType,
+                relatedId: feedback.id
+            });
+
+            return successResponse(res, feedback, 'Đã gửi phản hồi thành công');
+        } catch (error) {
+            logger.error('Error in replyFeedback:', error);
+            return errorResponse(res, 'Lỗi khi gửi phản hồi');
+        }
+    }
+
+    /**
+     * 5. Giáo viên chủ động gửi ý kiến cho học viên
+     * POST /api/feedbacks/teacher
+     */
+    static async sendTeacherOpinion(req: Request, res: Response) {
+        try {
+            const { userId, classId, content } = req.body;
+            const teacherId = (req as any).user.id;
+            const teacherName = (req as any).user.name;
+
+            if (!userId || !classId || !content) {
+                return errorResponse(res, 'Vui lòng cung cấp userId, classId và nội dung', HTTP_STATUS.BAD_REQUEST);
+            }
+
+            // Kiểm tra lớp học và quyền của giáo viên
+            const targetClass = await prisma.class.findFirst({
+                where: { 
+                    id: classId,
+                    teacherId: teacherId
+                },
+                include: {
+                    students: { where: { id: userId } }
+                }
+            });
+
+            if (!targetClass) {
+                return errorResponse(res, 'Lớp học không tồn tại hoặc bạn không có quyền', HTTP_STATUS.FORBIDDEN);
+            }
+
+            if (targetClass.students.length === 0) {
+                return errorResponse(res, 'Học viên không thuộc lớp học này', HTTP_STATUS.NOT_FOUND);
+            }
+
+            // Tạo Feedback với cờ isFromTeacher = true
+            const feedback = await (prisma as any).studentFeedback.create({
+                data: {
+                    userId,
+                    classId,
+                    teacherId,
+                    content,
+                    isFromTeacher: true,
+                    status: 'RESOLVED' // Gửi từ GV thì coi như đã xử lý
+                }
+            });
+
+            // Gửi thông báo cho Học viên
+            await NotificationService.createNotification({
+                userId: userId,
+                title: `💡 Lời khuyên mới từ giáo viên ${teacherName}`,
+                content: `Giáo viên đã gửi một nhận xét mới cho bạn trong lớp ${targetClass.className}`,
+                type: 'SYSTEM' as NotificationType,
+                relatedId: feedback.id
+            });
+
+            return successResponse(res, feedback, 'Đã gửi ý kiến cho học viên thành công');
+        } catch (error) {
+            logger.error('Error in sendTeacherOpinion:', error);
+            return errorResponse(res, 'Lỗi khi gửi ý kiến');
+        }
+    }
 }

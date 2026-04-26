@@ -4,17 +4,31 @@
     "user": {
       "id": "7e710857-2f8a-4a82-815b-5ae912c25c9c",
       "name": "Minh Tâm",
-      "progress": 17,
+      "progress": 70,
       "targetScore": 550,
-      "estimatedScore": 20,
+      "estimatedScore": 115,
       "estimatedListening": 15,
-      "estimatedReading": 5,
-      "totalAttempts": 2,
+      "estimatedReading": 100,
+      "totalAttempts": 3,
       "max_p1": 1,
-      "id_p1": "7ca75557-a03f-4037-96d6-a4a3a152b80e"
+      "id_p1": "7ca75557-a03f-4037-96d6-a4a3a152b80e",
+      "max_p5": 21,
+      "id_p5": "647de6a5-c74e-4012-a94c-10ab8d897d28"
     },
     "streak": 1,
     "recentActivities": [
+      {
+        "id": "6b311b7d-4311-48d6-8264-752064b23e38",
+        "partId": "647de6a5-c74e-4012-a94c-10ab8d897d28",
+        "partNumber": 5,
+        "title": "TOEIC-TEST 1",
+        "partName": "Part 5: Incomplete Sentences",
+        "score": 21,
+        "totalQuestions": 30,
+        "percentage": 70,
+        "toeicScore": 100,
+        "createdAt": "2026-04-26T07:12:42.358Z"
+      },
       {
         "id": "0ba69949-0df4-41ef-829e-1aead77e141e",
         "partId": "7ca75557-a03f-4037-96d6-a4a3a152b80e",
@@ -41,6 +55,16 @@
       }
     ],
     "learningTimeline": [
+      {
+        "id": "6b311b7d-4311-48d6-8264-752064b23e38",
+        "date": "2026-04-26T07:12:42.358Z",
+        "title": "TOEIC-TEST 1",
+        "partName": "Part 5: Incomplete Sentences",
+        "partNumber": 5,
+        "score": 21,
+        "total": 30,
+        "toeicScore": 100
+      },
       {
         "id": "0ba69949-0df4-41ef-829e-1aead77e141e",
         "date": "2026-04-26T00:41:28.871Z",
@@ -421,7 +445,7 @@
       },
       {
         "date": "2026-04-26",
-        "count": 2
+        "count": 3
       }
     ],
     "recommendations": [
@@ -439,16 +463,20 @@
       }
     ],
     "resumeLearning": {
-      "id": "0ba69949-0df4-41ef-829e-1aead77e141e",
-      "partId": "7ca75557-a03f-4037-96d6-a4a3a152b80e",
-      "partNumber": 1,
+      "id": "6b311b7d-4311-48d6-8264-752064b23e38",
+      "partId": "647de6a5-c74e-4012-a94c-10ab8d897d28",
+      "partNumber": 5,
       "title": "TOEIC-TEST 1",
-      "createdAt": "2026-04-26T00:41:28.871Z"
+      "createdAt": "2026-04-26T07:12:42.358Z"
     },
     "milestones": [
       {
         "date": "2026-04-26",
         "label": "🌱 Ngày đầu khởi nghiệp"
+      },
+      {
+        "date": "2026-04-26",
+        "label": "🏆 Kỷ lục cày cuốc: 3 bài"
       }
     ]
   }

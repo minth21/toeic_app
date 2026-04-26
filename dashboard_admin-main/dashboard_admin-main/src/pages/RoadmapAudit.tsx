@@ -487,7 +487,7 @@ const RoadmapAudit: React.FC = () => {
                 title={
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                         <SafetyCertificateOutlined style={{ color: '#6366F1', fontSize: 24 }} />
-                        <span style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.5px' }}>Kiểm duyệt & Hiệu chỉnh Lộ trình</span>
+                        <span style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.5px' }}>Kiểm duyệt lộ trình</span>
                     </div>
                 }
                 placement="right"

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../theme/app_typography.dart';
 import '../../practice/models/ai_assessment.dart';
@@ -96,15 +95,6 @@ class PersonalRoadmapWidget extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 16),
-                HtmlWidget(
-                  roadmap.summary,
-                  textStyle: AppTypography.ui(
-                    fontSize: 15,
-                    color: const Color(0xFF475569),
-                    height: 1.5,
-                  ),
-                ),
-                const SizedBox(height: 20),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [

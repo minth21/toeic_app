@@ -8,9 +8,9 @@ import {
     Typography,
     message,
     Modal,
-    Tooltip,
     theme,
     Avatar,
+    Input,
 } from 'antd';
 import {
     CheckCircleOutlined,
@@ -18,20 +18,22 @@ import {
     ReloadOutlined,
     UserOutlined,
     TeamOutlined,
+    SendOutlined,
+    CommentOutlined,
 } from '@ant-design/icons';
-import { useOutletContext } from 'react-router-dom';
 import { feedbackApi, type StudentFeedback } from '../services/api';
 import type { ColumnsType } from 'antd/es/table';
 
-const { Text } = Typography;
+const { Text, Paragraph } = Typography;
+const { TextArea } = Input;
 
 export default function ClassFeedbackManagement() {
-    const { user } = useOutletContext<{ user: any }>();
-    const isTeacher = user?.role === 'TEACHER';
-    const isAdmin = user?.role === 'ADMIN';
-
     const [feedbacks, setFeedbacks] = useState<StudentFeedback[]>([]);
     const [loading, setLoading] = useState(false);
+    const [replyModalVisible, setReplyModalVisible] = useState(false);
+    const [selectedFeedback, setSelectedFeedback] = useState<StudentFeedback | null>(null);
+    const [replyContent, setReplyContent] = useState('');
+    const [submitting, setSubmitting] = useState(false);
     const { token } = theme.useToken();
 
     const fetchFeedbacks = async () => {
@@ -53,10 +55,38 @@ export default function ClassFeedbackManagement() {
         fetchFeedbacks();
     }, []);
 
+    const openReplyModal = (feedback: StudentFeedback) => {
+        setSelectedFeedback(feedback);
+        setReplyContent(feedback.teacherReply || '');
+        setReplyModalVisible(true);
+    };
+
+    const handleReply = async () => {
+        if (!selectedFeedback || !replyContent.trim()) {
+            message.warning('Vui lòng nhập nội dung phản hồi');
+            return;
+        }
+
+        setSubmitting(true);
+        try {
+            const data = await feedbackApi.reply(selectedFeedback.id, replyContent.trim());
+            if (data.success) {
+                message.success('Đã gửi phản hồi cho học viên!');
+                setReplyModalVisible(false);
+                fetchFeedbacks();
+            }
+        } catch (error) {
+            console.error('Error replying to feedback:', error);
+            message.error('Lỗi khi gửi phản hồi');
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
     const handleResolve = async (feedback: StudentFeedback) => {
         Modal.confirm({
             title: 'Xác nhận đã xử lý xong',
-            content: `Xác nhận bạn đã xem và phản hồi ý kiến của học viên ${feedback.user?.name} tại lớp ${feedback.class?.className}?`,
+            content: `Xác nhận bạn đã xem và giải quyết ý kiến của học viên ${feedback.user?.name}?`,
             okText: 'Xác nhận xử lý',
             cancelText: 'Hủy',
             onOk: async () => {
@@ -110,21 +140,45 @@ export default function ClassFeedbackManagement() {
             ),
         },
         {
-            title: 'Nội dung ý kiến',
-            dataIndex: 'content',
+            title: 'Nội dung & Phản hồi',
             key: 'content',
-            ellipsis: true,
-            render: (content: string) => (
-                <Tooltip title={content}>
-                    <div style={{ maxWidth: 400, whiteSpace: 'pre-wrap' }}>{content}</div>
-                </Tooltip>
+            render: (_, record) => (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    <div>
+                        <Tag color="blue">Câu hỏi:</Tag>
+                        <Paragraph style={{ margin: '4px 0 0 0', whiteSpace: 'pre-wrap' }}>{record.content}</Paragraph>
+                    </div>
+                    {record.teacherReply && (
+                        <div style={{
+                            padding: '10px 14px',
+                            background: '#F0FDF4',
+                            borderRadius: '12px',
+                            borderLeft: '4px solid #22C55E'
+                        }}>
+                            <Space align="start">
+                                <CommentOutlined style={{ color: '#22C55E', marginTop: 4 }} />
+                                <div>
+                                    <Text strong style={{ color: '#166534', fontSize: '12px' }}>Phản hồi của Giáo viên:</Text>
+                                    <Paragraph style={{ margin: '2px 0 0 0', color: '#166534', fontSize: '13px' }}>
+                                        {record.teacherReply}
+                                    </Paragraph>
+                                    {record.repliedAt && (
+                                        <Text type="secondary" style={{ fontSize: '10px' }}>
+                                            {new Date(record.repliedAt).toLocaleString('vi-VN')}
+                                        </Text>
+                                    )}
+                                </div>
+                            </Space>
+                        </div>
+                    )}
+                </div>
             ),
         },
         {
             title: 'Trạng thái',
             dataIndex: 'status',
             key: 'status',
-            width: 150,
+            width: 130,
             align: 'center',
             render: (status: string) => {
                 const isPending = status === 'PENDING';
@@ -134,46 +188,51 @@ export default function ClassFeedbackManagement() {
                         color={isPending ? 'gold' : 'success'}
                         style={{ borderRadius: '20px', padding: '2px 12px', fontWeight: 600 }}
                     >
-                        {isPending ? 'Đang chờ' : 'Đã phản hồi'}
+                        {isPending ? 'Đang chờ' : 'Đã xử lý'}
                     </Tag>
                 );
             },
         },
         {
-            title: 'Ngày gửi',
-            dataIndex: 'createdAt',
-            key: 'createdAt',
-            width: 150,
-            render: (date: string) => new Date(date).toLocaleString('vi-VN'),
+            title: 'Thao tác',
+            key: 'actions',
+            width: 180,
+            align: 'center',
+            render: (_, record) => (
+                <Space direction="vertical" style={{ width: '100%' }}>
+                    <Button
+                        block
+                        type="primary"
+                        icon={<SendOutlined />}
+                        onClick={() => openReplyModal(record)}
+                        style={{
+                            borderRadius: '8px',
+                            background: record.teacherReply ? '#64748B' : 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+                            border: 'none'
+                        }}
+                    >
+                        {record.teacherReply ? 'Sửa phản hồi' : 'Phản hồi'}
+                    </Button>
+
+                    {record.status === 'PENDING' && (
+                        <Button
+                            block
+                            icon={<CheckCircleOutlined />}
+                            onClick={() => handleResolve(record)}
+                            style={{ borderRadius: '8px' }}
+                        >
+                            Đã xử lý
+                        </Button>
+                    )}
+                </Space>
+            ),
         },
     ];
 
-    if (isTeacher || isAdmin) {
-        columns.push({
-            title: 'Hành động',
-            key: 'actions',
-            width: 150,
-            align: 'center',
-            render: (_, record) => (
-                record.status === 'PENDING' ? (
-                    <Button
-                        type="primary"
-                        icon={<CheckCircleOutlined />}
-                        onClick={() => handleResolve(record)}
-                        style={{ borderRadius: '8px', background: 'linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)', border: 'none' }}
-                    >
-                        Đã xử lý
-                    </Button>
-                ) : (
-                    <Text type="secondary" style={{ fontSize: '12px' }}>Đã hoàn tất lúc {new Date(record.createdAt).toLocaleDateString('vi-VN')}</Text>
-                )
-            ),
-        });
-    }
-
     return (
         <div style={{ padding: '24px', background: token.colorBgLayout, minHeight: '100vh' }}>
-            <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
+            <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography.Title level={3} style={{ margin: 0 }}>Quản lý ý kiến học viên</Typography.Title>
                 <Button
                     icon={<ReloadOutlined />}
                     onClick={fetchFeedbacks}
@@ -182,8 +241,8 @@ export default function ClassFeedbackManagement() {
                     style={{
                         borderRadius: 10,
                         fontWeight: 600,
-                        border: '1px solid var(--border-color)',
-                        boxShadow: 'var(--card-shadow)'
+                        border: '1px solid #E2E8F0',
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
                     }}
                 >
                     Làm mới
@@ -193,7 +252,7 @@ export default function ClassFeedbackManagement() {
             <Card
                 style={{
                     borderRadius: 24,
-                    boxShadow: 'var(--card-shadow)',
+                    boxShadow: '0 10px 30px -5px rgba(15, 23, 42, 0.05)',
                     border: 'none',
                     overflow: 'hidden'
                 }}
@@ -211,6 +270,48 @@ export default function ClassFeedbackManagement() {
                     }}
                 />
             </Card>
+
+            {/* Reply Modal */}
+            <Modal
+                title={
+                    <Space>
+                        <SendOutlined style={{ color: token.colorPrimary }} />
+                        <span>Gửi phản hồi cho {selectedFeedback?.user?.name}</span>
+                    </Space>
+                }
+                open={replyModalVisible}
+                onOk={handleReply}
+                onCancel={() => setReplyModalVisible(false)}
+                okText="Gửi phản hồi"
+                cancelText="Hủy"
+                confirmLoading={submitting}
+                width={600}
+                centered
+            >
+                <div style={{ marginBottom: 16 }}>
+                    <Text type="secondary">Nội dung học viên gửi:</Text>
+                    <div style={{
+                        marginTop: 8,
+                        padding: '12px',
+                        background: '#F8FAFC',
+                        borderRadius: '8px',
+                        border: '1px solid #E2E8F0',
+                        fontStyle: 'italic'
+                    }}>
+                        "{selectedFeedback?.content}"
+                    </div>
+                </div>
+                <div>
+                    <Text strong>Câu trả lời của bạn:</Text>
+                    <TextArea
+                        rows={6}
+                        value={replyContent}
+                        onChange={(e) => setReplyContent(e.target.value)}
+                        placeholder="Nhập lời giải đáp hoặc phản hồi tại đây..."
+                        style={{ marginTop: 8, borderRadius: '8px' }}
+                    />
+                </div>
+            </Modal>
         </div>
     );
 }

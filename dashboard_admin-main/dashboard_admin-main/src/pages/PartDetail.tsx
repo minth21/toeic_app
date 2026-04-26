@@ -1031,7 +1031,7 @@ export default function PartDetail() {
                                                                     borderRadius: 12,
                                                                     overflow: 'hidden',
                                                                     border: '1px solid #E2E8F0',
-                                                                    marginBottom: i < group.passageImageUrl!.split(',').filter(Boolean).length - 1 ? 12 : 0,
+                                                                    marginBottom: 12,
                                                                     background: '#fff',
                                                                     padding: 4
                                                                 }}>

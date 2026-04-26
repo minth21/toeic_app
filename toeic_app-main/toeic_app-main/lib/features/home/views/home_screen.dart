@@ -37,6 +37,7 @@ class _HomeScreenState extends State<HomeScreen> {
       context.read<DashboardViewModel>().loadDashboard();
       context.read<VocabularyViewModel>().loadFlashcards();
       context.read<NotificationViewModel>().loadNotifications();
+      context.read<AuthViewModel>().refreshCurrentUser(); // Cập nhật thông tin lớp học mới nhất
       final progressVM = context.read<ProgressViewModel>();
       final timelineVM = context.read<AiTimelineViewModel>();
       final userId = context.read<AuthViewModel>().currentUser?.id;
@@ -89,6 +90,7 @@ class _HomeScreenState extends State<HomeScreen> {
           await Future.wait([
             dashboardViewModel.loadDashboard(),
             if (mounted) context.read<NotificationViewModel>().loadNotifications(),
+            if (mounted) context.read<AuthViewModel>().refreshCurrentUser(), // Refresh cả profile khi kéo
           ]);
         },
         child: CustomScrollView(
