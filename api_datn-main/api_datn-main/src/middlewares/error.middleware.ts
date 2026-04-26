@@ -13,10 +13,13 @@ export const errorHandler = (
     _next: NextFunction
 ): void => {
     logger.error('Unhandled error:', err);
+    if (err.stack) {
+        console.error(err.stack);
+    }
 
     errorResponse(
         res,
-        ERROR_MESSAGES.INTERNAL_ERROR,
+        err.message || ERROR_MESSAGES.INTERNAL_ERROR,
         HTTP_STATUS.INTERNAL_SERVER_ERROR
     );
 };

@@ -282,8 +282,8 @@ export default function TestDetail() {
     const handleApprovePart = async (part: Part) => {
         Modal.confirm({
             title: 'Xác nhận duyệt phần thi',
-            content: `Bạn có chắc chắn muốn duyệt và công khai phần thi "${part.partName}"? Toàn bộ câu hỏi trong phần này sẽ được kích hoạt.`,
-            okText: 'Duyệt ngay',
+            content: `Bạn có chắc chắn muốn duyệt phần thi "${part.partName}"? Sau khi duyệt, phần thi sẽ ở trạng thái "Khóa (Ẩn)", bạn có thể kiểm tra lại trước khi chuyển sang "Công khai".`,
+            okText: 'Duyệt và Khóa',
             okType: 'primary',
             onOk: async () => {
                 try {
@@ -345,7 +345,7 @@ export default function TestDetail() {
 
         Modal.confirm({
             title: 'Xác nhận duyệt đề thi',
-            content: `Bạn có chắc chắn muốn duyệt và xuất bản đề thi "${test.title}"? Toàn bộ các phần thi và câu hỏi bên trong sẽ được kích hoạt để học viên làm bài.`,
+            content: `Bạn có chắc chắn muốn duyệt đề thi "${test.title}"? Toàn bộ các phần thi bên trong sẽ được chuyển sang trạng thái "Khóa (Ẩn)" để bạn kiểm tra lại trước khi Công khai.`,
             okText: 'Duyệt toàn bộ',
             okType: 'primary',
             onOk: async () => {
@@ -598,17 +598,16 @@ export default function TestDetail() {
     return (
         <div style={{ padding: '24px', background: '#F8FAFC', minHeight: '100vh' }}>
             {/* Header */}
-            <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Button
-                    size="large"
-                    icon={<ArrowLeftOutlined />}
-                    onClick={() => navigate('/exam-bank')}
-                    style={{ borderRadius: 12, fontWeight: 600, color: '#475569', display: 'flex', alignItems: 'center', gap: 8 }}
-                >
-                    Quay lại danh sách
-                </Button>
-
+            <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
                 <Space>
+                    <Button
+                        size="large"
+                        icon={<ArrowLeftOutlined />}
+                        onClick={() => navigate('/exam-bank')}
+                        style={{ borderRadius: 12, fontWeight: 600, color: '#475569', display: 'flex', alignItems: 'center', gap: 8 }}
+                    >
+                        Quay lại danh sách
+                    </Button>
                     {isAdmin && (test?.status === 'PENDING' || test?.status === 'REJECTED') && (
                         <>
                             <Button
@@ -762,7 +761,7 @@ export default function TestDetail() {
 
             {/* Primary Action */}
             {canEditOrCreate && (
-                <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'flex-start' }}>
+                <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'flex-end' }}>
                     <Button
                         type="primary"
                         icon={<PlusOutlined />}
@@ -958,12 +957,9 @@ export default function TestDetail() {
                             </Form.Item>
                         </Col>
                         <Col span={12}>
-                            <Form.Item label={<span style={{ fontWeight: 600, color: '#475569' }}>Trạng thái</span>} name="status" initialValue="ACTIVE">
-                                <Select size="large" style={{ borderRadius: 10 }}>
-                                    <Option value="ACTIVE">Công khai (Hoạt động)</Option>
-                                    <Option value="LOCKED">Khóa (Ẩn)</Option>
-                                    <Option value="PENDING">Chờ duyệt</Option>
-                                </Select>
+                            {/* Status is hidden and defaulted to PENDING for new parts */}
+                            <Form.Item name="status" initialValue="PENDING" hidden>
+                                <Input />
                             </Form.Item>
                             {/* Hidden field for orderIndex */}
                             <Form.Item name="orderIndex" hidden>

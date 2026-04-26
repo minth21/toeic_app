@@ -305,7 +305,7 @@ export const createTest = async (
                 title,
                 testType,
                 difficulty,
-                status: isAdmin ? 'ACTIVE' : 'PENDING' as any,
+                status: 'PENDING', // Default to PENDING for all roles to follow workflow
                 duration: parsedDuration,
                 totalQuestions: parsedTotalQuestions,
                 authorId,
@@ -533,7 +533,7 @@ export const approveTest = async (
         const updatedTest = await prisma.test.update({
             where: { id },
             data: { 
-                status: 'ACTIVE' as any,
+                status: 'LOCKED' as any,
                 rejectReason: null 
             }
         } as any);
@@ -621,7 +621,7 @@ export const approveTestFull = async (
             prisma.test.update({
                 where: { id },
                 data: { 
-                    status: 'ACTIVE' as any,
+                    status: 'LOCKED' as any,
                     rejectReason: null
                 },
             } as any),
@@ -629,7 +629,7 @@ export const approveTestFull = async (
             prisma.part.updateMany({
                 where: { testId: id },
                 data: { 
-                    status: 'ACTIVE' as any,
+                    status: 'LOCKED' as any,
                     rejectReason: null 
                 } as any,
             }),
@@ -637,7 +637,7 @@ export const approveTestFull = async (
             ...(partIds.length > 0
                 ? [(prisma.question as any).updateMany({
                     where: { partId: { in: partIds } },
-                    data: { status: 'ACTIVE' as any },
+                    data: { status: 'LOCKED' as any },
                 })]
                 : []),
         ]);

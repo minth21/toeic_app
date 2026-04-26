@@ -29,7 +29,8 @@ export const submitPart = async (
     next: NextFunction
 ): Promise<void> => {
     try {
-        const { userId, partId, answers, timeTaken }: SubmitPartRequest = req.body;
+        let { userId, partId, answers, timeTaken }: SubmitPartRequest = req.body;
+        if (partId) partId = partId.trim().replace(/[^a-f0-9-]/gi, '');
 
         if (!userId || !partId || !answers) {
             res.status(400).json({ success: false, message: 'Missing required fields' });
@@ -93,7 +94,6 @@ export const submitPart = async (
         const answerMap = new Map(answers.map(a => [a.questionId, a.selectedOption]));
         const flaggedMap = new Map(answers.map(a => [a.questionId, a.isFlagged || false]));
         const timeMap = new Map(answers.map(a => [a.questionId, a.timeSpent || 0]));
-        const incorrectTags: string[] = [];
         const errorDetails: any[] = [];
         const correctQuestionNumbers: number[] = [];
         const incorrectQuestionNumbers: number[] = [];
@@ -108,9 +108,6 @@ export const submitPart = async (
             } else {
                 incorrectQuestionNumbers.push(q.questionNumber);
                 // Wrong answer, collect tag and details for AI
-                if (q.topic_tag) {
-                    incorrectTags.push(q.topic_tag);
-                }
                 // [FIX] Part 1 has no questionText — use placeholder so AI prompt is not broken
                 errorDetails.push({
                     questionText: q.questionText || '(Câu hỏi nghe - không có văn bản)',
@@ -808,7 +805,8 @@ export const getPartHistory = async (
     next: NextFunction
 ): Promise<void> => {
     try {
-        const { userId, partId } = req.params;
+        let { userId, partId } = req.params;
+        if (partId) partId = partId.trim().replace(/[^a-f0-9-]/gi, '');
 
         // Tìm partNumber để lấy lịch sử toàn cục
         const targetPart = await (prisma as any).part.findUnique({
@@ -902,7 +900,6 @@ export const getAttemptDetail = async (
                                 optionTranslations: true,
                                 imageUrl: true,
                                 audioUrl: true,
-                                passageTitle: true,
                                 keyVocabulary: true
                             }
                         }

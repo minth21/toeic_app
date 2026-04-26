@@ -29,27 +29,31 @@ export const validateAndStandardizePassageData = (data: any): string | null => {
 
     let parsed: any;
     try {
-        parsed = typeof data === 'string' ? JSON.parse(data) : data;
+        const cleanJson = (text: string) => {
+            return text.replace(/```json|```/g, '').trim();
+        };
+        parsed = typeof data === 'string' ? JSON.parse(cleanJson(data)) : data;
     } catch (e) {
+        console.error('[PassageValidator] Parse Error:', e);
+        console.error('[PassageValidator] Raw Data:', data);
         throw new Error('Định dạng JSON của bản dịch không hợp lệ.');
     }
 
-    // --- RULE 4: Flatten any nested "Insight Object" wrapper ---
-    // wrapper: { passages: [], vocabulary: [], questions: [] }
+    // --- RULE: If it's already an array, keep it; if it's an object, wrap it ---
     if (parsed && !Array.isArray(parsed)) {
-        const rawPassages = parsed.passages || parsed.passageTranslations;
-        if (Array.isArray(rawPassages)) {
-            parsed = rawPassages;
-        } else if (parsed.en || parsed.vi || parsed.items || parsed.sentences) {
-            // Handle single object case
+        if (parsed.passages || parsed.passageTranslations) {
+            parsed = parsed.passages || parsed.passageTranslations;
+        } else if (parsed.en || parsed.vi || parsed.items || parsed.sentences || parsed.content) {
             parsed = [parsed];
         } else {
-            // Unexpected object structure
-            return null;
+            // If it's some other object, try to preserve it by wrapping
+            parsed = [parsed];
         }
     }
 
-    if (!Array.isArray(parsed)) return null;
+    if (!Array.isArray(parsed)) {
+        return null;
+    }
 
     // Standardization & Validation
     const standardized: any[] = parsed.map((block: any, index: number) => {

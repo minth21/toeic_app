@@ -35,7 +35,6 @@ export interface ListeningQuestionData {
 
 export interface Part7QuestionData {
     passage: string;
-    passageTitle?: string;
     questionNumber: number;
     questionText: string;
     optionA: string;
@@ -304,9 +303,10 @@ export class ExcelParser {
                     throw new Error(`Row ${i + 2}: Missing required fields for Part 7`);
                 }
 
+                const finalPassage = (passageTitle ? `<b>${passageTitle.trim()}</b><br/>` : '') + passage.trim();
+
                 questions.push({
-                    passage: passage.trim(),
-                    passageTitle: passageTitle?.trim(),
+                    passage: finalPassage,
                     questionNumber: parseInt(qNumber),
                     questionText: qText.trim(),
                     optionA: optA.toString().trim(),

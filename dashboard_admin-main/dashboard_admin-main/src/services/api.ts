@@ -122,7 +122,7 @@ export interface Part {
     createdAt: string;
     updatedAt: string;
     timeLimit?: number; // in seconds
-    audioUrl?: string;
+    audioUrl?: string | null;
 }
 
 export interface Notification {

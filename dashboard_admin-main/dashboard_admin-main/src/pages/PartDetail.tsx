@@ -22,7 +22,8 @@ import {
     Empty,
     Alert,
     Steps,
-    Tooltip
+    Tooltip,
+    Divider
 } from 'antd';
 import {
     EditOutlined,
@@ -34,6 +35,7 @@ import {
     UploadOutlined,
     DeleteOutlined,
     ExclamationCircleOutlined,
+    AudioOutlined,
 } from '@ant-design/icons';
 import { useParams, useNavigate, useOutletContext } from 'react-router-dom';
 import { useTheme } from '../hooks/useThemeContext';
@@ -55,6 +57,7 @@ import CreatePart3BulkModal from '../components/CreatePart3BulkModal';
 import CreatePart4BulkModal from '../components/CreatePart4BulkModal';
 import CreatePart5BulkModal from '../components/CreatePart5BulkModal';
 import AudioPlayer from '../components/AudioPlayer';
+import AudioBanner from '../components/AudioBanner';
 import { uploadApi, partApi, questionApi, aiApi } from '../services/api';
 import type { FormInstance } from 'antd';
 
@@ -92,7 +95,7 @@ interface AIQuestionInfo {
 interface PassageGroup {
     passageTitle?: string;
     passage: string;
-    passageImageUrl?: string; // ✅ New
+    passageImageUrl?: string; 
     audioUrl?: string;
     questions: Question[];
 }
@@ -101,11 +104,11 @@ interface Question {
     id: string;
     questionNumber: number;
     questionText?: string;
-    imageUrl?: string; // Add imageUrl
-    audioUrl?: string; // Add audioUrl
+    imageUrl?: string; 
+    audioUrl?: string; 
     passageTitle?: string;
-    passageImageUrl?: string; // ✅ New
-    questionScanUrl?: string; // ✅ New
+    passageImageUrl?: string; 
+    questionScanUrl?: string; 
     optionA?: string;
     optionB?: string;
     optionC?: string;
@@ -118,7 +121,9 @@ interface Question {
     questionTranslation?: string;
     optionTranslations?: string;
     keyVocabulary?: string;
-    transcript?: string; // ✅ New
+    analysis?: string;
+    evidence?: string;
+    transcript?: string; 
 }
 
 interface Part {
@@ -128,7 +133,7 @@ interface Part {
     instructions?: string;
     totalQuestions: number;
     testId: string;
-    audioUrl?: string;
+    audioUrl?: string | null;
 }
 
 const { Option } = Select;
@@ -140,7 +145,7 @@ export default function PartDetail() {
 
     const modernShadow = isDark
         ? '0 10px 25px -5px rgba(0, 0, 0, 0.4)'
-        : '0 10px 30px -5px rgba(37, 99, 235, 0.08), 0 4px 10px -6px rgba(37, 99, 235, 0.04)';
+        : '0 20px 40px -12px rgba(37, 99, 235, 0.25), 0 8px 16px -8px rgba(37, 99, 235, 0.1)';
 
     const { user } = useOutletContext<{ user: User }>();
     const isAdmin = user?.role === 'ADMIN';
@@ -191,6 +196,9 @@ export default function PartDetail() {
     const [editForm] = Form.useForm();
 
     // --- Import States ---
+    const [isAudioModalVisible, setIsAudioModalVisible] = useState(false);
+    const [tempAudioFiles, setTempAudioFiles] = useState<File[] | File | null>(null);
+    const [audioUpdateLoading, setAudioUpdateLoading] = useState(false);
     const [importDrawerVisible, setImportDrawerVisible] = useState(false);
     const [partAudioFile, setPartAudioFile] = useState<File | null>(null);
 
@@ -206,7 +214,7 @@ export default function PartDetail() {
 
     const quillFormats = [
         'bold', 'italic', 'underline',
-        'list', 'bullet'
+        'list'
     ];
 
     const isPart6 = part?.partNumber === 6;
@@ -455,6 +463,63 @@ export default function PartDetail() {
         }
     };
 
+    const handleDeletePartAudio = () => {
+        if (!part) return;
+        Modal.confirm({
+            title: 'Xác nhận xóa Audio',
+            content: 'Bạn có chắc muốn xóa file nghe của phần này? Điều này sẽ gỡ bỏ file nghe khỏi toàn bộ câu hỏi trong Part.',
+            okText: 'Xóa',
+            okType: 'danger',
+            onOk: async () => {
+                try {
+                    await partApi.update(part.id, { audioUrl: null });
+                    setPart(prev => prev ? { ...prev, audioUrl: null } : null);
+                    message.success('Đã xóa audio thành công');
+                    fetchQuestions(); // Refresh list to update all players
+                } catch (e) {
+                    message.error('Lỗi khi xóa audio');
+                }
+            }
+        });
+    };
+
+    const handleUpdatePartAudio = async () => {
+        if (!part || !tempAudioFiles) return;
+        setAudioUpdateLoading(true);
+        try {
+            let audioUrl = '';
+            if (Array.isArray(tempAudioFiles)) {
+                if (tempAudioFiles.length === 2) {
+                    message.loading({ content: 'Đang gộp audio...', key: 'mergeAudio' });
+                    const res = await uploadApi.mergeAudio(tempAudioFiles);
+                    if (res.success) audioUrl = res.url;
+                    else throw new Error('Gộp audio thất bại');
+                } else if (tempAudioFiles.length === 1) {
+                    const res = await uploadApi.audio(tempAudioFiles[0]);
+                    if (res.success) audioUrl = res.url;
+                }
+            } else {
+                const res = await uploadApi.audio(tempAudioFiles);
+                if (res.success) audioUrl = res.url;
+            }
+
+            if (audioUrl) {
+                await partApi.update(part.id, { audioUrl });
+                setTimeout(async () => {
+                    const data = await partApi.getDetails(part.id);
+                    if (data.success) setPart(data.part);
+                    message.success({ content: 'Cập nhật audio thành công!', key: 'mergeAudio' });
+                }, 500);
+                setIsAudioModalVisible(false);
+                setTempAudioFiles(null);
+                fetchQuestions();
+            }
+        } catch (error: any) {
+            message.error('Lỗi khi cập nhật audio: ' + error.message);
+        } finally {
+            setAudioUpdateLoading(false);
+        }
+    };
 
     const handleOpenEditModal = (record: Question) => {
         setEditingQuestion(record);
@@ -520,7 +585,7 @@ export default function PartDetail() {
                 const groupNum = Math.floor((i - startNum) / 3) + 1;
                 row = {
                     'Nhóm': groupNum,
-                    'Transcript (Hội thoại)': isFirstInGroup ? 'Nội dung bài nói/hội thoại...' : '',
+                    'Transcript Hội thoại': isFirstInGroup ? 'Nội dung bài nói/hội thoại...' : '',
                     'Số câu': i,
                     'Nội dung câu hỏi': '',
                     'A': '',
@@ -536,8 +601,7 @@ export default function PartDetail() {
                     'B': '',
                     'C': '',
                     'D': '',
-                    'Đáp án đúng': '',
-                    'Giải thích': ''
+                    'Đáp án đúng': ''
                 };
             } else if (partNum === 2) {
                 row = {
@@ -556,8 +620,7 @@ export default function PartDetail() {
                     'B': '',
                     'C': '',
                     'D': '',
-                    'Đáp án đúng': '',
-                    'Giải thích': ''
+                    'Đáp án đúng': ''
                 };
             } else {
                 // Default for 6/7 if ever used
@@ -727,8 +790,8 @@ export default function PartDetail() {
         const sortedQuestions = [...questions].sort((a, b) => a.questionNumber - b.questionNumber);
 
         // Group by passage (normalized) OR passageImageUrl OR audioUrl (for listening)
-        const newGroups: { passageTitle?: string; passage: string; passageImageUrl?: string; audioUrl?: string; questions: Question[] }[] = [];
-        let currentGroup: { passageTitle?: string; passage: string; passageImageUrl?: string; audioUrl?: string; questions: Question[] } | null = null;
+        const newGroups: { passage: string; passageImageUrl?: string; audioUrl?: string; questions: Question[] }[] = [];
+        let currentGroup: { passage: string; passageImageUrl?: string; audioUrl?: string; questions: Question[] } | null = null;
 
         // Normalization: Remove HTML tags and extra whitespace to compare text content only
         const normalizePassageContent = (p?: string, a?: string, pImg?: string, trans?: string) => {
@@ -757,15 +820,13 @@ export default function PartDetail() {
 
             // Group if content matches
             if (!currentGroup || normalizedContent !== lastGroupContent) {
-                currentGroup = { passageTitle: q.passageTitle, passage: passage, passageImageUrl: passageImageUrl, audioUrl: audioUrl, questions: [] };
+                currentGroup = { passage: passage, passageImageUrl: passageImageUrl, audioUrl: audioUrl, questions: [] };
                 newGroups.push(currentGroup);
             }
             currentGroup.questions.push(q);
         });
         return newGroups;
     }, [questions]);
-
-
 
     // --- Render Logic: Layouts ---
     const renderGroupedLayout = () => {
@@ -780,27 +841,76 @@ export default function PartDetail() {
 
                     const firstQ = group.questions[0];
                     if (firstQ) {
+                        // 1. Thu thập Vocabulary từ TẤT CẢ câu hỏi trong nhóm
+                        const vocabMap = new Map();
+                        group.questions.forEach(q => {
+                            if (q.keyVocabulary) {
+                                try {
+                                    const qVocab = typeof q.keyVocabulary === 'string' ? JSON.parse(q.keyVocabulary) : q.keyVocabulary;
+                                    if (Array.isArray(qVocab)) {
+                                        qVocab.forEach(v => {
+                                            const word = v.word || v.text;
+                                            if (word && !vocabMap.has(word.toLowerCase())) {
+                                                vocabMap.set(word.toLowerCase(), v);
+                                            }
+                                        });
+                                    }
+                                } catch (e) { console.error('Lỗi parse keyVocabulary question:', e); }
+                            }
+                        });
+
+                        // 2. Xử lý passageTranslationData từ câu hỏi đầu tiên
                         if (firstQ.passageTranslationData) {
                             try {
                                 const raw = typeof firstQ.passageTranslationData === 'string' ? JSON.parse(firstQ.passageTranslationData) : firstQ.passageTranslationData;
-                                if (Array.isArray(raw)) {
+                                const rawTranslations = raw.passages || raw.passageTranslations || raw.passageTranslationData;
+                                
+                                if (rawTranslations) {
+                                    aiTranslations = Array.isArray(rawTranslations) ? rawTranslations : [rawTranslations];
+                                } else if (Array.isArray(raw) && raw.length > 0) {
                                     aiTranslations = raw;
                                 } else {
-                                    aiTranslations = raw.passages || raw.passageTranslations || [];
-                                    if (Array.isArray(raw.vocabulary)) vocabulary = [...raw.vocabulary];
-                                    aiQuestionsInfo = raw.questions || [];
+                                    aiTranslations = [];
                                 }
-                            } catch (e: unknown) { console.error('Lỗi parse AI translations:', e); }
-                        }
 
-                        if (firstQ.keyVocabulary) {
-                            try {
-                                const rawVocab = typeof firstQ.keyVocabulary === 'string' ? JSON.parse(firstQ.keyVocabulary) : firstQ.keyVocabulary;
-                                if (Array.isArray(rawVocab)) {
-                                    vocabulary = [...vocabulary, ...rawVocab];
+                                // Bổ sung vocab từ passageTranslationData vào Map
+                                if (raw.vocabulary && Array.isArray(raw.vocabulary)) {
+                                    raw.vocabulary.forEach((v: any) => {
+                                        const word = v.word || v.text;
+                                        if (word && !vocabMap.has(word.toLowerCase())) {
+                                            vocabMap.set(word.toLowerCase(), v);
+                                        }
+                                    });
                                 }
-                            } catch (e: unknown) { console.error('Lỗi parse keyVocabulary:', e); }
+
+                                const jsonQuestions = raw.questions || raw.enrichedQuestions || [];
+                                
+                                // Đảm bảo luôn hiển thị ĐẦY ĐỦ các câu hỏi trong nhóm, kể cả khi AI trả thiếu
+                                aiQuestionsInfo = group.questions.map(q => {
+                                    const aiQ = jsonQuestions.find((aj: any) => parseInt(aj.questionNumber) === q.questionNumber);
+                                    return {
+                                        questionNumber: q.questionNumber,
+                                        analysis: aiQ?.analysis || aiQ?.explanation || q.analysis || q.explanation || 'Chưa có phân tích cho câu này.',
+                                        evidence: aiQ?.evidence || q.evidence
+                                    };
+                                });
+                            } catch (e: unknown) { 
+                                console.error('Lỗi parse AI translations:', e); 
+                                aiQuestionsInfo = group.questions.map(q => ({
+                                    questionNumber: q.questionNumber,
+                                    analysis: q.analysis || q.explanation || 'Chưa có phân tích cho câu này.',
+                                    evidence: q.evidence
+                                }));
+                            }
+                        } else {
+                            aiQuestionsInfo = group.questions.map(q => ({
+                                questionNumber: q.questionNumber,
+                                analysis: q.analysis || q.explanation || 'Chưa có phân tích cho câu này.',
+                                evidence: q.evidence
+                            }));
                         }
+                        
+                        vocabulary = Array.from(vocabMap.values());
                     }
 
                     return (
@@ -814,7 +924,7 @@ export default function PartDetail() {
                                 border: 'none',
                                 background: '#FFFFFF'
                             }}
-                            bodyStyle={{ padding: 0 }}
+                            styles={{ body: { padding: 0 } }}
                         >
                             <div style={{
                                 padding: '20px',
@@ -852,12 +962,6 @@ export default function PartDetail() {
                                         </div>
                                     </div>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                                        {/* Ẩn trình phát nhạc trong nhóm vì đã có trình phát tổng ở đầu trang */}
-                                        {/* {isListeningGroup && group.audioUrl && (
-                                            <div style={{ width: 250 }}>
-                                                <AudioPlayer src={group.audioUrl} />
-                                            </div>
-                                        )} */}
                                         {canEditOrCreate && (
                                             <Button
                                                 size="middle"
@@ -911,11 +1015,12 @@ export default function PartDetail() {
                                                     color: '#1E293B'
                                                 }}
                                             >
-                                                {group.passageTitle && <div style={{ fontWeight: 800, fontSize: 16, color: '#1E293B', marginBottom: 12 }}>{group.passageTitle}</div>}
                                                 <div dangerouslySetInnerHTML={{
                                                     __html: (isListeningGroup ? (group.questions[0]?.transcript || group.passage) : (group.passage.replace(/<audio.*<\/audio>/, '').trim() || group.questions[0]?.transcript || (group.passageImageUrl ? '' : '<p><i>(Không có nội dung đoạn văn)</i></p>')))
-                                                        .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
-                                                        .replace(/<img[^>]*>/g, '') 
+                                                        .replace(/<p>|<\/p>|<b>|<\/b>|<strong>|<\/strong>/gi, ' ')
+                                                        .replace(/&nbsp;/gi, ' ')
+                                                        .replace(/\s+/g, ' ')
+                                                        .trim()
                                                 }} />
 
                                                 {group.passageImageUrl && (
@@ -952,9 +1057,9 @@ export default function PartDetail() {
                                                 border: '1px solid #DDD6FE',
                                                 boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.02)'
                                             }}>
-                                                {aiTranslations.length > 0 ? (
+                                                {(aiTranslations.length > 0 || vocabulary.length > 0 || aiQuestionsInfo.length > 0) ? (
                                                     <Space direction="vertical" style={{ width: '100%' }} size="middle">
-                                                        {aiTranslations.map((p: AIPassage, pIdx: number) => (
+                                                        {aiTranslations.length > 0 && aiTranslations.map((p: AIPassage, pIdx: number) => (
                                                             <div key={pIdx} style={{ marginBottom: 12 }}>
                                                                 <div style={{
                                                                     display: 'flex', alignItems: 'center', gap: 8,
@@ -981,10 +1086,10 @@ export default function PartDetail() {
 
                                                         {/* Vocabulary Section - Synchronized from Part 6 to 7 */}
                                                         {vocabulary.length > 0 && (
-                                                            <div style={{ marginTop: 8, paddingTop: 16, borderTop: '2px dashed #DDD6FE' }}>
-                                                                <div style={{ marginBottom: 12, color: '#059669', fontWeight: 700, fontSize: 14 }}>
-                                                                    TỪ VỰNG QUAN TRỌNG
-                                                                </div>
+                                                            <div style={{ marginTop: 8, paddingTop: 16 }}>
+                                                                <Divider titlePlacement="left" styles={{ content: { margin: 0 } }} style={{ borderTopStyle: 'dashed', borderTopColor: '#DDD6FE', marginBottom: 16 }}>
+                                                                    <span style={{ color: '#059669', fontWeight: 700, fontSize: 14 }}>TỪ VỰNG QUAN TRỌNG</span>
+                                                                </Divider>
                                                                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                                                                     {vocabulary.map((v: any, i: number) => (
                                                                         <Tag key={i} color="green" style={{ borderRadius: 6, margin: 0, padding: '4px 10px', fontSize: 13 }}>
@@ -1001,17 +1106,17 @@ export default function PartDetail() {
 
                                                         {/* Analysis Section */}
                                                         {aiQuestionsInfo.length > 0 && (
-                                                            <div style={{ marginTop: 8, paddingTop: 16, borderTop: '2px dashed #DDD6FE' }}>
-                                                                <div style={{ marginBottom: 12, color: '#1E40AF', fontWeight: 700, fontSize: 14 }}>
-                                                                    PHÂN TÍCH CÂU HỎI
-                                                                </div>
+                                                            <div style={{ marginTop: 8, paddingTop: 16 }}>
+                                                                <Divider titlePlacement="left" styles={{ content: { margin: 0 } }} style={{ borderTopStyle: 'dashed', borderTopColor: '#DDD6FE', marginBottom: 16 }}>
+                                                                    <span style={{ color: '#1E40AF', fontWeight: 700, fontSize: 14 }}>PHÂN TÍCH CÂU HỎI</span>
+                                                                </Divider>
                                                                 <Space direction="vertical" style={{ width: '100%' }} size="small">
                                                                     {aiQuestionsInfo.map((aq: AIQuestionInfo, i: number) => (
                                                                         <div key={i} style={{ padding: '10px 14px', background: '#F8FAFC', borderRadius: 10, border: '1px solid #E2E8F0' }}>
                                                                             <div style={{ fontWeight: 800, color: '#1E3A8A', fontSize: 12, marginBottom: 4 }}>CÂU {aq.questionNumber}</div>
                                                                             <div style={{ fontSize: 12, color: '#475569', lineHeight: 1.5 }}>
-                                                                                {aq.analysis && <div>- {aq.analysis}</div>}
-                                                                                {aq.evidence && <div style={{ marginTop: 4, color: '#059669', fontStyle: 'italic' }}>{aq.evidence}</div>}
+                                                                                {aq.analysis && <div>- {aq.analysis.replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim()}</div>}
+                                                                                {aq.evidence && <div style={{ marginTop: 4, color: '#059669', fontStyle: 'italic' }}>{aq.evidence.replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim()}</div>}
                                                                             </div>
                                                                         </div>
                                                                     ))}
@@ -1042,10 +1147,23 @@ export default function PartDetail() {
                                         <List.Item style={{ marginBottom: 16 }}>
                                             <div style={{
                                                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                                                padding: '16px', borderRadius: 12, background: '#F1F5F9',
-                                                border: '1px solid #E2E8F0',
-                                                transition: 'all 0.3s'
-                                            }} className="hover-item-shadow-light">
+                                                padding: '20px', borderRadius: 16, background: isDark ? 'rgba(255,255,255,0.03)' : '#F8FAFC',
+                                                border: '1px solid',
+                                                borderColor: isDark ? 'rgba(255,255,255,0.1)' : '#E2E8F0',
+                                                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                                cursor: 'pointer'
+                                            }} 
+                                            onMouseEnter={(e) => {
+                                                e.currentTarget.style.transform = 'translateY(-2px)';
+                                                e.currentTarget.style.boxShadow = '0 10px 20px -5px rgba(37, 99, 235, 0.1)';
+                                                e.currentTarget.style.borderColor = '#2563EB';
+                                            }}
+                                            onMouseLeave={(e) => {
+                                                e.currentTarget.style.transform = 'translateY(0)';
+                                                e.currentTarget.style.boxShadow = 'none';
+                                                e.currentTarget.style.borderColor = isDark ? 'rgba(255,255,255,0.1)' : '#E2E8F0';
+                                            }}
+                                            className="hover-item-shadow-light">
                                                 <div style={{ flex: 1 }}>
                                                     <Space size="middle" align="start">
                                                         <div style={{
@@ -1292,6 +1410,33 @@ export default function PartDetail() {
         });
     };
 
+    const handleBulkDelete = () => {
+        if (selectedQuestionIds.length === 0) return;
+        Modal.confirm({
+            title: 'Xóa các câu hỏi đã chọn',
+            icon: <ExclamationCircleOutlined />,
+            content: `Xác nhận xóa ${selectedQuestionIds.length} câu hỏi đã chọn? Dữ liệu sẽ bị mất vĩnh viễn.`,
+            okText: 'Xóa',
+            okType: 'danger',
+            cancelText: 'Hủy',
+            onOk: async () => {
+                try {
+                    const data = await questionApi.deleteBulk(selectedQuestionIds);
+                    if (data.success) {
+                        message.success(`Đã xóa ${selectedQuestionIds.length} câu hỏi thành công`);
+                        setSelectedQuestionIds([]);
+                        fetchQuestions();
+                    } else {
+                        message.error(data.message || 'Xóa thất bại');
+                    }
+                } catch (error) {
+                    console.error('Error bulk deleting questions:', error);
+                    message.error('Có lỗi xảy ra khi xóa hàng loạt câu hỏi');
+                }
+            },
+        });
+    };
+
     const handleDeleteAllQuestions = () => {
         if (!part) return;
         Modal.confirm({
@@ -1399,7 +1544,16 @@ export default function PartDetail() {
                                 size="large"
                                 icon={<ArrowLeftOutlined />}
                                 onClick={() => navigate(`/exam-bank/${testId}`)}
-                                style={{ borderRadius: 12, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}
+                                style={{ 
+                                    borderRadius: 12, 
+                                    fontWeight: 600, 
+                                    display: 'flex', 
+                                    alignItems: 'center', 
+                                    gap: 8,
+                                    border: '1px solid #BFDBFE',
+                                    color: '#1E40AF',
+                                    background: '#EFF6FF'
+                                }}
                             >
                                 Trở về
                             </Button>
@@ -1445,7 +1599,7 @@ export default function PartDetail() {
                             background: 'var(--bg-surface)',
                             overflow: 'hidden'
                         }}
-                        bodyStyle={{ padding: '20px 24px' }}
+                        styles={{ body: { padding: 0 } }}
                     >
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 20, flex: 1 }}>
@@ -1464,13 +1618,39 @@ export default function PartDetail() {
                                 }}>
                                     AUDIO
                                 </div>
-                                <div style={{ flex: 1 }}>
-                                    {part?.audioUrl ? (
-                                        <div style={{ width: '100%' }}>
-                                            <AudioPlayer src={part.audioUrl} />
-                                        </div>
-                                    ) : (
-                                        <span style={{ color: '#94A3B8', fontStyle: 'italic', fontSize: 13 }}>Chưa có file nghe chung cho phần này</span>
+                                <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 16 }}>
+                                    <div style={{ flex: 1 }}>
+                                        {part?.audioUrl ? (
+                                            <div style={{ width: '100%' }}>
+                                                <AudioPlayer src={part.audioUrl} />
+                                            </div>
+                                        ) : (
+                                            <span style={{ color: '#94A3B8', fontStyle: 'italic', fontSize: 13 }}>Chưa có file nghe chung cho phần này</span>
+                                        )}
+                                    </div>
+                                    {canEditOrCreate && (
+                                        <Space>
+                                            <Button 
+                                                icon={<EditOutlined />} 
+                                                onClick={() => {
+                                                    setTempAudioFiles(null);
+                                                    setIsAudioModalVisible(true);
+                                                }}
+                                                style={{ borderRadius: 8, fontWeight: 600, border: '1px solid #10B981', color: '#10B981' }}
+                                            >
+                                                Thay đổi
+                                            </Button>
+                                            {part?.audioUrl && (
+                                                <Button 
+                                                    danger 
+                                                    icon={<DeleteOutlined />} 
+                                                    onClick={handleDeletePartAudio}
+                                                    style={{ borderRadius: 8, fontWeight: 600 }}
+                                                >
+                                                    Xóa
+                                                </Button>
+                                            )}
+                                        </Space>
                                     )}
                                 </div>
                             </div>
@@ -1525,15 +1705,28 @@ export default function PartDetail() {
                                         </Button>
 
                                         {isAdmin && questions.length > 0 && (
-                                            <Button
-                                                danger
-                                                size="large"
-                                                onClick={handleDeleteAllQuestions}
-                                                style={{ borderRadius: 12, fontWeight: 700, height: 44 }}
-                                                icon={<DeleteOutlined />}
-                                            >
-                                                Xóa tất cả câu hỏi
-                                            </Button>
+                                            <Space>
+                                                {selectedQuestionIds.length > 0 && (
+                                                    <Button
+                                                        danger
+                                                        size="large"
+                                                        onClick={handleBulkDelete}
+                                                        style={{ borderRadius: 12, fontWeight: 700, height: 44, background: '#FFF', border: '1px solid #ff4d4f' }}
+                                                        icon={<DeleteOutlined />}
+                                                    >
+                                                        Xóa câu đã chọn ({selectedQuestionIds.length})
+                                                    </Button>
+                                                )}
+                                                <Button
+                                                    danger
+                                                    size="large"
+                                                    onClick={handleDeleteAllQuestions}
+                                                    style={{ borderRadius: 12, fontWeight: 700, height: 44 }}
+                                                    icon={<DeleteOutlined />}
+                                                >
+                                                    Xóa tất cả câu hỏi
+                                                </Button>
+                                            </Space>
                                         )}
                                     </Space>
 
@@ -1555,7 +1748,14 @@ export default function PartDetail() {
                                                     }
                                                 }}
                                                 size="large"
-                                                style={{ borderRadius: 12, fontWeight: 600, height: 44 }}
+                                                style={{ 
+                                                    borderRadius: 12, 
+                                                    fontWeight: 600, 
+                                                    height: 44,
+                                                    border: '1px solid #BFDBFE',
+                                                    color: '#1E40AF',
+                                                    background: '#EFF6FF'
+                                                }}
                                                 icon={<ImportOutlined />}
                                             >
                                                 Nhập Excel
@@ -1566,7 +1766,14 @@ export default function PartDetail() {
                                             <Button
                                                 onClick={handleDownloadTemplate}
                                                 size="large"
-                                                style={{ borderRadius: 12, fontWeight: 600, height: 44 }}
+                                                style={{ 
+                                                    borderRadius: 12, 
+                                                    fontWeight: 600, 
+                                                    height: 44,
+                                                    border: '1px solid #BFDBFE',
+                                                    color: '#1E40AF',
+                                                    background: '#EFF6FF'
+                                                }}
                                                 icon={<DownloadOutlined />}
                                             >
                                                 Tải mẫu
@@ -1608,7 +1815,7 @@ export default function PartDetail() {
                 onSuccess={handleCreateSuccess}
                 testId={testId || ''}
                 partId={partId || ''}
-                currentAudioUrl={part?.audioUrl}
+                currentAudioUrl={part?.audioUrl || undefined}
                 partNumber={part?.partNumber}
                 initialData={part2ImportData}
             />
@@ -1618,7 +1825,7 @@ export default function PartDetail() {
                 onCancel={() => setCreatePart1ModalVisible(false)}
                 onSuccess={handleCreateSuccess}
                 partId={partId || null}
-                currentAudioUrl={part?.audioUrl}
+                currentAudioUrl={part?.audioUrl || undefined}
                 partName={part?.partName}
                 partNumber={part?.partNumber}
                 initialData={part1ImportData}
@@ -1631,7 +1838,7 @@ export default function PartDetail() {
                 partId={partId || null}
                 partNumber={3}
                 partName={part?.partNumber === 3 ? part?.partName : undefined}
-                currentAudioUrl={part?.audioUrl}
+                currentAudioUrl={part?.audioUrl || undefined}
             />
 
             {/* Create Part 4 Modal */}
@@ -1642,7 +1849,7 @@ export default function PartDetail() {
                 partId={partId || null}
                 partNumber={4}
                 partName={part?.partNumber === 4 ? part?.partName : undefined}
-                currentAudioUrl={part?.audioUrl}
+                currentAudioUrl={part?.audioUrl || undefined}
             />
 
 
@@ -1688,7 +1895,7 @@ export default function PartDetail() {
                 onCancel={() => setCreatePart3BulkModalVisible(false)}
                 onSuccess={handleCreateSuccess}
                 partId={partId || null}
-                currentAudioUrl={part?.audioUrl}
+                currentAudioUrl={part?.audioUrl || undefined}
                 partNumber={3}
                 initialData={part3ImportData}
             />
@@ -1698,10 +1905,49 @@ export default function PartDetail() {
                 onCancel={() => setCreatePart4BulkModalVisible(false)}
                 onSuccess={handleCreateSuccess}
                 partId={partId || null}
-                currentAudioUrl={part?.audioUrl}
+                currentAudioUrl={part?.audioUrl || undefined}
                 partNumber={4}
                 initialData={part4ImportData}
             />
+
+            {/* Audio Update Modal */}
+            <Modal
+                title={
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <AudioOutlined style={{ color: '#10B981' }} />
+                        <span>CẬP NHẬT ÂM THANH PART {part?.partNumber}</span>
+                    </div>
+                }
+                open={isAudioModalVisible}
+                onCancel={() => setIsAudioModalVisible(false)}
+                onOk={handleUpdatePartAudio}
+                confirmLoading={audioUpdateLoading}
+                okText="Cập nhật ngay"
+                cancelText="Bỏ qua"
+                width={600}
+                centered
+                okButtonProps={{ style: { borderRadius: 8, background: '#10B981', border: 'none' } }}
+                cancelButtonProps={{ style: { borderRadius: 8 } }}
+            >
+                <div style={{ padding: '10px 0' }}>
+                    <AudioBanner 
+                        currentAudioUrl={part?.audioUrl}
+                        newAudioFile={tempAudioFiles as any}
+                        onAudioFileChange={setTempAudioFiles as any}
+                        multiple={part?.partNumber === 3 || part?.partNumber === 4}
+                        onDeleteCurrentAudio={handleDeletePartAudio}
+                    />
+                    <div style={{ marginTop: 16, padding: 12, background: '#F0F9FF', borderRadius: 8, fontSize: 12, color: '#0369A1', border: '1px solid #BAE6FD' }}>
+                        <p style={{ margin: 0, fontWeight: 600 }}>ℹ️ Hướng dẫn:</p>
+                        <p style={{ margin: '4px 0 0 0' }}>* File âm thanh này sẽ được dùng chung cho tất cả các câu hỏi trong Part {part?.partNumber}.</p>
+                        {(part?.partNumber === 3 || part?.partNumber === 4) && (
+                            <p style={{ margin: '4px 0 0 0', fontWeight: 600 }}>
+                                * Vì Part này dài, bạn có thể tải lên 2 file để hệ thống tự động gộp lại.
+                            </p>
+                        )}
+                    </div>
+                </div>
+            </Modal>
 
 
             <Modal

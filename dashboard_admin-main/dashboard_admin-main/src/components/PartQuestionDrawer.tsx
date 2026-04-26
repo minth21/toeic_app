@@ -39,7 +39,7 @@ const { Text } = Typography;
 import { questionApi, partApi } from '../services/api';
 import { QUILL_MODULES, QUILL_FORMATS } from '../utils/editorUtils';
 
-const modernShadow = '0 10px 30px -5px rgba(37, 99, 235, 0.08), 0 4px 10px -6px rgba(37, 99, 235, 0.04)';
+const modernShadow = '0 15px 35px -5px rgba(37, 99, 235, 0.12), 0 5px 15px -7px rgba(37, 99, 235, 0.05)';
 
 import CreatePart6Modal from './CreatePart6Modal';
 import CreatePart7Modal from './CreatePart7Modal';
@@ -443,12 +443,12 @@ export default function PartQuestionDrawer({
         });
 
         return (
-            <div style={{ maxHeight: 'calc(100vh - 200px)', overflowY: 'auto' }}>
+            <div className="stagger-list" style={{ maxHeight: 'calc(100vh - 200px)', overflowY: 'auto' }}>
                 {groups.map((group, index) => {
                     return (
                         <Card
                             key={index}
-                            hoverable
+                            className="stagger-item"
                             style={{
                                 marginBottom: 32,
                                 borderRadius: 16,
@@ -515,10 +515,10 @@ export default function PartQuestionDrawer({
                                         <div style={{
                                             maxHeight: 450,
                                             overflowY: 'auto',
-                                            background: '#F8FAFC',
+                                            background: '#F0F7FF',
                                             padding: 16,
                                             borderRadius: 12,
-                                            border: '1px solid #E2E8F0',
+                                            border: '1px solid #BFDBFE',
                                             lineHeight: '1.6',
                                             color: '#1E293B'
                                         }}>
@@ -569,11 +569,11 @@ export default function PartQuestionDrawer({
                                         <div style={{
                                             maxHeight: 450,
                                             overflowY: 'auto',
-                                            background: 'linear-gradient(135deg, #F5F3FF 0%, #FFFFFF 100%)',
+                                            background: 'linear-gradient(135deg, #F0F7FF 0%, #FFFFFF 100%)',
                                             padding: 16,
                                             borderRadius: 12,
-                                            border: '1px solid #DDD6FE',
-                                            boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.02)'
+                                            border: '1px solid #BFDBFE',
+                                            boxShadow: 'inset 0 2px 4px rgba(37, 99, 235, 0.02)'
                                         }}>
                                             {(() => {
                                                 // Parser cực kỳ an toàn cho cả 2 loại payload: passageData (mới) và passageTranslationData (cũ)
@@ -602,22 +602,22 @@ export default function PartQuestionDrawer({
 
                                                         return (
                                                             <div key={pIdx} style={{ marginBottom: 20 }}>
-                                                                <div style={{
-                                                                    display: 'flex', alignItems: 'center', gap: 8,
-                                                                    marginBottom: 12, paddingBottom: 6, borderBottom: '1px solid #EDE9FE'
-                                                                }}>
-                                                                    <div style={{ width: 4, height: 16, background: '#8B5CF6', borderRadius: 2 }} />
-                                                                    <Text strong style={{ color: '#5B21B6', fontSize: 14 }}>
-                                                                        {p.label || `Đoạn ${pIdx + 1}`}
-                                                                    </Text>
-                                                                </div>
+                                                                    <div style={{
+                                                                        display: 'flex', alignItems: 'center', gap: 8,
+                                                                        marginBottom: 12, paddingBottom: 6, borderBottom: '1px solid #BFDBFE'
+                                                                    }}>
+                                                                        <div style={{ width: 4, height: 16, background: '#2563EB', borderRadius: 2 }} />
+                                                                        <Text strong style={{ color: '#1E3A8A', fontSize: 14 }}>
+                                                                            {p.label || `Đoạn ${pIdx + 1}`}
+                                                                        </Text>
+                                                                    </div>
                                                                 {sentences.map((s: any, sIdx: number) => (
                                                                     <div key={sIdx} style={{
                                                                         marginBottom: 12, padding: '8px 12px', background: 'rgba(255,255,255,0.5)',
-                                                                        borderRadius: 8, border: '1px solid rgba(139, 92, 246, 0.1)'
+                                                                        borderRadius: 8, border: '1px solid rgba(37, 99, 235, 0.1)'
                                                                     }}>
                                                                         <div style={{ color: '#1E293B', fontSize: 13, fontWeight: 500 }}>{s.en}</div>
-                                                                        <div style={{ color: '#6D28D9', fontSize: 13, fontStyle: 'italic', marginTop: 4, opacity: 0.9 }}>
+                                                                        <div style={{ color: '#2563EB', fontSize: 13, fontStyle: 'italic', marginTop: 4, opacity: 0.9 }}>
                                                                             → {s.vi}
                                                                         </div>
                                                                     </div>
@@ -652,8 +652,8 @@ export default function PartQuestionDrawer({
                                         <List.Item style={{ marginBottom: 16 }}>
                                             <div style={{
                                                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                                                padding: '16px', borderRadius: 12, background: '#F1F5F9',
-                                                border: '1px solid #E2E8F0',
+                                                padding: '16px', borderRadius: 12, background: '#F0F7FF',
+                                                border: '1px solid #BFDBFE',
                                                 transition: 'all 0.3s'
                                             }} className="hover-item-shadow">
                                                 <div style={{ flex: 1 }}>
@@ -772,7 +772,7 @@ export default function PartQuestionDrawer({
                                     danger
                                     icon={<LockOutlined />}
                                 >
-                                    Khóa đã chọn ({selectedQuestionIds.length})
+                                    Khóa đã chọn {selectedQuestionIds.length}
                                 </Button>
                             </Popconfirm>
                         ) : (

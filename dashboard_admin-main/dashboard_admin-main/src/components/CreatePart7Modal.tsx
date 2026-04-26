@@ -1,14 +1,17 @@
 import { useState, useEffect } from 'react';
-import { Modal, Form, Input, Select, message, Card, Upload, Button, Row, Col, Space, Radio, InputNumber, Empty, Progress, Image, Tag, Typography, Layout, Tabs, Divider, Alert } from 'antd';
+import { Modal, Form, Input, Select, message, Card, Upload, Button, Row, Col, Space, Radio, InputNumber, Empty, Image, Tag, Typography, Layout, Tabs, Divider } from 'antd';
 import { 
     DeleteOutlined, 
     PlusOutlined, 
-    RobotOutlined, 
     ExperimentOutlined, 
     CameraOutlined, 
     BookOutlined, 
     CheckCircleOutlined,
-    InfoCircleOutlined
+    GlobalOutlined,
+    ThunderboltOutlined,
+    EditOutlined,
+    InfoCircleOutlined,
+    FileSearchOutlined
 } from '@ant-design/icons';
 import ReactQuill from 'react-quill-new';
 import 'quill/dist/quill.snow.css';
@@ -18,6 +21,39 @@ import { QUILL_MODULES, QUILL_FORMATS } from '../utils/editorUtils';
 const { Dragger } = Upload;
 const { Text } = Typography;
 const { Sider, Content } = Layout;
+
+// Helper to clean HTML and junk characters
+const cleanContent = (text: string) => {
+    if (!text) return '';
+    return text.replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
+};
+
+// Helper to parse JSON safely and ensure it's an array
+const safeParseArray = (str: any) => {
+    if (!str) return [];
+    if (Array.isArray(str)) return str;
+    try {
+        let cleaned = typeof str === 'string' ? str.replace(/```json|```/g, '').trim() : str;
+        let parsed = typeof cleaned === 'string' ? JSON.parse(cleaned) : cleaned;
+        if (typeof parsed === 'string') parsed = JSON.parse(parsed);
+        return Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+        console.error('JSON Parse Error:', e);
+        return [];
+    }
+};
+
+const safeParseObj = (str: any) => {
+    if (!str) return {};
+    if (typeof str === 'object' && !Array.isArray(str)) return str;
+    try {
+        const cleaned = typeof str === 'string' ? str.replace(/```json|```/g, '').trim() : str;
+        const parsed = typeof cleaned === 'string' ? JSON.parse(cleaned) : cleaned;
+        return (typeof parsed === 'object' && parsed !== null) ? parsed : {};
+    } catch (e) {
+        return {};
+    }
+};
 
 interface CreatePart7ModalProps {
     open: boolean;
@@ -36,11 +72,20 @@ export default function CreatePart7Modal({ open, onCancel, onSuccess, partId, mo
     const [aiDoneIndexes, setAiDoneIndexes] = useState<number[]>([]);
     const [passageFileLists, setPassageFileLists] = useState<Record<number, any[]>>({});
     const [questionFileLists, setQuestionFileLists] = useState<Record<number, any[]>>({});
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const [aiInsights, setAiInsights] = useState<Record<number, any>>({});
     const [isAiProcessing, setIsAiProcessing] = useState(false);
-    const [aiProgress, setAiProgress] = useState(0);
     const [currentInsightIndex, setCurrentInsightIndex] = useState<number>(0);
+
+    const passagesWatch = Form.useWatch('passages', form);
+    const currentPassageType = passagesWatch?.[currentInsightIndex]?.passageType || 'text';
+
+    const getPreviewUrls = (fileList: any[]) => {
+        return (fileList || []).map(file => {
+            if (file.url) return file.url;
+            if (file.originFileObj) return URL.createObjectURL(file.originFileObj);
+            if (file.response?.data?.url) return file.response.data.url;
+            return null;
+        }).filter(Boolean);
+    };
 
     useEffect(() => {
         if (open) {
@@ -49,207 +94,67 @@ export default function CreatePart7Modal({ open, onCancel, onSuccess, partId, mo
                 const questions = (passage.questions || []).sort((a: any, b: any) => a.questionNumber - b.questionNumber);
                 const firstQ = questions[0] || {};
                 const lastQ = questions[questions.length - 1] || {};
-
                 const pUrls = firstQ.passageImageUrl ? firstQ.passageImageUrl.split(',').filter(Boolean) : [];
                 const sUrls = firstQ.questionScanUrl ? firstQ.questionScanUrl.split(',').filter(Boolean) : [];
 
-                const isImagePassage = pUrls.length > 0 || (passage.passage || '').includes('<img');
+                // Handle nested items structure from DB [ { items: [...] } ] or flat [ { en, vi }, ... ]
+                const rawTransData = safeParseArray(firstQ.passageTranslationData);
+                let translationItems = [];
+                if (rawTransData.length > 0) {
+                    if (rawTransData[0].items) translationItems = rawTransData[0].items;
+                    else translationItems = rawTransData;
+                }
 
                 form.setFieldsValue({
                     passages: [{
-                        passageTitle: (passage.passage?.match(/<p[^>]*>\s*<b>\s*(.*?)\s*<\/b>\s*<\/p>/)?.[1] || '').trim(),
+                        passageTitle: cleanContent(passage.passage?.match(/<p[^>]*>\s*<b>\s*(.*?)\s*<\/b>\s*<\/p>/)?.[1] || ''),
                         passage: (passage.passage || '').replace(/<p[^>]*>\s*<b>\s*.*?\s*<\/b>\s*<\/p>/, '').trim(),
-                        passageType: isImagePassage ? 'image' : 'text',
-                        passageTranslationData: firstQ.passageTranslationData,
-                        passageImageUrl: firstQ.passageImageUrl,
-                        questionScanUrl: firstQ.questionScanUrl,
-                        audioUrl: firstQ.audioUrl,
+                        passageType: pUrls.length > 0 ? 'image' : 'text',
+                        passageTranslationData: translationItems,
+                        keyVocabulary: safeParseArray(firstQ.keyVocabulary),
                         startQuestion: firstQ.questionNumber,
                         endQuestion: lastQ.questionNumber,
                         questions: questions.map((q: any) => ({
                             id: q.id,
                             questionNumber: q.questionNumber,
-                            questionText: (q.questionText || '').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim(),
-                            optionA: (q.optionA || '').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim(),
-                            optionB: (q.optionB || '').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim(),
-                            optionC: (q.optionC || '').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim(),
-                            optionD: (q.optionD || '').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim(),
-                            optionTranslations: typeof q.optionTranslations === 'string' ? JSON.parse(q.optionTranslations) : (q.optionTranslations || {}),
-                            questionTranslation: q.questionTranslation || '',
+                            questionText: cleanContent(q.questionText || ''),
+                            optionA: cleanContent(q.optionA || ''),
+                            optionB: cleanContent(q.optionB || ''),
+                            optionC: cleanContent(q.optionC || ''),
+                            optionD: cleanContent(q.optionD || ''),
+                            optionTranslations: safeParseObj(q.optionTranslations),
+                            questionTranslation: cleanContent(q.questionTranslation || ''),
                             correctAnswer: q.correctAnswer,
-                            explanation: q.explanation,
-                            analysis: q.analysis || '',
-                            evidence: q.evidence || '',
-                            keyVocabulary: typeof q.keyVocabulary === 'string' ? JSON.parse(q.keyVocabulary) : (q.keyVocabulary || [])
+                            analysis: q.analysis,
+                            evidence: q.evidence
                         }))
                     }]
                 });
 
-                setPassageFileLists({
-                    0: pUrls.map((url: string, i: number) => ({
-                        uid: `-p-${i}`, name: `Passage ${i + 1}`, status: 'done', url, thumbUrl: url, response: { data: { url } }
-                    }))
-                });
-
-                setQuestionFileLists({
-                    0: sUrls.map((url: string, i: number) => ({
-                        uid: `-s-${i}`, name: `Scan ${i + 1}`, status: 'done', url, thumbUrl: url, response: { data: { url } }
-                    }))
-                });
-
-                let pts: any[] = [];
-                let voc: any[] = [];
-                let qs: any[] = [];
-
-                if (firstQ.passageTranslationData && firstQ.passageTranslationData !== 'null') {
-                    try {
-                        const raw = JSON.parse(firstQ.passageTranslationData);
-                        if (Array.isArray(raw)) {
-                            pts = raw;
-                        } else {
-                            pts = raw.passages || raw.passageTranslations || [];
-                            voc = raw.vocabulary || [];
-                            qs = raw.questions || [];
-                        }
-                    } catch (e) { }
-                }
-
-                const insightQuestions = questions.map((q: any) => {
-                    const existingQInsight = qs.find(iq => iq.questionNumber === q.questionNumber);
-                    let parsedOptTrans = {};
-                    try {
-                        parsedOptTrans = typeof q.optionTranslations === 'string' ? JSON.parse(q.optionTranslations) : (q.optionTranslations || {});
-                    } catch (e) { }
-
-                    if (q.keyVocabulary && q.keyVocabulary !== 'null') {
-                        try {
-                            const qVocab = typeof q.keyVocabulary === 'string' ? JSON.parse(q.keyVocabulary) : q.keyVocabulary;
-                            if (Array.isArray(qVocab)) voc = [...voc, ...qVocab];
-                        } catch (e) { }
-                    }
-
-                    return {
-                        questionNumber: q.questionNumber,
-                        questionTranslation: q.questionTranslation || existingQInsight?.questionTranslation || '',
-                        optionTranslations: parsedOptTrans,
-                        analysis: q.analysis || existingQInsight?.analysis || '',
-                        evidence: q.evidence || existingQInsight?.evidence || '',
-                        explanation: q.explanation
-                    };
-                });
-
-                const uniqueVocab = Array.from(new Map(voc.filter(v => v && (v.word || v.text)).map(item => [item.word || item.text, item])).values());
-
-                setAiInsights({
-                    0: {
-                        passageTranslations: pts,
-                        passageData: firstQ.passageData ? (typeof firstQ.passageData === 'string' ? JSON.parse(firstQ.passageData) : firstQ.passageData) : [],
-                        vocabulary: uniqueVocab,
-                        questions: insightQuestions
-                    }
-                });
+                setPassageFileLists({ 0: pUrls.map((url: string, i: number) => ({ uid: `-p-${i}`, status: 'done', url })) });
+                setQuestionFileLists({ 0: sUrls.map((url: string, i: number) => ({ uid: `-s-${i}`, status: 'done', url })) });
                 setAiDoneIndexes([0]);
-                setCurrentInsightIndex(0);
             } else {
                 form.resetFields();
-                setAiDoneIndexes([]);
-                setPassageFileLists({});
-                setQuestionFileLists({});
-                setAiInsights({});
-                setCurrentInsightIndex(0);
+                setAiDoneIndexes([]); setPassageFileLists({}); setQuestionFileLists({});
             }
         }
     }, [open, mode, initialData, form]);
 
-    const handleAnalyzeAll = async () => {
-        const passages = form.getFieldValue('passages') || [];
-        if (passages.length === 0) return message.warning('Chưa có nhóm nội dung nào!');
-        setIsAiProcessing(true);
-        let successCount = 0;
-        for (let i = 0; i < passages.length; i++) {
-            setAiProgress(Math.floor((i / passages.length) * 100));
-            setCurrentInsightIndex(i);
-            const type = passages[i].passageType;
-            try {
-                if (type === 'image') await handleMagicScan(i, true);
-                else await handleGenerateAI(i, true);
-                successCount++;
-            } catch (e) { console.error('Error in batch analysis', i, e); }
-        }
-        setIsAiProcessing(false);
-        setAiProgress(100);
-        if (successCount === passages.length) message.success('Đã phân tích 100% tất cả các nhóm!');
-    };
-
-    const handleGenerateAI = async (index: number, isBatch = false) => {
-        const passages = form.getFieldValue('passages') || [];
-        const passageItem = passages[index];
-        const questions = passageItem?.questions;
-        if (!passageItem?.passage || !questions || questions.length === 0) {
-            if (!isBatch) message.warning('Vui lòng nhập nội dung đoạn văn và câu hỏi!');
-            return;
-        }
-        if (!isBatch) { setIsAiProcessing(true); setAiProgress(30); setCurrentInsightIndex(index); }
-        try {
-            const cleanPassage = (passageItem.passageTitle ? `${passageItem.passageTitle}\n${passageItem.passage}` : passageItem.passage).replace(/<[^>]*>?/gm, ' ');
-            const response = await api.post('/ai/generate-part7', {
-                passage: cleanPassage,
-                questions: questions.map((q: any) => ({
-                    questionNumber: q.questionNumber,
-                    optionA: q.optionA, optionB: q.optionB,
-                    optionC: q.optionC, optionD: q.optionD,
-                    correctAnswer: q.correctAnswer,
-                }))
-            }, { timeout: 120000 });
-
-            if (response.data.success) {
-                const aiData = response.data.data;
-                const updatedPassages = [...form.getFieldValue('passages')];
-                const item = updatedPassages[index];
-                item.passageTranslationData = aiData.passageTranslations ? JSON.stringify(aiData.passageTranslations) : undefined;
-                if (aiData.questions && Array.isArray(item.questions)) {
-                    item.questions = item.questions.map((q: any) => {
-                        const aiQ = aiData.questions.find((aq: any) => Number(aq.questionNumber) === Number(q.questionNumber));
-                        if (aiQ) return {
-                            ...q,
-                            questionTranslation: aiQ.questionTranslation || '',
-                            optionTranslations: aiQ.optionTranslations || {},
-                            analysis: aiQ.analysis || '',
-                            evidence: aiQ.evidence || '',
-                            explanation: aiQ.explanation || '',
-                            keyVocabulary: aiData.vocabulary || []
-                        };
-                        return q;
-                    });
-                }
-                form.setFieldValue('passages', updatedPassages);
-                setAiInsights(prev => ({ ...prev, [index]: aiData }));
-                setAiDoneIndexes(prev => [...new Set([...prev, index])]);
-                if (!isBatch) message.success('Đã tạo AI Insights!');
-            }
-        } catch (err: any) { message.error('Lỗi tạo AI'); }
-        finally { if (!isBatch) { setIsAiProcessing(false); setAiProgress(0); } }
-    };
-
     const handleMagicScan = async (index: number, isBatch = false) => {
-        if (!isBatch) { setIsAiProcessing(true); setAiProgress(30); setCurrentInsightIndex(index); }
+        if (!isBatch) { setIsAiProcessing(true); setCurrentInsightIndex(index); }
         try {
             const formData = new FormData();
             const passageFiles = (passageFileLists[index] || []).map(f => f.originFileObj).filter(Boolean);
             const questionFiles = (questionFileLists[index] || []).map(f => f.originFileObj).filter(Boolean);
-            const existingUrls = [
-                ...(passageFileLists[index] || []).map(f => f.url || f.response?.data?.url || f.response?.url),
-                ...(questionFileLists[index] || []).map(f => f.url || f.response?.data?.url || f.response?.url)
-            ].filter(url => url && typeof url === 'string' && url.startsWith('http'));
-
-            if (passageFiles.length === 0 && questionFiles.length === 0 && existingUrls.length === 0) {
+            
+            if (passageFiles.length === 0 && questionFiles.length === 0) {
                 if (!isBatch) message.warning('Vui lòng upload ảnh!');
-                if (!isBatch) setIsAiProcessing(false);
                 return;
             }
+
             passageFiles.forEach(file => formData.append('passageImages', file as any));
             questionFiles.forEach(file => formData.append('questionImages', file as any));
-            if (existingUrls.length > 0) formData.append('imageUrls', JSON.stringify(existingUrls));
 
             const response = await api.post('/ai/magic-scan-part7', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' },
@@ -259,68 +164,84 @@ export default function CreatePart7Modal({ open, onCancel, onSuccess, partId, mo
             if (response.data.success) {
                 const aiData = response.data.data;
                 const updatedPassages = [...form.getFieldValue('passages')];
-                const userStartNum = updatedPassages[index].startQuestion;
+                const existingQuestions = updatedPassages[index].questions || [];
+                const startNum = updatedPassages[index].startQuestion || aiData.questions[0]?.questionNumber;
+
                 updatedPassages[index] = {
                     ...updatedPassages[index],
-                    passage: (aiData.passageHtml || updatedPassages[index].passage || '').replace(/<img[^>]*>/g, ''),
-                    passageTranslationData: JSON.stringify(aiData.passageTranslations || []),
-                    passageData: JSON.stringify(aiData.passageData || aiData.passageTranslations || []),
+                    passage: (aiData.passageHtml || '').replace(/<img[^>]*>/g, ''),
+                    passageTranslationData: (() => {
+                        const raw = aiData.passageTranslationData || aiData.passageTranslations || [];
+                        if (raw.length > 0 && raw[0].items) return raw[0].items;
+                        return raw;
+                    })(),
+                    keyVocabulary: aiData.vocabulary || [],
                     questions: aiData.questions.map((q: any, idx: number) => ({
                         ...q,
-                        questionNumber: userStartNum ? (userStartNum + idx) : q.questionNumber,
-                        optionTranslations: q.optionTranslations || {},
-                        keyVocabulary: aiData.vocabulary || []
+                        id: existingQuestions[idx]?.id, // Keep the existing ID if it exists
+                        questionNumber: startNum + idx,
+                        questionText: cleanContent(q.questionText || ''),
+                        optionA: cleanContent(q.optionA || ''),
+                        optionB: cleanContent(q.optionB || ''),
+                        optionC: cleanContent(q.optionC || ''),
+                        optionD: cleanContent(q.optionD || '')
                     })),
-                    startQuestion: userStartNum || aiData.questions[0]?.questionNumber,
-                    endQuestion: (userStartNum || aiData.questions[0]?.questionNumber) + aiData.questions.length - 1
+                    startQuestion: startNum,
+                    endQuestion: startNum + aiData.questions.length - 1
                 };
                 form.setFieldValue('passages', updatedPassages);
-                setAiInsights(prev => ({ ...prev, [index]: aiData }));
                 setAiDoneIndexes(prev => [...new Set([...prev, index])]);
-                if (!isBatch) message.success('Quét Magic Scan thành công!');
+                if (!isBatch) message.success('Magic Scan thành công!');
             }
-        } catch (e: any) { message.error('Lỗi Magic Scan'); }
-        finally { if (!isBatch) { setIsAiProcessing(false); setAiProgress(0); } }
+        } catch (e) { message.error('Lỗi Scan'); }
+        finally { if (!isBatch) { setIsAiProcessing(false); } }
     };
 
     const handleFinish = async (values: any) => {
         if (!partId) return;
-
-        for (const passage of values.passages) {
-            const outOfRange = (passage.questions || []).filter((q: any) => q.questionNumber < 147 || q.questionNumber > 200);
-            if (outOfRange.length > 0) {
-                message.error('Câu hỏi Part 7 phải nằm trong khoảng từ 147 đến 200');
-                return;
-            }
-        }
-
         setLoading(true);
         try {
             for (let i = 0; i < values.passages.length; i++) {
                 const item = values.passages[i];
-                let passageHtml = item.passageTitle ? `<p><b>${item.passageTitle}</b></p>` : '';
+                const titleText = (item.passageTitle || '').replace(/<p[^>]*>/g, '').replace(/<\/p>/g, '').trim();
+                let passageHtml = titleText ? `<p><b>${titleText}</b></p>` : '';
                 passageHtml += (item.passage || '').replace(/<img[^>]*>/g, '');
                 
-                const finalPassageImageUrl = (passageFileLists[i] || []).map(f => f.url || f.response?.data?.url).filter(Boolean).join(',');
-                const finalQuestionScanUrl = (questionFileLists[i] || []).map(f => f.url || f.response?.data?.url).filter(Boolean).join(',');
+                const pUrls = (passageFileLists[i] || []).map(f => f.url || f.response?.url).filter(Boolean).join(',');
+                const sUrls = (questionFileLists[i] || []).map(f => f.url || f.response?.url).filter(Boolean).join(',');
+
+                // Wrap translation items in the required structure
+                const transPayload = [{
+                    type: "passage",
+                    label: "ĐOẠN VĂN",
+                    items: item.passageTranslationData || []
+                }];
 
                 const payload = {
                     passage: passageHtml,
-                    passageImageUrl: finalPassageImageUrl || null,
-                    passageTranslationData: item.passageTranslationData,
+                    passageImageUrl: pUrls || null,
+                    passageTranslationData: JSON.stringify(transPayload),
                     questions: (item.questions || []).map((q: any) => ({
-                        ...q,
-                        passage: passageHtml,
-                        passageImageUrl: finalPassageImageUrl || null,
-                        questionScanUrl: finalQuestionScanUrl || null,
-                        optionTranslations: typeof q.optionTranslations === 'string' ? q.optionTranslations : JSON.stringify(q.optionTranslations || {}),
-                        keyVocabulary: typeof q.keyVocabulary === 'string' ? q.keyVocabulary : JSON.stringify(q.keyVocabulary || []),
+                        ...q, 
+                        passage: passageHtml, 
+                        passageImageUrl: pUrls || null, 
+                        questionScanUrl: sUrls || null,
+                        passageTranslationData: JSON.stringify(transPayload),
+                        optionTranslations: JSON.stringify(q.optionTranslations || {}),
+                        keyVocabulary: JSON.stringify(item.keyVocabulary || [])
                     }))
                 };
 
                 if (mode === 'edit') {
                     for (const q of payload.questions) {
-                        if (q.id) await api.patch(`/questions/${q.id}`, q);
+                        // Fail-safe: If q.id is missing, try to find it from initialData by matching questionNumber
+                        let targetId = q.id;
+                        if (!targetId && initialData?.questions) {
+                            const match = initialData.questions.find((oldQ: any) => oldQ.questionNumber === q.questionNumber);
+                            if (match) targetId = match.id;
+                        }
+
+                        if (targetId) await api.patch(`/questions/${targetId}`, q);
                         else await api.post(`/parts/${partId}/questions`, q);
                     }
                 } else {
@@ -329,49 +250,43 @@ export default function CreatePart7Modal({ open, onCancel, onSuccess, partId, mo
             }
             message.success('Lưu thành công!');
             onSuccess(); onCancel();
-        } catch (e: any) { message.error('Lỗi lưu'); }
+        } catch (e) { message.error('Lỗi lưu'); }
         finally { setLoading(false); }
     };
 
     return (
         <Modal
             title={
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                     <div style={{
                         width: 42, height: 42, borderRadius: 12, 
-                        background: 'linear-gradient(135deg, #1E293B 0%, #334155 100%)',
+                        background: '#2563EB',
                         display: 'flex', alignItems: 'center', justifyContent: 'center', 
-                        color: '#fff', fontSize: 24, boxShadow: '0 8px 16px rgba(30, 41, 59, 0.2)'
+                        color: '#fff', fontSize: 20
                     }}>
                         <ExperimentOutlined />
                     </div>
                     <div>
-                        <span style={{ 
-                            fontWeight: 850, fontSize: 19, 
-                            background: 'linear-gradient(to right, #1E293B, #475569)',
-                            WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-                            textTransform: 'uppercase', letterSpacing: '0.5px' 
-                        }}>
+                        <span style={{ fontWeight: 800, fontSize: 18, color: '#1E293B', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                             {partName || `PART ${partNumber}: READING COMPREHENSION`}
                         </span>
-                        <Text type="secondary" style={{ display: 'block', fontSize: 11, fontWeight: 500, marginTop: -4 }}>
-                            Hệ thống quản trị Reading Part 7 Premium
-                        </Text>
+                        <div style={{ fontSize: 12, color: '#64748B', fontWeight: 500 }}>Hệ thống quản lý Reading Part 7 Premium</div>
                     </div>
                 </div>
             }
-            open={open} onCancel={onCancel} width={1500} centered style={{ top: 20 }} maskClosable={false}
-            styles={{ body: { padding: '24px 32px' } }}
+            open={open} onCancel={onCancel} width={1350} centered style={{ top: 20 }} maskClosable={false}
+            styles={{ body: { padding: '24px', background: '#F8FAFC' } }}
+            destroyOnHidden
             footer={[
-                <Button key="cancel" size="large" onClick={onCancel} style={{ borderRadius: 10, fontWeight: 600 }}>Hủy bỏ</Button>,
+                <Button key="cancel" size="large" onClick={onCancel} style={{ borderRadius: 10, fontWeight: 600, height: 44, padding: '0 32px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>Hủy bỏ</Button>,
                 <Button 
                     key="submit" size="large" type="primary" 
                     onClick={() => form.submit()} loading={loading} 
                     icon={<CheckCircleOutlined />}
                     style={{ 
-                        borderRadius: 10, fontWeight: 700, 
-                        background: 'linear-gradient(135deg, #1E293B 0%, #334155 100%)', 
-                        border: 'none', boxShadow: '0 4px 14px rgba(30, 41, 59, 0.3)', padding: '0 32px' 
+                        borderRadius: 10, fontWeight: 800, height: 44,
+                        background: '#2563EB', border: 'none', padding: '0 40px',
+                        boxShadow: '0 6px 16px rgba(37, 99, 235, 0.25)'
                     }}
                 >
                     {mode === 'edit' ? 'CẬP NHẬT' : 'HOÀN TẤT'}
@@ -379,158 +294,295 @@ export default function CreatePart7Modal({ open, onCancel, onSuccess, partId, mo
             ]}
         >
             <Form form={form} layout="vertical" onFinish={handleFinish} initialValues={{ passages: [{ questions: [{}, {}] }] }}>
-                {isAiProcessing && (
-                    <div style={{ marginBottom: 24, padding: 20, background: '#F0F9FF', borderRadius: 16, border: '1px solid #BAE6FD' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
-                            <Text strong style={{ color: '#0369A1' }}><RobotOutlined spin /> Đang phân tích AI...</Text>
-                            <Text strong>{aiProgress}%</Text>
-                        </div>
-                        <Progress percent={aiProgress} status="active" strokeColor="#0EA5E9" />
-                    </div>
-                )}
-
-                <Layout style={{ background: 'transparent', gap: 24 }}>
-                    <Sider width={260} style={{ background: '#F8FAFC', borderRadius: 20, border: '1px solid #E2E8F0', padding: 16, height: '75vh', overflowY: 'auto' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                            <Text strong style={{ color: '#64748B', fontSize: 12, textTransform: 'uppercase' }}>Danh sách nhóm</Text>
-                            <Button type="primary" size="small" icon={<PlusOutlined />} onClick={() => {
+                <Layout style={{ background: 'transparent', gap: 20 }}>
+                    <Sider width={280} style={{ background: '#fff', borderRadius: 24, border: '1px solid #E2E8F0', padding: '20px', height: '75vh', overflowY: 'auto' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                            <Text strong style={{ color: '#64748B', fontSize: 12, textTransform: 'uppercase', letterSpacing: '1px' }}>Danh sách nhóm</Text>
+                            <Button type="primary" shape="circle" size="small" icon={<PlusOutlined />} onClick={() => {
                                 const current = form.getFieldValue('passages') || [];
                                 form.setFieldValue('passages', [...current, { questions: [{}, {}] }]);
-                            }} style={{ borderRadius: 6, fontSize: 11 }} />
+                            }} style={{ background: '#2563EB', border: 'none' }} />
                         </div>
                         <Form.List name="passages">
                             {(fields) => (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                                     {fields.map((field, index) => (
                                         <div key={field.key} onClick={() => setCurrentInsightIndex(index)}
                                             style={{ 
-                                                display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', 
-                                                background: currentInsightIndex === index ? '#1E293B' : 'transparent', 
-                                                color: currentInsightIndex === index ? '#fff' : '#475569', 
-                                                borderRadius: 12, cursor: 'pointer', 
-                                                border: currentInsightIndex === index ? 'none' : '1px solid transparent',
-                                                transition: 'all 0.2s'
+                                                display: 'flex', alignItems: 'center', gap: 12, padding: '14px', 
+                                                background: currentInsightIndex === index ? '#2563EB' : '#fff', 
+                                                color: currentInsightIndex === index ? '#fff' : '#1E293B', 
+                                                borderRadius: 16, cursor: 'pointer', 
+                                                border: '1px solid #E2E8F0',
+                                                transition: 'all 0.3s',
+                                                boxShadow: currentInsightIndex === index ? '0 8px 16px rgba(37, 99, 235, 0.2)' : 'none'
                                             }}>
                                             <div style={{ 
-                                                width: 24, height: 24, borderRadius: 6, 
-                                                background: currentInsightIndex === index ? 'rgba(255,255,255,0.2)' : '#E2E8F0', 
-                                                color: currentInsightIndex === index ? '#fff' : '#64748B', 
-                                                display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 11 
+                                                width: 28, height: 28, borderRadius: 8, 
+                                                background: currentInsightIndex === index ? 'rgba(255,255,255,0.2)' : '#F1F5F9', 
+                                                color: currentInsightIndex === index ? '#fff' : '#2563EB', 
+                                                display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 13 
                                             }}>{index + 1}</div>
-                                            <div style={{ flex: 1 }}>
-                                                <div style={{ fontWeight: 700, fontSize: 13 }}>Nhóm {index + 1}</div>
-                                                <div style={{ fontSize: 10, opacity: 0.7 }}>
-                                                    {form.getFieldValue(['passages', index, 'startQuestion']) || '?'}-{form.getFieldValue(['passages', index, 'endQuestion']) || '?'}
-                                                </div>
-                                            </div>
-                                            {aiDoneIndexes.includes(index) && <CheckCircleOutlined style={{ color: '#10B981', fontSize: 14 }} />}
+                                            <div style={{ flex: 1, fontWeight: 700, fontSize: 14 }}>Nhóm {index + 1}</div>
+                                            {aiDoneIndexes.includes(index) && <CheckCircleOutlined style={{ color: currentInsightIndex === index ? '#fff' : '#10B981' }} />}
                                         </div>
                                     ))}
                                 </div>
                             )}
                         </Form.List>
                         
-                        <Divider />
-                        <Space direction="vertical" style={{ width: '100%' }}>
-                            <Button block icon={<RobotOutlined />} onClick={handleAnalyzeAll} loading={isAiProcessing} style={{ borderRadius: 10, height: 40, fontWeight: 700 }}>Phân tích Tất cả</Button>
-                            <Button block danger icon={<DeleteOutlined />} onClick={() => {
-                                const current = form.getFieldValue('passages');
-                                if (current.length > 1) {
-                                    const next = current.filter((_: any, i: number) => i !== currentInsightIndex);
-                                    form.setFieldValue('passages', next);
-                                    setCurrentInsightIndex(Math.max(0, currentInsightIndex - 1));
-                                } else message.warning('Phải có ít nhất 1 nhóm!');
-                            }} style={{ borderRadius: 10 }}>Xóa Nhóm Hiện Tại</Button>
-                        </Space>
+                        <div style={{ marginTop: 'auto', paddingTop: 20 }}>
+                            <Space direction="vertical" style={{ width: '100%' }} size="middle">
+                                <Button block icon={<ThunderboltOutlined />} style={{ borderRadius: 12, height: 42, fontWeight: 600, color: '#475569' }}>Phân tích Tất cả</Button>
+                                <Button block icon={<DeleteOutlined />} style={{ borderRadius: 12, height: 42, fontWeight: 600, color: '#EF4444' }}>Xóa Nhóm Hiện Tại</Button>
+                            </Space>
+                        </div>
                     </Sider>
 
-                    <Content style={{ background: '#fff', borderRadius: 24, border: '1px solid #E2E8F0', padding: 32, height: '75vh', overflowY: 'auto' }} className="custom-scrollbar">
+                    <Content style={{ background: '#fff', borderRadius: 24, border: '1px solid #E2E8F0', padding: '32px', height: '75vh', overflowY: 'auto' }} className="custom-scrollbar">
                         <Form.List name="passages">
                             {(fields) => {
                                 const field = fields[currentInsightIndex];
                                 if (!field) return <Empty description="Chọn hoặc thêm nhóm mới" />;
                                 return (
                                     <div key={field.key}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-                                            <Space size="middle">
-                                                <Tag color="slate" style={{ background: '#1E293B', color: '#fff', padding: '4px 12px', borderRadius: 6, fontSize: 14, fontWeight: 800 }}>NHÓM {currentInsightIndex + 1}</Tag>
-                                                <Button size="small" type="primary" icon={<ExperimentOutlined />} onClick={() => handleGenerateAI(currentInsightIndex)} loading={isAiProcessing}>AI Magic Nhóm này</Button>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+                                            <Space size="large">
+                                                <div style={{ background: '#2563EB', color: '#fff', padding: '8px 24px', borderRadius: 12, fontWeight: 800, fontSize: 14 }}>NHÓM {currentInsightIndex + 1}</div>
+                                                <Space>
+                                                    <Text strong style={{ color: '#64748B', fontSize: 12 }}>TỪ CÂU:</Text>
+                                                    <Form.Item name={[field.name, 'startQuestion']} noStyle><InputNumber style={{ width: 60, borderRadius: 8 }} /></Form.Item>
+                                                    <Text strong style={{ color: '#64748B', fontSize: 12 }}>ĐẾN CÂU:</Text>
+                                                    <Form.Item name={[field.name, 'endQuestion']} noStyle><InputNumber style={{ width: 60, borderRadius: 8 }} /></Form.Item>
+                                                </Space>
                                             </Space>
-                                            <Space>
-                                                <Form.Item label="Câu bắt đầu" name={[field.name, 'startQuestion']} style={{ margin: 0 }}><InputNumber style={{ width: 70, borderRadius: 8 }} /></Form.Item>
-                                                <Form.Item label="Câu kết thúc" name={[field.name, 'endQuestion']} style={{ margin: 0 }}><InputNumber style={{ width: 70, borderRadius: 8 }} /></Form.Item>
-                                            </Space>
+                                            {currentPassageType === 'image' && (
+                                                <Button type="primary" size="large" icon={<ThunderboltOutlined />}
+                                                    onClick={() => handleMagicScan(currentInsightIndex)}
+                                                    loading={isAiProcessing}
+                                                    style={{ 
+                                                        borderRadius: 12, 
+                                                        height: 48, 
+                                                        background: '#2563EB', 
+                                                        fontWeight: 800, 
+                                                        padding: '0 32px',
+                                                        boxShadow: '0 6px 16px rgba(37, 99, 235, 0.25)',
+                                                        border: 'none'
+                                                    }}>
+                                                    AI MAGIC SCAN NHÓM NÀY
+                                                </Button>
+                                            )}
                                         </div>
 
-                                        <Form.Item label={<span style={{ fontWeight: 700, color: '#1E293B' }}>Tiêu đề đoạn văn (Optional)</span>} name={[field.name, 'passageTitle']}>
-                                            <Input placeholder="Ví dụ: Questions 147-148 refer to the following email." style={{ borderRadius: 10 }} />
+                                        <Form.Item label={<span style={{ fontWeight: 700, color: '#475569', fontSize: 13 }}>TIÊU ĐỀ ĐOẠN VĂN (VÍ DỤ: QUESTIONS 147-148 REFER TO...)</span>} name={[field.name, 'passageTitle']}>
+                                            <ReactQuill theme="snow" style={{ height: 80, marginBottom: 40 }} 
+                                                modules={{ toolbar: [['bold', 'italic', 'underline', { 'color': [] }]] }} 
+                                                placeholder="Questions 147-148 refer to the following letter." />
                                         </Form.Item>
 
                                         <div style={{ marginBottom: 24 }}>
-                                            <Form.Item name={[field.name, 'passageType']} initialValue="text">
+                                            <Form.Item name={[field.name, 'passageType']} initialValue="text" noStyle>
                                                 <Radio.Group buttonStyle="solid">
-                                                    <Radio.Button value="text">Văn bản (Quill)</Radio.Button>
-                                                    <Radio.Button value="image">Hình ảnh (Magic Scan)</Radio.Button>
+                                                    <Radio.Button value="text" style={{ borderRadius: '8px 0 0 8px', height: 36, fontWeight: 800 }}>VĂN BẢN</Radio.Button>
+                                                    <Radio.Button value="image" style={{ borderRadius: '0 8px 8px 0', height: 36, fontWeight: 800 }}>HÌNH ẢNH</Radio.Button>
                                                 </Radio.Group>
                                             </Form.Item>
-
-                                            <Form.Item noStyle shouldUpdate>{() => {
-                                                const type = form.getFieldValue(['passages', currentInsightIndex, 'passageType']);
-                                                if (type === 'image') return (
-                                                    <div style={{ background: '#F8FAFC', padding: 20, borderRadius: 16, border: '1px dashed #BFDBFE' }}>
-                                                        <Dragger multiple showUploadList={false} action={`${api.defaults.baseURL}/upload/image`} name="image" headers={{ Authorization: `Bearer ${localStorage.getItem('admin_token')}` }} onChange={({ fileList }) => setPassageFileLists(prev => ({ ...prev, [currentInsightIndex]: fileList }))}>
-                                                            <p className="ant-upload-drag-icon"><CameraOutlined style={{ color: '#3B82F6', fontSize: 32 }} /></p>
-                                                            <Text strong>Thả ảnh đoạn văn tại đây</Text>
-                                                        </Dragger>
-                                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 12 }}>
-                                                            {(passageFileLists[currentInsightIndex] || []).map((file, i) => <Image key={i} src={file.url || file.response?.data?.url} width={80} style={{ borderRadius: 8 }} />)}
-                                                        </div>
-                                                        <Button block icon={<ExperimentOutlined />} onClick={() => handleMagicScan(currentInsightIndex)} style={{ marginTop: 16, background: '#1E293B', color: '#fff', border: 'none', borderRadius: 8 }}>QUÉT MAGIC SCAN</Button>
-                                                    </div>
-                                                );
-                                                return <Form.Item name={[field.name, 'passage']} rules={[{ required: true }]}><ReactQuill style={{ height: 250, marginBottom: 50, background: '#fff' }} modules={QUILL_MODULES} formats={QUILL_FORMATS} /></Form.Item>;
-                                            }}</Form.Item>
                                         </div>
 
-                                        <Divider orientation="left" orientationMargin={0}><span style={{ fontWeight: 800, color: '#64748B' }}>CÂU HỎI CHI TIẾT</span></Divider>
-
-                                        <Form.List name={[field.name, 'questions']}>
-                                            {(qFields, { add: addQ, remove: removeQ }) => (
-                                                <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-                                                    {qFields.map((qf, qi) => (
-                                                        <Card key={qf.key} size="small" style={{ borderRadius: 16, border: '1px solid #E2E8F0', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }} 
-                                                            title={<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                                <Space>
-                                                                    <Tag color="blue" style={{ borderRadius: 6, fontWeight: 800 }}>CÂU {form.getFieldValue(['passages', currentInsightIndex, 'startQuestion']) + qi || '?'}</Tag>
-                                                                    <Form.Item name={[qf.name, 'correctAnswer']} label="Đáp án" style={{ margin: 0 }}><Select options={[{ value: 'A' }, { value: 'B' }, { value: 'C' }, { value: 'D' }]} style={{ width: 80 }} /></Form.Item>
-                                                                </Space>
-                                                                <Button danger size="small" icon={<DeleteOutlined />} onClick={() => removeQ(qi)} />
-                                                            </div>}>
-                                                            <Row gutter={16}>
-                                                                <Col span={12}><Form.Item name={[qf.name, 'questionText']} label="Đề bài"><Input style={{ borderRadius: 8 }} /></Form.Item></Col>
-                                                                <Col span={12}><Form.Item name={[qf.name, 'questionTranslation']} label="Dịch đề bài"><Input style={{ borderRadius: 8, border: '1px solid #BAE6FD' }} /></Form.Item></Col>
-                                                            </Row>
-                                                            <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
-                                                                {['A', 'B', 'C', 'D'].map(opt => (
-                                                                    <Col span={6} key={opt}><Form.Item name={[qf.name, `option${opt}`]} label={opt} style={{ margin: 0 }}><Input style={{ borderRadius: 6 }} /></Form.Item></Col>
-                                                                ))}
-                                                            </Row>
-                                                            <Tabs size="small" type="line">
-                                                                <Tabs.TabPane tab={<span><InfoCircleOutlined /> Lời giải</span>} key="exp">
-                                                                    <Form.Item name={[qf.name, 'explanation']} noStyle><ReactQuill theme="snow" style={{ height: 150, marginBottom: 40 }} /></Form.Item>
-                                                                </Tabs.TabPane>
-                                                                <Tabs.TabPane tab={<span><BookOutlined /> Từ vựng</span>} key="vocab">
-                                                                    <div style={{ background: '#F8FAFC', padding: 12, borderRadius: 8 }}>
-                                                                        <Alert message="Từ vựng sẽ được tự động trích xuất từ nội dung AI Insights để phục vụ tính năng dịch thông minh." type="info" showIcon style={{ fontSize: 12 }} />
-                                                                    </div>
-                                                                </Tabs.TabPane>
-                                                            </Tabs>
-                                                        </Card>
-                                                    ))}
-                                                    <Button type="dashed" icon={<PlusOutlined />} onClick={() => addQ()} style={{ height: 45, borderRadius: 12 }}>Thêm Câu Hỏi Cho Nhóm Này</Button>
+                                        <Card title={
+                                            <Space>
+                                                <div style={{ color: '#2563EB', display: 'flex' }}>
+                                                    {currentPassageType === 'text' ? <EditOutlined /> : <CameraOutlined />}
                                                 </div>
-                                            )}
-                                        </Form.List>
+                                                <span style={{ fontWeight: 800, fontSize: 14, color: '#1E293B' }}>
+                                                    {currentPassageType === 'text' 
+                                                        ? 'NHẬP LIỆU VĂN BẢN' 
+                                                        : 'AI MAGIC SCAN - TỰ ĐỘNG NHẬN DIỆN TỪ ẢNH'}
+                                                </span>
+                                            </Space>
+                                        } 
+                                            style={{ borderRadius: 20, background: '#F8FAFC', border: '1px solid #E2E8F0', marginBottom: 40 }}
+                                            styles={{ header: { borderBottom: 'none', padding: '16px 24px' }, body: { padding: '0 24px 24px' } }}>
+                                            
+                                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: 20 }}>
+                                                {currentPassageType === 'text' ? (
+                                                    <div style={{ background: '#fff', borderRadius: 16, padding: 20, border: '1px solid #E2E8F0' }}>
+                                                        <Form.Item name={[field.name, 'passage']} label={<span style={{ fontWeight: 700, fontSize: 12 }}>NỘI DUNG VĂN BẢN</span>} style={{ marginBottom: 0 }}>
+                                                            <ReactQuill theme="snow" style={{ height: 300, marginBottom: 40 }} modules={QUILL_MODULES} formats={QUILL_FORMATS} />
+                                                        </Form.Item>
+                                                    </div>
+                                                ) : (
+                                                    <div style={{ background: '#fff', borderRadius: 16, padding: 20, border: '1px solid #E2E8F0' }}>
+                                                        <Space direction="vertical" style={{ width: '100%' }} size="large">
+                                                            <div>
+                                                                <Text strong style={{ fontSize: 11, color: '#64748B' }}>1. ẢNH ĐOẠN VĂN</Text>
+                                                                <Dragger multiple showUploadList={false} action={`${api.defaults.baseURL}/upload/image`} name="image" headers={{ Authorization: `Bearer ${localStorage.getItem('admin_token')}` }} onChange={({ fileList }) => setPassageFileLists(prev => ({ ...prev, [currentInsightIndex]: fileList }))} style={{ background: '#F8FAFC', borderRadius: 12, border: '1px dashed #BFDBFE', padding: 12, marginTop: 8 }}>
+                                                                    <CameraOutlined style={{ fontSize: 20, color: '#3B82F6' }} />
+                                                                    <div style={{ fontSize: 12, color: '#64748B' }}>Thêm ảnh</div>
+                                                                </Dragger>
+                                                                <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+                                                                    {getPreviewUrls(passageFileLists[currentInsightIndex]).map((url, i) => <div key={i} style={{ position: 'relative' }}><Image src={url} width={50} height={50} style={{ borderRadius: 8, objectFit: 'cover', border: '1px solid #E2E8F0' }} /><div style={{ position: 'absolute', top: -5, right: -5, background: '#EF4444', color: '#fff', borderRadius: '50%', width: 16, height: 16, fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>×</div></div>)}
+                                                                </div>
+                                                            </div>
+                                                            <div>
+                                                                <Text strong style={{ fontSize: 11, color: '#64748B' }}>2. ẢNH CÂU HỎI</Text>
+                                                                <Dragger multiple showUploadList={false} action={`${api.defaults.baseURL}/upload/image`} name="image" headers={{ Authorization: `Bearer ${localStorage.getItem('admin_token')}` }} onChange={({ fileList }) => setQuestionFileLists(prev => ({ ...prev, [currentInsightIndex]: fileList }))} style={{ background: '#F8FAFC', borderRadius: 12, border: '1px dashed #BBF7D0', padding: 12, marginTop: 8 }}>
+                                                                    <CameraOutlined style={{ fontSize: 20, color: '#22C55E' }} />
+                                                                    <div style={{ fontSize: 12, color: '#64748B' }}>Thêm ảnh</div>
+                                                                </Dragger>
+                                                                <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+                                                                    {getPreviewUrls(questionFileLists[currentInsightIndex]).map((url, i) => <div key={i} style={{ position: 'relative' }}><Image src={url} width={50} height={50} style={{ borderRadius: 8, objectFit: 'cover', border: '1px solid #E2E8F0' }} /><div style={{ position: 'absolute', top: -5, right: -5, background: '#EF4444', color: '#fff', borderRadius: '50%', width: 16, height: 16, fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>×</div></div>)}
+                                                                </div>
+                                                            </div>
+                                                        </Space>
+                                                    </div>
+                                                )}
+
+                                                <div style={{ background: '#fff', borderRadius: 16, padding: 20, border: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column' }}>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                                                        <Space><GlobalOutlined style={{ color: '#2563EB' }} /><span style={{ fontWeight: 800, fontSize: 13, color: '#475569' }}>BẢN DỊCH SONG NGỮ</span></Space>
+                                                    </div>
+                                                    <div style={{ background: '#F0F9FF', padding: '10px 16px', borderRadius: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                                                        <Text strong style={{ fontSize: 13, color: '#2563EB' }}>ĐOẠN VĂN</Text>
+                                                        <Form.List name={[field.name, 'passageTranslationData']}>
+                                                            {(_, { add }) => (
+                                                                <Button size="small" type="primary" ghost icon={<PlusOutlined />} onClick={() => add()} style={{ borderRadius: 6, fontSize: 11, fontWeight: 700 }}>Thêm câu</Button>
+                                                            )}
+                                                        </Form.List>
+                                                    </div>
+                                                    <div style={{ flex: 1, overflowY: 'auto', maxHeight: 350, paddingRight: 8 }} className="custom-scrollbar">
+                                                        <Form.List name={[field.name, 'passageTranslationData']}>
+                                                            {(transFields, { remove }) => (
+                                                                <>
+                                                                    {transFields.length === 0 && <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} />}
+                                                                    {transFields.map((tf, tIdx) => (
+                                                                        <div key={tf.key} style={{ padding: '16px 0', borderBottom: '1px dashed #BFDBFE', position: 'relative' }}>
+                                                                            <Row gutter={12} align="middle">
+                                                                                <Col flex="40px">
+                                                                                    <Tag style={{ background: '#E0F2FE', color: '#0369A1', border: 'none', fontWeight: 800, margin: 0, borderRadius: 4, width: '100%', textAlign: 'center' }}>EN</Tag>
+                                                                                </Col>
+                                                                                <Col flex="auto">
+                                                                                    <Form.Item name={[tf.name, 'en']} noStyle><Input variant="borderless" style={{ fontWeight: 500, padding: 0 }} /></Form.Item>
+                                                                                </Col>
+                                                                            </Row>
+                                                                            <Row gutter={12} align="middle" style={{ marginTop: 8 }}>
+                                                                                <Col flex="40px">
+                                                                                    <Text strong style={{ color: '#059669', fontSize: 12, width: '100%', textAlign: 'center', display: 'block' }}>VI</Text>
+                                                                                </Col>
+                                                                                <Col flex="auto">
+                                                                                    <Form.Item name={[tf.name, 'vi']} noStyle><Input variant="borderless" style={{ fontStyle: 'italic', color: '#059669', padding: 0 }} /></Form.Item>
+                                                                                </Col>
+                                                                            </Row>
+                                                                            <Button 
+                                                                                type="text" danger icon={<DeleteOutlined />} 
+                                                                                size="small" onClick={() => remove(tIdx)}
+                                                                                style={{ position: 'absolute', top: 12, right: -8, opacity: 0.3 }}
+                                                                                onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
+                                                                                onMouseLeave={(e) => e.currentTarget.style.opacity = '0.3'}
+                                                                            />
+                                                                        </div>
+                                                                    ))}
+                                                                </>
+                                                            )}
+                                                        </Form.List>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </Card>
+
+                                        <Divider titlePlacement="left"><span style={{ fontWeight: 800, color: '#1E293B', fontSize: 14 }}>CHI TIẾT NỘI DUNG</span></Divider>
+
+                                        <Tabs defaultActiveKey="questions" items={[
+                                            {
+                                                key: 'questions',
+                                                label: <span style={{ fontWeight: 700, fontSize: 13 }}><EditOutlined /> CÂU HỎI CHI TIẾT</span>,
+                                                children: (
+                                                    <Form.List name={[field.name, 'questions']}>
+                                                        {(qFields) => (
+                                                            <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+                                                                {qFields.map((qf, _qi) => (
+                                                                    <Card key={qf.key} style={{ borderRadius: 24, border: '1px solid #E2E8F0', overflow: 'hidden', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}>
+                                                                        <div style={{ background: '#F8FAFC', padding: '16px 24px', borderBottom: '1px solid #E2E8F0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                                            <Space size="large">
+                                                                                <Space><Text strong style={{ color: '#1E293B', fontSize: 13, fontWeight: 800 }}>CÂU:</Text>
+                                                                                <Form.Item name={[qf.name, 'questionNumber']} noStyle><InputNumber style={{ width: 70, borderRadius: 10, fontWeight: 800 }} /></Form.Item></Space>
+                                                                                <Space><Text strong style={{ color: '#1E293B', fontSize: 13, fontWeight: 800 }}>ĐÁP ÁN:</Text>
+                                                                                <Form.Item name={[qf.name, 'correctAnswer']} noStyle><Select options={[{ value: 'A' }, { value: 'B' }, { value: 'C' }, { value: 'D' }]} style={{ width: 80, fontWeight: 800 }} /></Form.Item></Space>
+                                                                            </Space>
+                                                                            <Form.Item name={[qf.name, 'questionText']} style={{ margin: 0, flex: 1, marginLeft: 32 }}>
+                                                                                <Input placeholder="Nội dung câu hỏi (Nếu có)" style={{ borderRadius: 10, height: 40 }} />
+                                                                            </Form.Item>
+                                                                        </div>
+
+                                                                        <div style={{ padding: 24 }}>
+                                                                            <Row gutter={[16, 24]}>
+                                                                                {['A', 'B', 'C', 'D'].map(opt => (
+                                                                                    <Col span={6} key={opt}>
+                                                                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                                                                            <Text strong style={{ fontSize: 11, color: '#64748B' }}>LỰA CHỌN {opt}</Text>
+                                                                                            <Form.Item name={[qf.name, `option${opt}`]} noStyle><Input style={{ borderRadius: 10, fontWeight: 600 }} /></Form.Item>
+                                                                                            <Text strong style={{ fontSize: 10, color: '#3B82F6', marginTop: 4 }}>DỊCH {opt}</Text>
+                                                                                            <Form.Item name={[qf.name, 'optionTranslations', opt]} noStyle><Input style={{ borderRadius: 10, fontSize: 12, fontStyle: 'italic' }} /></Form.Item>
+                                                                                        </div>
+                                                                                    </Col>
+                                                                                ))}
+                                                                            </Row>
+
+                                                                            <div style={{ marginTop: 32, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+                                                                                <Card size="small" title={<Space><InfoCircleOutlined style={{ color: '#3B82F6' }} /><Text strong style={{ fontSize: 12 }}>PHÂN TÍCH</Text></Space>} styles={{ body: { padding: 12 } }} style={{ borderRadius: 16, background: '#EFF6FF', border: '1px solid #DBEAFE' }}>
+                                                                                    <Form.Item name={[qf.name, 'analysis']} noStyle>
+                                                                                        <Input.TextArea rows={4} placeholder="Phân tích ngữ pháp/từ vựng..." style={{ borderRadius: 12, border: 'none', background: 'transparent' }} />
+                                                                                    </Form.Item>
+                                                                                </Card>
+                                                                                <Card size="small" title={<Space><FileSearchOutlined style={{ color: '#10B981' }} /><Text strong style={{ fontSize: 12 }}>BẰNG CHỨNG</Text></Space>} styles={{ body: { padding: 12 } }} style={{ borderRadius: 16, background: '#ECFDF5', border: '1px solid #D1FAE5' }}>
+                                                                                    <Form.Item name={[qf.name, 'evidence']} noStyle>
+                                                                                        <Input.TextArea rows={4} placeholder="Trích dẫn câu chứa đáp án..." style={{ borderRadius: 12, border: 'none', background: 'transparent' }} />
+                                                                                    </Form.Item>
+                                                                                </Card>
+                                                                            </div>
+                                                                        </div>
+                                                                    </Card>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                    </Form.List>
+                                                )
+                                            },
+                                            {
+                                                key: 'vocabulary',
+                                                label: <span style={{ fontWeight: 700, fontSize: 13 }}><BookOutlined /> TỪ VỰNG HỆ THỐNG</span>,
+                                                children: (
+                                                    <div style={{ padding: 24, background: '#fff', borderRadius: 20, border: '1px solid #E2E8F0' }}>
+                                                        <Form.List name={[field.name, 'keyVocabulary']}>
+                                                            {(vFields, { add, remove }) => (
+                                                                <>
+                                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                                                                        <Space><BookOutlined style={{ color: '#2563EB' }} /><Text strong style={{ fontSize: 14 }}>DANH SÁCH TỪ VỰNG NHẬP TAY</Text></Space>
+                                                                        <Button type="primary" ghost icon={<PlusOutlined />} onClick={() => add()} style={{ borderRadius: 8, fontWeight: 700, boxShadow: '0 4px 10px rgba(37, 99, 235, 0.1)' }}>Thêm từ mới</Button>
+                                                                    </div>
+                                                                    {vFields.length === 0 && <Empty description="Chưa có từ vựng. Hãy nhấn nút Thêm từ mới." />}
+                                                                    <Row gutter={[16, 16]}>
+                                                                        {vFields.map((vf) => (
+                                                                            <Col span={12} key={vf.key}>
+                                                                                <Card size="small" style={{ borderRadius: 12, border: '1px solid #DBEAFE', background: '#F8FAFC' }}
+                                                                                    extra={<Button type="text" danger icon={<DeleteOutlined />} onClick={() => remove(vf.name)} size="small" />}>
+                                                                                    <Row gutter={8}>
+                                                                                        <Col span={8}><Form.Item name={[vf.name, 'word']} noStyle><Input placeholder="Từ vựng" style={{ borderRadius: 6 }} /></Form.Item></Col>
+                                                                                        <Col span={6}><Form.Item name={[vf.name, 'type']} noStyle><Input placeholder="Loại" style={{ borderRadius: 6 }} /></Form.Item></Col>
+                                                                                        <Col span={10}><Form.Item name={[vf.name, 'pronunciation']} noStyle><Input placeholder="Phiên âm" style={{ borderRadius: 6 }} /></Form.Item></Col>
+                                                                                    </Row>
+                                                                                    <Form.Item name={[vf.name, 'meaning']} style={{ marginTop: 8, marginBottom: 0 }}><Input placeholder="Nghĩa của từ" style={{ borderRadius: 6 }} /></Form.Item>
+                                                                                </Card>
+                                                                            </Col>
+                                                                        ))}
+                                                                    </Row>
+                                                                </>
+                                                            )}
+                                                        </Form.List>
+                                                    </div>
+                                                )
+                                            }
+                                        ]} />
                                     </div>
                                 );
                             }}

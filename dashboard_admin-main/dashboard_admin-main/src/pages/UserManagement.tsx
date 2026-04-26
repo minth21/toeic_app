@@ -543,7 +543,7 @@ export default function UserManagement() {
             </Row>
 
             {/* Primary Action */}
-            <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'flex-start' }}>
+            <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'flex-end' }}>
                 <Button
                     type="primary"
                     icon={<PlusOutlined />}

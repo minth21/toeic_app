@@ -24,35 +24,8 @@ export class RecommendationController {
             if (!user) return errorResponse(res, 'Không tìm thấy người dùng');
             const target = user.targetScore || 500;
 
-            // 2. PHÂN TÍCH ĐIỂM YẾU SÂU (TOPIC-BASED)
-            // Lấy 10 bài làm gần nhất để tìm các câu sai
-            const recentAttempts = await prisma.testAttempt.findMany({
-                where: { userId },
-                orderBy: { createdAt: 'desc' },
-                take: 10,
-                include: {
-                    details: {
-                        where: { isCorrect: false },
-                        include: { question: { select: { topic_tag: true } } }
-                    }
-                }
-            });
-
-            const topicWeights: { [key: string]: number } = {};
-            recentAttempts.forEach(attempt => {
-                attempt.details.forEach(detail => {
-                    const tag = detail.question.topic_tag;
-                    if (tag) {
-                        topicWeights[tag] = (topicWeights[tag] || 0) + 1;
-                    }
-                });
-            });
-
-            // Lấy top 3 topic yếu nhất
-            const topWeakTopics = Object.entries(topicWeights)
-                .sort((a, b) => b[1] - a[1])
-                .slice(0, 3)
-                .map(t => t[0]);
+            // 2. PHÂN TÍCH ĐIỂM YẾU (Logic Topic-based tạm thời tắt do đã xóa topic_tag)
+            const topWeakTopics: string[] = [];
 
             // 3. XÁC ĐỊNH LỘ TRÌNH THEO PART
             let baseParts: number[] = [];
@@ -67,7 +40,7 @@ export class RecommendationController {
                     status: 'ACTIVE',
                     OR: [
                         { partNumber: { in: baseParts } },
-                        { questions: { some: { topic_tag: { in: topWeakTopics } } } }
+                        { partNumber: { in: baseParts } }
                     ]
                 },
                 include: { test: true },

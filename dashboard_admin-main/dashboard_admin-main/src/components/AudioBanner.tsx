@@ -8,6 +8,8 @@ interface AudioBannerBaseProps {
     currentAudioUrl?: string | null;
     /** If true, shows the player without a "Change" button (post-submit view) */
     readOnly?: boolean;
+    /** Callback to delete the current audio from the server */
+    onDeleteCurrentAudio?: () => void;
 }
 
 interface AudioBannerSingleProps extends AudioBannerBaseProps {
@@ -18,8 +20,8 @@ interface AudioBannerSingleProps extends AudioBannerBaseProps {
 
 interface AudioBannerMultipleProps extends AudioBannerBaseProps {
     multiple: true;
-    newAudioFile?: File | File[] | null;
-    onAudioFileChange: (file: File | File[] | null) => void;
+    newAudioFile?: File[] | null;
+    onAudioFileChange: (file: File[] | null) => void;
 }
 
 type AudioBannerProps = AudioBannerSingleProps | AudioBannerMultipleProps;
@@ -32,13 +34,13 @@ const AudioBanner: React.FC<AudioBannerProps> = (props) => {
         currentAudioUrl,
         newAudioFile,
         onAudioFileChange,
+        onDeleteCurrentAudio,
         readOnly = false,
         multiple = false,
-    } = props as any; // Cast to any to bypass complex union destructuring issues in JSX
+    } = props as any; 
+
     const [localPreviewUrl, setLocalPreviewUrl] = useState<string | null>(null);
     const [localPreviewUrl2, setLocalPreviewUrl2] = useState<string | null>(null);
-
-    // For single file mode
 
     const handleBeforeUpload = (file: File) => {
         if (multiple) {
@@ -60,6 +62,24 @@ const AudioBanner: React.FC<AudioBannerProps> = (props) => {
             onAudioFileChange(file);
         }
         return false; // Prevent auto-upload
+    };
+
+    const handleUpdateFile = (index: number, file: File) => {
+        if (multiple) {
+            const currentFiles = Array.isArray(newAudioFile) ? [...newAudioFile] : [];
+            currentFiles[index] = file;
+            onAudioFileChange(currentFiles);
+
+            const preview = URL.createObjectURL(file);
+            if (index === 0) {
+                if (localPreviewUrl) URL.revokeObjectURL(localPreviewUrl);
+                setLocalPreviewUrl(preview);
+            } else {
+                if (localPreviewUrl2) URL.revokeObjectURL(localPreviewUrl2);
+                setLocalPreviewUrl2(preview);
+            }
+        }
+        return false;
     };
 
     const handleRemove = (index?: number) => {
@@ -92,20 +112,34 @@ const AudioBanner: React.FC<AudioBannerProps> = (props) => {
                 <div style={{ marginBottom: 20 }}>
                     <div style={{ 
                         display: 'flex', 
+                        justifyContent: 'space-between',
                         alignItems: 'center', 
-                        gap: 8, 
                         marginBottom: 8 
                     }}>
-                        <Badge status="success" />
-                        <span style={{ 
-                            color: '#059669', 
-                            fontWeight: 800, 
-                            fontSize: 12, 
-                            textTransform: 'uppercase', 
-                            letterSpacing: '0.5px' 
-                        }}>
-                            Âm thanh hiện tại trên hệ thống
-                        </span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <Badge status="success" />
+                            <span style={{ 
+                                color: '#059669', 
+                                fontWeight: 800, 
+                                fontSize: 12, 
+                                textTransform: 'uppercase', 
+                                letterSpacing: '0.5px' 
+                            }}>
+                                Âm thanh hiện tại trên hệ thống
+                            </span>
+                        </div>
+                        {!readOnly && onDeleteCurrentAudio && (
+                            <Button 
+                                type="text" 
+                                danger 
+                                size="small" 
+                                icon={<DeleteOutlined />} 
+                                onClick={onDeleteCurrentAudio}
+                                style={{ fontWeight: 600 }}
+                            >
+                                Xóa vĩnh viễn
+                            </Button>
+                        )}
                     </div>
                     <div style={{ 
                         display: 'flex', 
@@ -131,10 +165,6 @@ const AudioBanner: React.FC<AudioBannerProps> = (props) => {
                         </div>
                         <div style={{ flex: 1 }}><AudioPlayer src={currentAudioUrl} /></div>
                     </div>
-                    {/* Debug URL for admin if needed (comment out if not) */}
-                    <div style={{ fontSize: 10, color: '#94A3B8', marginTop: 4, fontStyle: 'italic' }}>
-                        URL: {currentAudioUrl.substring(0, 50)}...
-                    </div>
                 </div>
             )}
 
@@ -145,7 +175,7 @@ const AudioBanner: React.FC<AudioBannerProps> = (props) => {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                         <div style={{ color: '#1E40AF', fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
                             <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#3B82F6' }} />
-                            {files.length > 0 ? 'DỮ LIỆU CHUẨN BỊ GỘP' : 'CÀI ĐẶT AUDIO MỚI'}
+                            {files.length > 0 ? 'DỮ LIỆU CHUẨN BỊ GỘP (MAX 2)' : 'CÀI ĐẶT AUDIO MỚI'}
                         </div>
                         {!readOnly && (
                             <Upload beforeUpload={handleBeforeUpload} showUploadList={false} accept="audio/*">
@@ -167,7 +197,16 @@ const AudioBanner: React.FC<AudioBannerProps> = (props) => {
                                     <AudioPlayer src={idx === 0 ? localPreviewUrl! : localPreviewUrl2!} />
                                 </div>
                                 {!readOnly && (
-                                    <Button type="text" danger icon={<DeleteOutlined />} onClick={() => handleRemove(idx)} />
+                                    <div style={{ display: 'flex', gap: 4 }}>
+                                        <Upload 
+                                            beforeUpload={(f) => handleUpdateFile(idx, f)} 
+                                            showUploadList={false} 
+                                            accept="audio/*"
+                                        >
+                                            <Button type="text" icon={<UploadOutlined />} size="small" />
+                                        </Upload>
+                                        <Button type="text" danger icon={<DeleteOutlined />} onClick={() => handleRemove(idx)} size="small" />
+                                    </div>
                                 )}
                             </div>
                         ))}
@@ -178,7 +217,7 @@ const AudioBanner: React.FC<AudioBannerProps> = (props) => {
                             }}>
                                 {currentAudioUrl 
                                     ? "Chọn tối đa 2 file audio mới nếu bạn muốn thay thế file hiện tại."
-                                    : "Chưa có audio. Vui lòng chọn file để bắt đầu."}
+                                    : "Chưa có audio. Vui lòng chọn file để bắt đầu (Hỗ trợ 2 file gộp cho P3-P4)."}
                             </div>
                         )}
                     </div>
@@ -197,7 +236,22 @@ const AudioBanner: React.FC<AudioBannerProps> = (props) => {
                             }}>
                                 <div style={{ flex: 1 }}><AudioPlayer src={localPreviewUrl} /></div>
                                 {!readOnly && (
-                                    <Button type="text" danger icon={<DeleteOutlined />} onClick={() => handleRemove()} />
+                                    <div style={{ display: 'flex', gap: 4 }}>
+                                        <Upload 
+                                            beforeUpload={(f) => {
+                                                const preview = URL.createObjectURL(f);
+                                                if (localPreviewUrl) URL.revokeObjectURL(localPreviewUrl);
+                                                setLocalPreviewUrl(preview);
+                                                onAudioFileChange(f);
+                                                return false;
+                                            }} 
+                                            showUploadList={false} 
+                                            accept="audio/*"
+                                        >
+                                            <Button type="text" icon={<UploadOutlined />} size="small" />
+                                        </Upload>
+                                        <Button type="text" danger icon={<DeleteOutlined />} onClick={() => handleRemove()} size="small" />
+                                    </div>
                                 )}
                             </div>
                         </div>

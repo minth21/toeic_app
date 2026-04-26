@@ -110,11 +110,27 @@ export const useAIImport = (groups: any[], setGroups: (val: any[] | ((prev: any[
             const batchStart = batchIndex * BATCH_SIZE;
             const batchEnd = Math.min(batchStart + BATCH_SIZE, totalQuestions);
 
+            // Kiểm tra xem batch này có câu nào trống không. 
+            // Nếu phát hiện câu đầu tiên của batch bị trống nội dung, dừng toàn bộ quá trình.
+            const batchQuestions = groups.slice(batchStart, batchEnd);
+            const emptyQuestionIndex = batchQuestions.findIndex(q => !q.questionText || q.questionText.trim() === '');
+            
+            if (emptyQuestionIndex !== -1) {
+                // Nếu câu đầu tiên của batch đã trống, dừng hẳn
+                if (emptyQuestionIndex === 0) break;
+                // Nếu không phải câu đầu, chỉ lấy những câu có nội dung trước đó rồi dừng
+                const validQuestionsInBatch = batchQuestions.slice(0, emptyQuestionIndex);
+                if (validQuestionsInBatch.length === 0) break;
+            }
+
             setBatchLabel(`Đang phân tích AI (${batchStart + 1}–${batchEnd} / ${totalQuestions})...`);
 
             const currentSnapshot = groups.slice(batchStart, batchEnd);
-            // AI sẽ xử lý nếu giải thích, bản dịch hoặc từ vựng đang bị trống
+            // AI sẽ xử lý nếu giải thích, bản dịch hoặc từ vựng đang bị trống VÀ nội dung câu hỏi KHÔNG trống
             const questionsToProcess = currentSnapshot.filter(q => {
+                const hasText = q.questionText && q.questionText.trim() !== '';
+                if (!hasText) return false;
+
                 const hasExplanation = q.explanation?.trim();
                 const hasTranslation = q.questionTranslation?.trim();
                 const hasVocab = q.keyVocabulary && (typeof q.keyVocabulary === 'string' ? q.keyVocabulary !== '[]' : q.keyVocabulary.length > 0);
@@ -169,6 +185,9 @@ export const useAIImport = (groups: any[], setGroups: (val: any[] | ((prev: any[
             }
 
             setAiProgress(Math.round((batchEnd / totalQuestions) * 100));
+
+            // Nếu trong batch này có câu trống, nghĩa là đã hết câu hỏi thực tế, dừng loop sau batch này
+            if (emptyQuestionIndex !== -1) break;
 
             // Wait to avoid rate limits
             if (batchEnd < totalQuestions) {

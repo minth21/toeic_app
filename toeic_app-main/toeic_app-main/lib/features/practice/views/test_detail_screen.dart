@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../viewmodels/practice_viewmodel.dart';
+import '../../auth/viewmodels/auth_viewmodel.dart';
+import '../views/class_feedback_screen.dart';
 import '../models/part_model.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
@@ -54,6 +56,7 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
     setState(() => _isLoading = true);
     try {
       final viewModel = Provider.of<PracticeViewModel>(context, listen: false);
+      await viewModel.loadHistory(); // Ensure history is fresh
       final updatedTest = await viewModel.getTestById(_test.id);
       if (updatedTest != null && mounted) {
         setState(() {
@@ -819,6 +822,12 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
             ),
           ),
 
+          // --- TEACHER'S OPINION SECTION ---
+          _buildTeacherOpinionSliver(),
+
+          // --- ASK TEACHER ACTION ---
+          _buildAskTeacherSliver(),
+
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
@@ -1384,6 +1393,189 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+  Widget _buildTeacherOpinionSliver() {
+    final viewModel = context.watch<PracticeViewModel>();
+    final history = viewModel.history;
+    
+    // Find the latest attempt for THIS specific test
+    final latestTestAttempt = history.where((h) => h['testId'] == _test.id).toList();
+    
+    if (latestTestAttempt.isEmpty) return const SliverToBoxAdapter(child: SizedBox.shrink());
+    
+    final latest = latestTestAttempt.first;
+    final String? teacherNote = latest['teacherNote'];
+    
+    if (teacherNote == null || teacherNote.trim().isEmpty) {
+      return const SliverToBoxAdapter(child: SizedBox.shrink());
+    }
+
+    return SliverToBoxAdapter(
+      child: Container(
+        margin: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF0F7FF),
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: AppColors.primary.withValues(alpha: 0.1)),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primary.withValues(alpha: 0.05),
+              blurRadius: 15,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.psychology_alt_rounded, color: Colors.white, size: 20),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  'Ý KIẾN GIÁO VIÊN',
+                  style: GoogleFonts.inter(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w900,
+                    color: AppColors.primary,
+                    letterSpacing: 1,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              teacherNote,
+              style: GoogleFonts.inter(
+                fontSize: 15,
+                height: 1.6,
+                color: const Color(0xFF1E293B),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '— Phản hồi cho bài làm của bạn',
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+                TextButton.icon(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const ClassFeedbackScreen(),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.help_outline_rounded, size: 16),
+                  label: const Text('Hỏi giáo viên'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.primary,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAskTeacherSliver() {
+    final user = context.watch<AuthViewModel>().currentUser;
+    if (user?.classId == null) return const SliverToBoxAdapter(child: SizedBox.shrink());
+
+    // Only show if teacherNote is NOT already shown to avoid duplication
+    final viewModel = context.watch<PracticeViewModel>();
+    final history = viewModel.history;
+    final latestTestAttempt = history.where((h) => h['testId'] == _test.id).toList();
+    if (latestTestAttempt.isNotEmpty && latestTestAttempt.first['teacherNote'] != null) {
+      return const SliverToBoxAdapter(child: SizedBox.shrink());
+    }
+
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        child: InkWell(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const ClassFeedbackScreen(),
+              ),
+            );
+          },
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppColors.primary.withValues(alpha: 0.1)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.02),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.chat_bubble_outline_rounded, color: AppColors.primary, size: 20),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Bạn có thắc mắc về đề thi này?',
+                        style: GoogleFonts.inter(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                      Text(
+                        'Nhấn để gửi câu hỏi cho giáo viên của bạn',
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

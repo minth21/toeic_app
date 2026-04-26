@@ -211,7 +211,12 @@ export default function CreatePart5BulkModal({
                     explanation: q.explanation || '',
                     questionTranslation: q.questionTranslation || '',
                     optionTranslations: typeof q.optionTranslations === 'string' ? q.optionTranslations : JSON.stringify(q.optionTranslations || {}),
-                    keyVocabulary: typeof q.keyVocabulary === 'string' ? q.keyVocabulary : JSON.stringify(q.keyVocabulary || []),
+                    keyVocabulary: typeof q.keyVocabulary === 'string' 
+                        ? q.keyVocabulary 
+                        : JSON.stringify((q.keyVocabulary || []).map((v: any) => ({
+                            ...v,
+                            ipa: (v.ipa || '').replace(/^\/+|\/+$/g, '').trim()
+                        }))),
                 })),
                 mode: importMode
             };
@@ -236,19 +241,19 @@ export default function CreatePart5BulkModal({
     return (
         <Modal
             title={
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }} className="page-animate">
                     <div style={{
                         width: 36, height: 36, borderRadius: 10,
-                        background: 'linear-gradient(135deg, #1E293B 0%, #334155 100%)',
+                        background: 'linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        boxShadow: '0 4px 10px rgba(30, 41, 59, 0.2)'
+                        boxShadow: '0 4px 10px rgba(37, 99, 235, 0.2)'
                     }}>
                         <CloudUploadOutlined style={{ color: '#fff', fontSize: 18 }} />
                     </div>
                     <div>
                         <span style={{
                             fontSize: 18, fontWeight: 800,
-                            background: 'linear-gradient(to right, #1E293B, #475569)',
+                            background: 'linear-gradient(to right, #1E3A8A, #3B82F6)',
                             WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
                             letterSpacing: '0.5px', display: 'block'
                         }}>
@@ -263,8 +268,8 @@ export default function CreatePart5BulkModal({
             open={open} onCancel={handleCancel} footer={null} width={1400} centered maskClosable={false}
             styles={{ body: { padding: '24px 32px' } }}
         >
-            <div style={{ maxHeight: '85vh', overflowY: 'auto', paddingRight: 8 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, padding: '16px 24px', background: '#F8FAFC', borderRadius: 16, border: '1px solid #E2E8F0' }}>
+            <div style={{ maxHeight: '85vh', overflowY: 'auto', paddingRight: 8 }} className="page-animate">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, padding: '16px 24px', background: '#F0F7FF', borderRadius: 16, border: '1px solid #BFDBFE' }}>
                     <Space size="middle">
                         <Alert icon={<InfoCircleOutlined />} message="Mẹo: Dùng AI Magic để tự động tạo lời giải và từ vựng nhanh chóng." type="info" style={{ background: 'transparent', border: 'none', padding: 0 }} />
                     </Space>
@@ -288,7 +293,7 @@ export default function CreatePart5BulkModal({
                 )}
 
                 <Layout style={{ background: 'transparent', gap: 24 }}>
-                    <Sider width={220} style={{ background: '#F8FAFC', borderRadius: 20, border: '1px solid #E2E8F0', padding: 16, height: 'fit-content' }}>
+                    <Sider width={220} style={{ background: '#F0F7FF', borderRadius: 20, border: '1px solid #BFDBFE', padding: 16, height: 'fit-content' }}>
                         <Text strong style={{ display: 'block', marginBottom: 16, color: '#64748B', fontSize: 12, textTransform: 'uppercase' }}>Danh sách câu hỏi</Text>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: '60vh', overflowY: 'auto', paddingRight: 4 }}>
                             {questions.map((q, idx) => (
@@ -296,8 +301,8 @@ export default function CreatePart5BulkModal({
                                     key={idx} onClick={() => setActiveQuestionIndex(idx)}
                                     style={{
                                         padding: '10px 14px', borderRadius: 10, cursor: 'pointer',
-                                        background: activeQuestionIndex === idx ? '#1E293B' : 'transparent',
-                                        color: activeQuestionIndex === idx ? '#fff' : '#475569',
+                                        background: activeQuestionIndex === idx ? '#2563EB' : 'transparent',
+                                        color: activeQuestionIndex === idx ? '#fff' : '#1E40AF',
                                         fontWeight: 600, fontSize: 13, transition: 'all 0.2s',
                                         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                                         border: activeQuestionIndex === idx ? 'none' : '1px solid transparent'
@@ -312,7 +317,7 @@ export default function CreatePart5BulkModal({
 
                     <Content>
                         {questions[activeQuestionIndex] && (
-                            <div style={{ background: '#FFF', borderRadius: 24, border: '1px solid #E2E8F0', padding: 32, boxShadow: '0 4px 24px rgba(0,0,0,0.02)' }}>
+                            <div style={{ background: '#FFF', borderRadius: 24, border: '1px solid #BFDBFE', padding: 32, boxShadow: '0 4px 24px rgba(37, 99, 235, 0.02)' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 }}>
                                     <Tag color="blue" style={{ padding: '4px 16px', borderRadius: 8, fontSize: 16, fontWeight: 800 }}>CÂU HỎI {questions[activeQuestionIndex].questionNumber}</Tag>
                                     <Space>
@@ -333,30 +338,30 @@ export default function CreatePart5BulkModal({
                                 <Row gutter={32}>
                                     <Col span={24}>
                                         <div style={{ marginBottom: 24 }}>
-                                            <Text strong style={{ display: 'block', marginBottom: 8, fontSize: 14, color: '#1E293B' }}><FileTextOutlined /> NỘI DUNG CÂU HỎI:</Text>
+                                            <Text strong style={{ display: 'block', marginBottom: 8, fontSize: 14, color: '#1E3A8A' }}><FileTextOutlined /> NỘI DUNG CÂU HỎI:</Text>
                                             <Input.TextArea
                                                 value={questions[activeQuestionIndex].questionText}
                                                 onChange={(e) => handleQuestionChange(activeQuestionIndex, 'questionText', e.target.value)}
                                                 autoSize={{ minRows: 2 }}
-                                                style={{ borderRadius: 12, fontSize: 15, fontWeight: 600, padding: 12, background: '#F8FAFC' }}
+                                                style={{ borderRadius: 12, fontSize: 15, fontWeight: 600, padding: 12, background: '#F0F7FF' }}
                                             />
                                         </div>
 
                                         <div style={{ marginBottom: 24 }}>
-                                            <Text strong style={{ display: 'block', marginBottom: 8, fontSize: 14, color: '#1E293B' }}><GlobalOutlined /> DỊCH NGHĨA:</Text>
+                                            <Text strong style={{ display: 'block', marginBottom: 8, fontSize: 14, color: '#1E3A8A' }}><GlobalOutlined /> DỊCH NGHĨA:</Text>
                                             <Input.TextArea
                                                 value={questions[activeQuestionIndex].questionTranslation}
                                                 onChange={(e) => handleQuestionChange(activeQuestionIndex, 'questionTranslation', e.target.value)}
                                                 placeholder="Bản dịch tiếng Việt..."
                                                 autoSize={{ minRows: 2 }}
-                                                style={{ borderRadius: 12, fontSize: 14, padding: 12, border: '1px solid #BAE6FD' }}
+                                                style={{ borderRadius: 12, fontSize: 14, padding: 12, border: '1px solid #BFDBFE' }}
                                             />
                                         </div>
 
                                         <Row gutter={16} style={{ marginBottom: 32 }}>
                                             {['A', 'B', 'C', 'D'].map(opt => (
                                                 <Col span={6} key={opt}>
-                                                    <div style={{ padding: 12, background: '#F8FAFC', borderRadius: 12, border: '1px solid #E2E8F0' }}>
+                                                    <div style={{ padding: 12, background: '#F0F7FF', borderRadius: 12, border: '1px solid #BFDBFE' }}>
                                                         <Text strong style={{ color: '#64748B', display: 'block', marginBottom: 4, fontSize: 11 }}>LỰA CHỌN {opt}</Text>
                                                         <Input
                                                             value={(questions[activeQuestionIndex] as any)[`option${opt}`]}
@@ -381,7 +386,7 @@ export default function CreatePart5BulkModal({
                                                 </div>
                                             </Tabs.TabPane>
                                             <Tabs.TabPane tab={<span><BookOutlined /> Từ vựng trọng tâm</span>} key="vocab">
-                                                <div style={{ minHeight: 200, padding: 20, background: '#F8FAFC', borderRadius: 12 }}>
+                                                <div style={{ minHeight: 200, padding: 20, background: '#F0F7FF', borderRadius: 12 }}>
                                                     <div style={{ marginBottom: 16 }}>
                                                         <Alert 
                                                             message="Dữ liệu từ vựng sẽ được tự động xử lý để hỗ trợ tính năng Touch-to-Translate trên Mobile." 
@@ -406,7 +411,7 @@ export default function CreatePart5BulkModal({
                                                             return vocabList.map((v: any, vIdx: number) => (
                                                                 <div key={vIdx} style={{ 
                                                                     background: '#fff', padding: '10px 16px', borderRadius: 12, 
-                                                                    border: '1px solid #E2E8F0', boxShadow: '0 2px 4px rgba(0,0,0,0.02)',
+                                                                    border: '1px solid #BFDBFE', boxShadow: '0 2px 4px rgba(37, 99, 235, 0.02)',
                                                                     display: 'flex', alignItems: 'center', gap: 10
                                                                 }}>
                                                                     <div>
@@ -458,7 +463,7 @@ export default function CreatePart5BulkModal({
                     <Button onClick={handleCancel} size="large" style={{ borderRadius: 12, width: 150, fontWeight: 600 }}>Hủy</Button>
                     <Button
                         type="primary" onClick={handleSave} loading={loading} size="large" icon={<CheckCircleOutlined />}
-                        style={{ background: 'linear-gradient(135deg, #1E293B 0%, #334155 100%)', border: 'none', width: 300, fontWeight: 700, borderRadius: 12, boxShadow: '0 4px 14px rgba(30, 41, 59, 0.3)', height: 50 }}
+                        style={{ background: 'linear-gradient(135deg, #2563EB 0%, #1E3A8A 100%)', border: 'none', width: 300, fontWeight: 700, borderRadius: 12, boxShadow: '0 4px 14px rgba(37, 99, 235, 0.3)', height: 50 }}
                     >
                         XÁC NHẬN LƯU
                     </Button>

@@ -517,7 +517,7 @@ const ClassManagement: React.FC = () => {
                 </Col>
             </Row>
 
-            <div style={{ marginBottom: 16 }}>
+            <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'flex-end' }}>
                 <Button
                     type="primary"
                     icon={<PlusOutlined />}

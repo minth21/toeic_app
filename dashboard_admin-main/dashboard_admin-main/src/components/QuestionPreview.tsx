@@ -138,7 +138,7 @@ export default function QuestionPreview({ questions, loading, onEdit }: Question
                                         <div dangerouslySetInnerHTML={{ __html: q.questionText }} />
                                     ) : (
                                         <div style={{ fontStyle: 'italic', color: '#888' }}>
-                                            <strong>Câu {q.questionNumber}:</strong> (Điền vào chỗ trống)
+                                            <strong>Câu {q.questionNumber}:</strong> Điền vào chỗ trống
                                         </div>
                                     )}
                                 </div>

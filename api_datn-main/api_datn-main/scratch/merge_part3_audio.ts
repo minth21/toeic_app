@@ -29,8 +29,8 @@ async function downloadFile(url: string, dest: string) {
   });
   const writer = fs.createWriteStream(dest);
   response.data.pipe(writer);
-  return new Promise((resolve, reject) => {
-    writer.on('finish', resolve);
+  return new Promise<void>((resolve, reject) => {
+    writer.on('finish', () => resolve());
     writer.on('error', reject);
   });
 }
@@ -153,12 +153,12 @@ async function main() {
   await downloadFile(url2, path2);
 
   console.log('Đang gộp file...');
-  await new Promise((resolve, reject) => {
+  await new Promise<void>((resolve, reject) => {
     ffmpeg()
       .input(path1)
       .input(path2)
       .on('error', reject)
-      .on('end', resolve)
+      .on('end', () => resolve())
       .mergeToFile(mergedPath, tempDir);
   });
 

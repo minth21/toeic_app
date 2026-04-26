@@ -31,46 +31,66 @@ const AppContent = ({ loading, isExiting }: { loading: boolean, isExiting: boole
         algorithm: isDark ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm,
         // ... (giữ nguyên các token cũ)
         token: {
-          colorPrimary: '#3B82F6', 
-          colorPrimaryHover: '#2563EB',
-          colorBgLayout: isDark ? '#0F172A' : '#F8FAFC', 
+          colorPrimary: '#2563EB', 
+          colorPrimaryHover: '#1D4ED8',
+          colorBgLayout: isDark ? '#0F172A' : '#F0F7FF', 
           colorBgContainer: isDark ? '#1E293B' : '#FFFFFF',
           colorBgElevated: isDark ? '#1E293B' : '#FFFFFF',
-          colorText: isDark ? '#F1F5F9' : '#0F172A', 
+          colorText: isDark ? '#F1F5F9' : '#1E3A8A', 
           colorTextSecondary: isDark ? '#94A3B8' : '#475569',
-          colorBorder: isDark ? '#334155' : '#E2E8F0',
-          borderRadius: 20, 
+          colorBorder: isDark ? '#334155' : '#D1E0FF', // Light blue border
+          borderRadius: 12, 
           boxShadow: isDark 
             ? '0 10px 15px -3px rgba(0, 0, 0, 0.4)' 
-            : '0 10px 15px -3px rgba(30, 64, 175, 0.05)',
+            : '0 10px 30px -5px rgba(37, 99, 235, 0.12), 0 4px 6px -2px rgba(37, 99, 235, 0.05)',
         },
         components: {
           Card: {
             boxShadowTertiary: isDark
               ? '0 10px 15px -3px rgba(0, 0, 0, 0.4)'
-              : '0 10px 15px -3px rgba(30, 64, 175, 0.05)',
+              : '0 15px 35px -5px rgba(37, 99, 235, 0.12)',
             colorBgContainer: isDark ? '#1E293B' : '#FFFFFF',
+            borderRadiusLG: 20,
           },
           Button: {
             controlHeight: 44,
             fontWeight: 700,
             borderRadius: 12,
+            colorPrimary: '#2563EB',
+            colorLink: '#2563EB',
+            // Default button styling to avoid plain black/white
+            colorText: isDark ? '#F1F5F9' : '#1E40AF', 
+            colorBgContainer: isDark ? '#1E293B' : '#FFFFFF',
+            colorBorder: isDark ? '#334155' : '#BFDBFE',
           },
           Table: {
             colorBgContainer: isDark ? '#1E293B' : '#FFFFFF',
-            headerBg: isDark ? '#334155' : '#F8FAFC',
+            headerBg: isDark ? '#334155' : '#F0F7FF',
+            headerColor: '#1E3A8A',
+            borderRadius: 12,
           },
           Layout: {
-            headerBg: isDark ? '#1E293B' : 'rgba(255, 255, 255, 0.8)',
+            headerBg: isDark ? '#1E293B' : 'rgba(255, 255, 255, 0.9)',
             siderBg: isDark ? '#1E293B' : '#FFFFFF',
-            bodyBg: isDark ? '#0F172A' : '#F8FAFC',
+            bodyBg: isDark ? '#0F172A' : '#F0F7FF',
           },
           Menu: {
             itemBg: 'transparent',
             itemColor: isDark ? '#94A3B8' : '#475569',
-            itemSelectedColor: '#3B82F6',
-            itemHoverColor: '#3B82F6',
-            itemSelectedBg: isDark ? 'rgba(59, 130, 246, 0.1)' : '#EFF6FF',
+            itemSelectedColor: '#2563EB',
+            itemHoverColor: '#2563EB',
+            itemSelectedBg: isDark ? 'rgba(37, 99, 235, 0.1)' : '#EFF6FF',
+          },
+          Modal: {
+            borderRadiusLG: 24,
+            headerBg: isDark ? '#1E293B' : '#FFFFFF',
+            contentBg: isDark ? '#1E293B' : '#FFFFFF',
+            titleColor: '#1E3A8A',
+            titleFontSize: 18,
+          },
+          Drawer: {
+            colorBgContainer: isDark ? '#1E293B' : '#FFFFFF',
+            borderRadiusLG: 24,
           }
         }
       }}

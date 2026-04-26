@@ -564,7 +564,9 @@ export default function Dashboard() {
                     padding: '0',
                     minHeight: '280px',
                 }}>
-                    <Outlet context={{ user }} />
+                    <div key={location.pathname} className="page-animate">
+                        <Outlet context={{ user }} />
+                    </div>
                 </Content>
             </Layout>
         </Layout>

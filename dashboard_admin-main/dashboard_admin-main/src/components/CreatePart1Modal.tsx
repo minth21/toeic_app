@@ -163,18 +163,18 @@ export default function CreatePart1Modal({ open, onCancel, onSuccess, partId, pa
                         width: 36,
                         height: 36,
                         borderRadius: 10,
-                        background: 'linear-gradient(135deg, #1E293B 0%, #334155 100%)',
+                        background: 'linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        boxShadow: '0 4px 10px rgba(30, 41, 59, 0.2)'
+                        boxShadow: '0 4px 10px rgba(37, 99, 235, 0.2)'
                     }}>
                         <PictureOutlined style={{ color: '#fff', fontSize: 18 }} />
                     </div>
                     <span style={{
                         fontSize: 18,
                         fontWeight: 800,
-                        background: 'linear-gradient(to right, #1E293B, #475569)',
+                        background: 'linear-gradient(to right, #1E3A8A, #3B82F6)',
                         WebkitBackgroundClip: 'text',
                         WebkitTextFillColor: 'transparent',
                         letterSpacing: '0.5px'
@@ -230,15 +230,15 @@ export default function CreatePart1Modal({ open, onCancel, onSuccess, partId, pa
                         {/* LEFT COLUMN: IMAGE UPLOAD */}
                         <Col span={10}>
                             <div style={{
-                                background: '#F8FAFC',
+                                background: '#F0F7FF',
                                 borderRadius: 16,
                                 padding: 20,
-                                border: '1px solid #E2E8F0',
+                                border: '1px solid #BFDBFE',
                                 height: '100%'
                             }}>
-                                <div style={{ fontWeight: 700, color: '#1E293B', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <div style={{ fontWeight: 700, color: '#1E3A8A', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
                                     <span style={{
-                                        width: 24, height: 24, borderRadius: 6, background: '#1E293B',
+                                        width: 24, height: 24, borderRadius: 6, background: '#2563EB',
                                         color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12
                                     }}>1</span>
                                     Hình ảnh minh họa
@@ -290,11 +290,11 @@ export default function CreatePart1Modal({ open, onCancel, onSuccess, partId, pa
                         <Col span={14}>
                             <div style={{
                                 background: '#FFF', borderRadius: 16, padding: 24,
-                                border: '1px solid #E2E8F0', boxShadow: '0 4px 20px rgba(0,0,0,0.03)'
+                                border: '1px solid #BFDBFE', boxShadow: '0 4px 20px rgba(37, 99, 235, 0.03)'
                             }}>
-                                <div style={{ fontWeight: 700, color: '#1E293B', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <div style={{ fontWeight: 700, color: '#1E3A8A', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
                                     <span style={{
-                                        width: 24, height: 24, borderRadius: 6, background: '#1E293B',
+                                        width: 24, height: 24, borderRadius: 6, background: '#2563EB',
                                         color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12
                                     }}>2</span>
                                     Thông tin chi tiết câu hỏi
@@ -312,8 +312,8 @@ export default function CreatePart1Modal({ open, onCancel, onSuccess, partId, pa
                                 </Form.Item>
 
                                 <div style={{
-                                    margin: '24px 0 16px', padding: '12px 16px', background: '#F1F5F9',
-                                    borderRadius: 10, fontWeight: 700, color: '#475569', fontSize: 13,
+                                    margin: '24px 0 16px', padding: '12px 16px', background: '#F0F7FF',
+                                    borderRadius: 10, fontWeight: 700, color: '#1E3A8A', fontSize: 13,
                                     textTransform: 'uppercase', letterSpacing: '0.5px',
                                     display: 'flex', alignItems: 'center', gap: 8
                                 }}>
@@ -364,8 +364,8 @@ export default function CreatePart1Modal({ open, onCancel, onSuccess, partId, pa
                             type="primary" htmlType="submit" loading={loading} size="large" icon={<UploadOutlined />}
                             style={{
                                 borderRadius: 10, padding: '0 32px', fontWeight: 700,
-                                background: 'linear-gradient(135deg, #1E293B 0%, #334155 100%)',
-                                border: 'none', boxShadow: '0 4px 12px rgba(30, 41, 59, 0.25)'
+                                background: 'linear-gradient(135deg, #2563EB 0%, #1E3A8A 100%)',
+                                border: 'none', boxShadow: '0 4px 12px rgba(37, 99, 235, 0.25)'
                             }}
                         >
                             Lưu câu hỏi

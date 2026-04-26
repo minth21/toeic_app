@@ -125,11 +125,11 @@ export default function CreatePart2Modal({ open, onCancel, onSuccess, partId, cu
                         width: 36,
                         height: 36,
                         borderRadius: 10,
-                        background: 'linear-gradient(135deg, #1E293B 0%, #334155 100%)',
+                        background: 'linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        boxShadow: '0 4px 10px rgba(30, 41, 59, 0.2)'
+                        boxShadow: '0 4px 10px rgba(37, 99, 235, 0.2)'
                     }}>
                         <QuestionCircleOutlined style={{ color: '#fff', fontSize: 18 }} />
                     </div>
@@ -137,7 +137,7 @@ export default function CreatePart2Modal({ open, onCancel, onSuccess, partId, cu
                         <span style={{
                             fontSize: 18,
                             fontWeight: 800,
-                            background: 'linear-gradient(to right, #1E293B, #475569)',
+                            background: 'linear-gradient(to right, #1E3A8A, #3B82F6)',
                             WebkitBackgroundClip: 'text',
                             WebkitTextFillColor: 'transparent',
                             letterSpacing: '0.5px',
@@ -147,7 +147,7 @@ export default function CreatePart2Modal({ open, onCancel, onSuccess, partId, cu
                                 ? (partName.toUpperCase().startsWith('PART') ? partName : `PART ${partNumber}: ${partName}`)
                                 : 'TẠO CÂU HỎI PART 2'}
                         </span>
-                        <Text type="secondary" style={{ fontSize: 11, fontWeight: 500, marginTop: -4, display: 'block' }}>
+                        <Text type="secondary" style={{ fontSize: 11, fontWeight: 500, marginTop: -4, display: 'block', color: '#3B82F6' }}>
                             Thêm câu hỏi Question-Response (3 lựa chọn)
                         </Text>
                     </div>
@@ -224,10 +224,10 @@ export default function CreatePart2Modal({ open, onCancel, onSuccess, partId, cu
 
                 <div style={{ 
                     marginTop: 24, padding: '20px', background: '#FFF', 
-                    borderRadius: 16, border: '1px solid #E2E8F0', boxShadow: '0 4px 12px rgba(0,0,0,0.02)' 
+                    borderRadius: 16, border: '1px solid #BFDBFE', boxShadow: '0 4px 12px rgba(37, 99, 235, 0.02)' 
                 }}>
-                    <div style={{ fontWeight: 700, color: '#1E293B', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <FileTextOutlined style={{ color: '#6366F1' }} /> Nội dung Tapescript
+                    <div style={{ fontWeight: 700, color: '#1E3A8A', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <FileTextOutlined style={{ color: '#2563EB' }} /> Nội dung Tapescript
                     </div>
                     
                     <Form.Item
@@ -276,8 +276,8 @@ export default function CreatePart2Modal({ open, onCancel, onSuccess, partId, cu
                         type="primary" htmlType="submit" loading={loading} size="large" icon={<CheckCircleOutlined />}
                         style={{ 
                             borderRadius: 10, fontWeight: 700, minWidth: 160,
-                            background: 'linear-gradient(135deg, #1E293B 0%, #334155 100%)',
-                            border: 'none', boxShadow: '0 4px 14px rgba(30, 41, 59, 0.25)'
+                            background: 'linear-gradient(135deg, #2563EB 0%, #1E3A8A 100%)',
+                            border: 'none', boxShadow: '0 4px 14px rgba(37, 99, 235, 0.25)'
                         }}
                     >
                         LƯU CÂU HỎI

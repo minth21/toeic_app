@@ -29,7 +29,6 @@ interface QuestionDraft {
     transcriptB?: string;
     transcriptC?: string;
     transcriptD?: string;
-    explanation?: string;
 }
 
 export default function CreatePart1BulkModal({ open, onCancel, onSuccess, partId, currentAudioUrl, initialData }: CreatePart1BulkModalProps) {
@@ -41,8 +40,7 @@ export default function CreatePart1BulkModal({ open, onCancel, onSuccess, partId
         id: i + 1,
         imageFile: null,
         previewImage: '',
-        correctAnswer: '',
-        explanation: ''
+        correctAnswer: ''
     }));
 
     const [questions, setQuestions] = useState<QuestionDraft[]>(initialQuestions);
@@ -179,11 +177,10 @@ export default function CreatePart1BulkModal({ open, onCancel, onSuccess, partId
                     audioUrl: null,
                     correctAnswer: q.correctAnswer,
                     questionText: 'Look at the picture and listen to the four statements.',
-                    optionA: q.transcriptA || '(A)',
-                    optionB: q.transcriptB || '(B)',
-                    optionC: q.transcriptC || '(C)',
-                    optionD: q.transcriptD || '(D)',
-                    explanation: q.explanation || ''
+                    optionA: q.transcriptA || 'A',
+                    optionB: q.transcriptB || 'B',
+                    optionC: q.transcriptC || 'C',
+                    optionD: q.transcriptD || 'D'
                 };
 
                 return api.post(`/parts/${partId}/questions`, payload);
@@ -213,7 +210,7 @@ export default function CreatePart1BulkModal({ open, onCancel, onSuccess, partId
             centered
             styles={{ body: { padding: 0, overflow: 'hidden', borderRadius: 20 } }}
         >
-            <div style={{ display: 'flex', height: '85vh', background: '#F8FAFC' }}>
+            <div style={{ display: 'flex', height: '85vh', background: '#F8FAFC' }} className="page-animate">
                 {/* Sidebar */}
                 <div style={{ width: 280, background: '#fff', borderRight: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column' }}>
                     <div style={{ padding: '24px 20px', borderBottom: '1px solid #F1F5F9' }}>
@@ -224,7 +221,7 @@ export default function CreatePart1BulkModal({ open, onCancel, onSuccess, partId
                             Nhập câu hỏi Part 1
                         </Title>
                         <Text type="secondary" style={{ fontSize: 12, marginTop: 4, display: 'block' }}>
-                            6 Questions (Photographs)
+                            6 Questions Photographs
                         </Text>
                     </div>
 
@@ -288,7 +285,7 @@ export default function CreatePart1BulkModal({ open, onCancel, onSuccess, partId
                         })}
                     </div>
 
-                    <div style={{ padding: 20, borderTop: '1px solid #F1F5F9' }}>
+                    <div style={{ padding: 20, borderTop: '1px solid #E0F2FE' }}>
                         <Button
                             type="primary"
                             block
@@ -299,7 +296,7 @@ export default function CreatePart1BulkModal({ open, onCancel, onSuccess, partId
                         >
                             Lưu tất cả
                         </Button>
-                        <Button block type="text" onClick={onCancel} style={{ marginTop: 8 }}>Hủy bỏ</Button>
+                        <Button block type="text" onClick={onCancel} style={{ marginTop: 8, color: '#3B82F6' }}>Hủy bỏ</Button>
                     </div>
                 </div>
 
@@ -310,6 +307,13 @@ export default function CreatePart1BulkModal({ open, onCancel, onSuccess, partId
                             currentAudioUrl={currentAudioUrl}
                             newAudioFile={audioFile}
                             onAudioFileChange={setAudioFile}
+                            onDeleteCurrentAudio={async () => {
+                                if (partId) {
+                                    await partApi.update(partId, { audioUrl: null });
+                                    message.success('Đã xóa audio hiện tại');
+                                    onSuccess();
+                                }
+                            }}
                         />
                     </div>
 
@@ -318,13 +322,13 @@ export default function CreatePart1BulkModal({ open, onCancel, onSuccess, partId
                             <Col span={12}>
                                 <Card
                                     title={<span style={{ fontWeight: 700 }}>Hình ảnh minh họa</span>}
-                                    style={{ borderRadius: 16, boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}
+                                    style={{ borderRadius: 16, boxShadow: '0 10px 30px -5px rgba(37, 99, 235, 0.1)' }}
                                 >
                                     <div style={{
                                         height: 350,
-                                        border: '2px dashed #E2E8F0',
+                                        border: '2px dashed #BFDBFE',
                                         borderRadius: 16,
-                                        background: '#F8FAFC',
+                                        background: '#F0F7FF',
                                         display: 'flex',
                                         flexDirection: 'column',
                                         alignItems: 'center',
@@ -372,12 +376,12 @@ export default function CreatePart1BulkModal({ open, onCancel, onSuccess, partId
 
                             <Col span={12}>
                                 <Card
-                                    title={<span style={{ fontWeight: 700 }}>Thông tin chi tiết</span>}
-                                    style={{ borderRadius: 16, boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}
+                                    title={<span style={{ fontWeight: 700, color: '#1E3A8A' }}>Đáp án & Transcript</span>}
+                                    style={{ borderRadius: 16, boxShadow: '0 10px 30px -5px rgba(37, 99, 235, 0.15)' }}
                                 >
                                     <Space direction="vertical" size={20} style={{ width: '100%' }}>
                                         <div>
-                                            <Text strong style={{ display: 'block', marginBottom: 8, color: '#475569' }}>Đáp án đúng</Text>
+                                            <Text strong style={{ display: 'block', marginBottom: 8, color: '#1E3A8A' }}>Đáp án đúng</Text>
                                             <Select
                                                 value={currentQ.correctAnswer}
                                                 onChange={(val) => handleUpdateQuestion(activeQuestionIndex, 'correctAnswer', val)}
@@ -392,10 +396,10 @@ export default function CreatePart1BulkModal({ open, onCancel, onSuccess, partId
                                         <div>
                                             <Text strong style={{ display: 'block', marginBottom: 8, color: '#475569' }}>Transcripts (Tùy chọn)</Text>
                                             <Row gutter={[12, 12]}>
-                                                <Col span={12}><Input addonBefore="A" value={currentQ.transcriptA} onChange={(e) => handleUpdateQuestion(activeQuestionIndex, 'transcriptA', e.target.value)} placeholder="(A) statement" /></Col>
-                                                <Col span={12}><Input addonBefore="B" value={currentQ.transcriptB} onChange={(e) => handleUpdateQuestion(activeQuestionIndex, 'transcriptB', e.target.value)} placeholder="(B) statement" /></Col>
-                                                <Col span={12}><Input addonBefore="C" value={currentQ.transcriptC} onChange={(e) => handleUpdateQuestion(activeQuestionIndex, 'transcriptC', e.target.value)} placeholder="(C) statement" /></Col>
-                                                <Col span={12}><Input addonBefore="D" value={currentQ.transcriptD} onChange={(e) => handleUpdateQuestion(activeQuestionIndex, 'transcriptD', e.target.value)} placeholder="(D) statement" /></Col>
+                                                <Col span={12}><Input addonBefore="A" value={currentQ.transcriptA} onChange={(e) => handleUpdateQuestion(activeQuestionIndex, 'transcriptA', e.target.value)} placeholder="A statement" /></Col>
+                                                <Col span={12}><Input addonBefore="B" value={currentQ.transcriptB} onChange={(e) => handleUpdateQuestion(activeQuestionIndex, 'transcriptB', e.target.value)} placeholder="B statement" /></Col>
+                                                <Col span={12}><Input addonBefore="C" value={currentQ.transcriptC} onChange={(e) => handleUpdateQuestion(activeQuestionIndex, 'transcriptC', e.target.value)} placeholder="C statement" /></Col>
+                                                <Col span={12}><Input addonBefore="D" value={currentQ.transcriptD} onChange={(e) => handleUpdateQuestion(activeQuestionIndex, 'transcriptD', e.target.value)} placeholder="D statement" /></Col>
                                             </Row>
                                         </div>
 

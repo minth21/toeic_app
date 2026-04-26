@@ -248,24 +248,22 @@ model Question {
   analysis               String? @db.Text // ✅ Phân tích sâu từ AI (Blue Card)
   evidence               String? @db.Text // ✅ Bằng chứng từ bài đọc (Green Card)
 
-  // 💎 NEW: Các trường "Tách biệt Tuyệt đối" theo phong cách Antigravity
-  passageTitle        String? @db.Text // Tiêu đề đoạn văn (Questions 147-150 refer to...)
+  
   questionTranslation String? @db.Text // Bản dịch câu hỏi
   optionTranslations  String? @db.Text // Bản dịch 4 đáp án (Dạng JSON)
   keyVocabulary       String? @db.Text // Danh sách từ vựng quan trọng (Dạng JSON - Chứa được vô số từ)
 
   audioUrl   String? // Audio URL (Parts 1, 2, 3, 4)
   transcript String? // Transcript for audio
-  topic_tag  String? // Chủ điểm ngữ pháp/từ vựng (e.g., "Thì hiện tại", "Từ loại")
+  
   level      Difficulty? // Mức độ khó (EASY, MEDIUM, HARD)
   status     QuestionStatus @default(PENDING)
+  topic_tag  String? @db.Text // ✅ Phân loại chủ đề (vd: Grammar, Vocabulary, Email structure...)
 
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  // 💎 NEW: Structural support for Part 7 Multi-Passages
   // Data structure: [{ "label": "Email", "imageUrl": "...", "translation": [...] }]
-  passageData Json? @db.JsonB
   attemptDetails AttemptDetail[]
 
   @@unique([partId, questionNumber])

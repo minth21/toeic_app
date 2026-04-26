@@ -114,12 +114,13 @@ export default function Login() {
                 }} />
 
                 <Card
+                    className="page-animate"
                     style={{
                         width: 480,
-                        boxShadow: '0 40px 80px -12px rgba(30, 64, 175, 0.15)',
+                        boxShadow: '0 20px 50px -12px rgba(30, 64, 175, 0.2)',
                         borderRadius: 32,
                         border: '1px solid #E0F2FE',
-                        background: 'rgba(255, 255, 255, 0.85)',
+                        background: 'rgba(255, 255, 255, 0.9)',
                         backdropFilter: 'blur(20px)',
                         padding: '24px 16px'
                     }}

@@ -33,7 +33,7 @@ interface CreatePart3ModalProps {
 export default function CreatePart3Modal({ open, onCancel, onSuccess, partId, partNumber, partName, mode = 'add', initialData, currentAudioUrl }: CreatePart3ModalProps) {
     const [form] = Form.useForm();
     const [loading, setLoading] = useState(false);
-    const [audioFiles, setAudioFiles] = useState<File | File[] | null>(null);
+    const [audioFiles, setAudioFiles] = useState<File[] | null>(null);
     const [graphicFile, setGraphicFile] = useState<File | null>(null);
     const [graphicPreview, setGraphicPreview] = useState<string | null>(null);
     const [nextQuestionNumber, setNextQuestionNumber] = useState<number>(1);
@@ -268,14 +268,14 @@ export default function CreatePart3Modal({ open, onCancel, onSuccess, partId, pa
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <div style={{
                         width: 40, height: 40, borderRadius: 12,
-                        background: 'linear-gradient(135deg, #1E293B 0%, #334155 100%)',
+                        background: 'linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        boxShadow: '0 4px 12px rgba(30, 41, 59, 0.2)'
+                        boxShadow: '0 4px 12px rgba(37, 99, 235, 0.2)'
                     }}>
                         <SoundOutlined style={{ color: '#fff', fontSize: 20 }} />
                     </div>
                     <div>
-                        <span style={{ fontSize: 19, fontWeight: 850, color: '#1E293B', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                        <span style={{ fontSize: 19, fontWeight: 850, color: '#1E3A8A', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                             {mode === 'edit' ? `CHỈNH SỬA NHÓM PART ${partNumber}` : (partName || `THÊM NHÓM PART ${partNumber}`)}
                         </span>
                         <Text type="secondary" style={{ fontSize: 11, fontWeight: 600, display: 'block', marginTop: -2 }}>
@@ -301,9 +301,9 @@ export default function CreatePart3Modal({ open, onCancel, onSuccess, partId, pa
                 <Row gutter={28}>
                     {/* ─── LEFT COLUMN: TRANSCRIPT & MEDIA ─── */}
                     <Col span={13}>
-                        <div style={{ background: '#F8FAFC', borderRadius: 20, padding: 24, border: '1px solid #E2E8F0', height: '100%' }}>
-                            <div style={{ fontWeight: 800, color: '#1E293B', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 10, fontSize: 15 }}>
-                                <div style={{ width: 6, height: 20, background: '#3B82F6', borderRadius: 3 }} />
+                        <div style={{ background: '#F0F7FF', borderRadius: 20, padding: 24, border: '1px solid #BFDBFE', height: '100%' }}>
+                            <div style={{ fontWeight: 800, color: '#1E3A8A', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 10, fontSize: 15 }}>
+                                <div style={{ width: 6, height: 20, background: '#2563EB', borderRadius: 3 }} />
                                 1. NỘI DUNG BÀI NGHE & BẢN DỊCH
                             </div>
 
@@ -357,7 +357,7 @@ export default function CreatePart3Modal({ open, onCancel, onSuccess, partId, pa
                                                     {(fields, { add, remove }) => (
                                                         <>
                                                             {fields.map(({ key, name, ...restField }) => (
-                                                                <div key={key} style={{ display: 'flex', gap: 10, marginBottom: 12, background: '#fff', padding: 12, borderRadius: 12, border: '1px solid #E2E8F0' }}>
+                                                                <div key={key} style={{ display: 'flex', gap: 10, marginBottom: 12, background: '#fff', padding: 12, borderRadius: 12, border: '1px solid #BFDBFE' }}>
                                                                     <div style={{ flex: 1 }}>
                                                                         <Form.Item {...restField} name={[name, 'en']} style={{ marginBottom: 8 }}><Input.TextArea autoSize placeholder="English sentence..." style={{ borderRadius: 8, fontSize: 13 }} /></Form.Item>
                                                                         <Form.Item {...restField} name={[name, 'vi']} style={{ marginBottom: 0 }}><Input.TextArea autoSize placeholder="Bản dịch tiếng Việt..." style={{ borderRadius: 8, fontSize: 13, background: '#F0F9FF' }} /></Form.Item>
@@ -409,9 +409,9 @@ export default function CreatePart3Modal({ open, onCancel, onSuccess, partId, pa
 
                     {/* ─── RIGHT COLUMN: 3 QUESTIONS ─── */}
                     <Col span={11}>
-                        <div style={{ background: '#FFF', borderRadius: 20, padding: 24, border: '1px solid #E2E8F0', boxShadow: '0 4px 20px rgba(0,0,0,0.03)', height: '100%' }}>
-                            <div style={{ fontWeight: 800, color: '#1E293B', marginBottom: 24, display: 'flex', alignItems: 'center', gap: 10, fontSize: 15 }}>
-                                <div style={{ width: 6, height: 20, background: '#1E293B', borderRadius: 3 }} />
+                        <div style={{ background: '#FFF', borderRadius: 20, padding: 24, border: '1px solid #BFDBFE', boxShadow: '0 4px 20px rgba(37, 99, 235, 0.03)', height: '100%' }}>
+                            <div style={{ fontWeight: 800, color: '#1E3A8A', marginBottom: 24, display: 'flex', alignItems: 'center', gap: 10, fontSize: 15 }}>
+                                <div style={{ width: 6, height: 20, background: '#2563EB', borderRadius: 3 }} />
                                 2. CHI TIẾT 3 CÂU HỎI
                             </div>
 
@@ -419,8 +419,8 @@ export default function CreatePart3Modal({ open, onCancel, onSuccess, partId, pa
                                 {(fields) => (
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
                                         {fields.map((field, index) => (
-                                            <div key={field.key} style={{ padding: 20, borderRadius: 18, background: '#F8FAFC', border: '1px solid #E2E8F0', position: 'relative' }}>
-                                                <div style={{ position: 'absolute', top: -11, left: 20, background: '#1E293B', color: '#fff', padding: '2px 14px', borderRadius: 20, fontSize: 12, fontWeight: 800, boxShadow: '0 4px 8px rgba(0,0,0,0.15)' }}>
+                                            <div key={field.key} style={{ padding: 20, borderRadius: 18, background: '#F0F7FF', border: '1px solid #BFDBFE', position: 'relative' }}>
+                                                <div style={{ position: 'absolute', top: -11, left: 20, background: '#2563EB', color: '#fff', padding: '2px 14px', borderRadius: 20, fontSize: 12, fontWeight: 800, boxShadow: '0 4px 8px rgba(37, 99, 235, 0.15)' }}>
                                                     CÂU {form.getFieldValue(['questions', index, 'questionNumber']) || (nextQuestionNumber + index)}
                                                 </div>
 
@@ -465,8 +465,8 @@ export default function CreatePart3Modal({ open, onCancel, onSuccess, partId, pa
                         type="primary" htmlType="submit" loading={loading} size="large" icon={<CheckCircleOutlined />}
                         style={{
                             borderRadius: 12, padding: '0 40px', fontWeight: 700,
-                            background: mode === 'edit' ? 'linear-gradient(135deg, #059669 0%, #10B981 100%)' : 'linear-gradient(135deg, #1E293B 0%, #334155 100%)',
-                            border: 'none', boxShadow: '0 8px 16px rgba(30, 41, 59, 0.25)', height: 50
+                            background: mode === 'edit' ? 'linear-gradient(135deg, #059669 0%, #10B981 100%)' : 'linear-gradient(135deg, #2563EB 0%, #1E3A8A 100%)',
+                            border: 'none', boxShadow: '0 8px 16px rgba(37, 99, 235, 0.25)', height: 50
                         }}
                     >
                         {mode === 'edit' ? 'CẬP NHẬT NHÓM' : 'LƯU NHÓM CÂU HỎI'}

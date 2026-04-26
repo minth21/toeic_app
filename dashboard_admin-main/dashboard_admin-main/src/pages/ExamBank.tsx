@@ -186,13 +186,20 @@ export default function ExamBank() {
 
     const handleCreateSubmit = async (values: any) => {
         try {
-            const payload = { ...values, status: values.status || 'PENDING' };
+            const payload = { 
+                title: values.title,
+                testType: values.testType,
+                difficulty: values.difficulty,
+                duration: values.duration,
+                totalQuestions: values.totalQuestions,
+                status: 'PENDING' 
+            };
             const data = await testApi.create(payload);
             if (data.success) {
-                message.success('Tạo đề thi thành công!');
+                message.success('Tạo đề thi mới thành công! Trạng thái: Chờ duyệt.');
                 setCreateModalVisible(false);
-                setSearchText(''); // Clear search
-                setPage(1); // Reset about to page 1 for new test
+                setSearchText(''); 
+                setPage(1); 
                 fetchExams();
             } else {
                 message.error(data.message || 'Không thể tạo đề thi');
@@ -206,8 +213,8 @@ export default function ExamBank() {
     const handleApprove = async (examId: string, examTitle: string) => {
         Modal.confirm({
             title: 'Duyệt đề thi',
-            content: `Xác nhận duyệt và xuất bản đề thi "${examTitle}"? Nội dung sẽ hiển thị ngay lập tức trên ứng dụng.`,
-            okText: 'Duyệt & Xuất bản',
+            content: `Xác nhận duyệt đề thi "${examTitle}"? Sau khi duyệt, đề thi sẽ ở trạng thái "Khóa (Ẩn)" để bạn kiểm tra lại trước khi Công khai.`,
+            okText: 'Duyệt và Khóa',
             okType: 'primary',
             cancelText: 'Hủy',
             onOk: async () => {
@@ -475,7 +482,7 @@ export default function ExamBank() {
         <div style={{ padding: '24px', background: token.colorBgLayout, minHeight: '100vh' }}>
 
             {/* Statistics Cards */}
-            <Row gutter={24} style={{ marginBottom: 32 }}>
+            <Row gutter={24} className="stagger-list" style={{ marginBottom: 32 }}>
                 {[
                     { title: 'Tổng đề thi', value: stats.total, icon: <BookOutlined />, color: '#3B82F6', bg: isDark ? 'rgba(59, 130, 246, 0.1)' : '#EFF6FF' },
                     { title: 'Chờ duyệt', value: stats.pending, icon: <ClockCircleOutlined />, color: '#D97706', bg: isDark ? 'rgba(217, 119, 6, 0.1)' : '#FFFBEB' },
@@ -485,6 +492,7 @@ export default function ExamBank() {
                     <Col xs={24} sm={12} md={6} key={index}>
                         <Card
                             hoverable
+                            className="stagger-item"
                             style={{
                                 borderRadius: 24,
                                 border: `1px solid ${token.colorBorder}`,
@@ -525,7 +533,7 @@ export default function ExamBank() {
 
             {/* Primary Action */}
             {canEditOrCreate && (
-                <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'flex-start' }}>
+                <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'flex-end' }}>
                     <Button
                         type="primary"
                         icon={<PlusOutlined />}
@@ -574,7 +582,7 @@ export default function ExamBank() {
                                 setDifficultyFilter(value);
                             }}
                             style={{ width: 130 }}
-                            dropdownStyle={{ borderRadius: '12px' }}
+                            styles={{ popup: { root: { borderRadius: '12px' } } }}
                         >
                             <Option value="ALL">Mức độ</Option>
                             <Option value="A1_A2">A1-A2</Option>

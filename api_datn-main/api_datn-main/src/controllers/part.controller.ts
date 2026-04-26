@@ -312,7 +312,7 @@ export const approvePart = async (
             await tx.part.update({
                 where: { id: partId },
                 data: { 
-                    status: 'ACTIVE' as any,
+                    status: 'LOCKED' as any,
                     rejectReason: null
                 },
             });
@@ -320,7 +320,7 @@ export const approvePart = async (
             // B. Cascade to all Questions in this part
             await (tx.question as any).updateMany({
                 where: { partId },
-                data: { status: 'ACTIVE' as any },
+                data: { status: 'LOCKED' as any },
             });
 
             // C. Auto-publish Test Check: If ALL parts of this test are ACTIVE, set Test to ACTIVE
@@ -329,12 +329,12 @@ export const approvePart = async (
                 select: { id: true, status: true }
             });
 
-            const remainingPending = allParts.filter(p => p.id !== partId && p.status !== 'ACTIVE');
+            const remainingPending = allParts.filter(p => p.id !== partId && p.status !== 'ACTIVE' && p.status !== 'LOCKED');
             
             if (remainingPending.length === 0) {
                 await tx.test.update({
                     where: { id: part.testId },
-                    data: { status: 'ACTIVE' as any }
+                    data: { status: 'LOCKED' as any }
                 });
             }
         });

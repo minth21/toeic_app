@@ -44,7 +44,8 @@ export const getQuestionsByPartId = async (
     next: NextFunction
 ): Promise<void> => {
     try {
-        const { partId } = req.params;
+        let { partId } = req.params;
+        if (partId) partId = partId.trim().replace(/[^a-f0-9-]/gi, '');
         const { level, status } = req.query;
         const role = (req as any).user?.role;
         const isAdminOrSpecialist = role === 'ADMIN' || role === 'SPECIALIST';
@@ -91,7 +92,8 @@ export const createQuestion = async (
     next: NextFunction
 ): Promise<void> => {
     try {
-        const { partId } = req.params;
+        let { partId } = req.params;
+        if (partId) partId = partId.trim().replace(/[^a-f0-9-]/gi, '');
         const {
             questionNumber,
             questionText,
@@ -106,11 +108,15 @@ export const createQuestion = async (
             questionTranslation, // ✅ New
             optionTranslations, // ✅ New
             keyVocabulary, // ✅ New
-            passageTitle, // ✅ New
-            level, // ✅ New Mức độ khó
+            level, // ✅ New
             audioUrl,
             imageUrl, // Add imageUrl
-            transcript
+            transcript,
+            passage,
+            passageImageUrl,
+            questionScanUrl,
+            passageTranslationData,
+            topic_tag,
         } = req.body;
 
         // Get part info to validate question number range
@@ -127,7 +133,21 @@ export const createQuestion = async (
         }
 
         // Validate question number range based on part number
+        if (!questionNumber) {
+            res.status(400).json({
+                success: false,
+                message: 'Số câu hỏi là bắt buộc',
+            });
+            return;
+        }
         const qNum = parseInt(questionNumber);
+        if (isNaN(qNum)) {
+            res.status(400).json({
+                success: false,
+                message: 'Số câu hỏi phải là một số hợp lệ',
+            });
+            return;
+        }
         const partRanges: Record<number, { min: number; max: number }> = {
             1: { min: 1, max: 6 },
             2: { min: 7, max: 31 },
@@ -140,6 +160,7 @@ export const createQuestion = async (
 
         const range = partRanges[part.partNumber];
         if (range && (qNum < range.min || qNum > range.max)) {
+            console.log(`[CreateQuestion] Range Validation Failed: qNum=${qNum}, part=${part.partNumber}, expected=${range.min}-${range.max}`);
             res.status(400).json({
                 success: false,
                 message: `Part ${part.partNumber} chỉ chấp nhận câu hỏi từ ${range.min} đến ${range.max}`,
@@ -162,6 +183,7 @@ export const createQuestion = async (
         });
 
         if (existingQuestionInTest) {
+            console.log(`[CreateQuestion] Duplicate Check Failed: questionNumber ${questionNumber} already exists in Part ${existingQuestionInTest.part.partNumber}`);
             res.status(400).json({
                 success: false,
                 message: `Câu hỏi số ${questionNumber} đã tồn tại trong Part ${existingQuestionInTest.part.partNumber} của bài test này.`,
@@ -185,12 +207,16 @@ export const createQuestion = async (
                 questionTranslation, // ✅ New
                 optionTranslations, // ✅ New
                 keyVocabulary, // ✅ New
-                passageTitle, // ✅ New
                 level, // ✅ New
 
                 audioUrl,
                 imageUrl, // Add imageUrl
                 transcript,
+                passage,
+                passageImageUrl,
+                questionScanUrl,
+                passageTranslationData,
+                topic_tag,
                 status: part.status as any // Inherit status from Part (if ACTIVE, question becomes ACTIVE)
             },
         });
@@ -230,7 +256,6 @@ export const updateQuestion = async (
             questionTranslation, // ✅ New
             optionTranslations, // ✅ New
             keyVocabulary, // ✅ New
-            passageTitle, // ✅ New
             level, // ✅ New
             passage,
             audioUrl,
@@ -239,6 +264,7 @@ export const updateQuestion = async (
             passageImageUrl, // ✅ New: dedicated passage image URLs
             questionScanUrl, // ✅ New: dedicated question scan URLs
             passageTranslationData,
+            topic_tag,
         } = req.body;
 
         // --- Range Validation ---
@@ -293,8 +319,7 @@ export const updateQuestion = async (
                 questionTranslation, // ✅ New
                 optionTranslations, // ✅ New
                 keyVocabulary, // ✅ New
-                passageTitle, // ✅ New
-                level, // ✅ New
+                level: sanitizeDifficulty(level), // ✅ Sanitized
                 passage,
                 audioUrl,
                 imageUrl,
@@ -302,6 +327,7 @@ export const updateQuestion = async (
                 passageImageUrl,
                 questionScanUrl,
                 passageTranslationData: sanitizedData,
+                topic_tag,
             },
         });
 
@@ -384,7 +410,8 @@ export const deleteAllQuestionsByPartId = async (
     next: NextFunction
 ): Promise<void> => {
     try {
-        const { partId } = req.params;
+        let { partId } = req.params;
+        if (partId) partId = partId.trim().replace(/[^a-f0-9-]/gi, '');
         const user = (req as any).user;
 
         if (user.role !== 'ADMIN' && user.role !== 'SPECIALIST') {
@@ -511,8 +538,9 @@ export const createBatchQuestions = async (
     next: NextFunction
 ): Promise<void> => {
     try {
-        const { partId } = req.params;
-        const { passage, passageTranslationData, questions, audioUrl, transcript, mode } = req.body; // mode: 'append' | 'replace'
+        let { partId } = req.params;
+        if (partId) partId = partId.trim().replace(/[^a-f0-9-]/gi, '');
+        const { passage, passageImageUrl, questionScanUrl, passageTranslationData, questions, audioUrl, transcript, mode } = req.body; // mode: 'append' | 'replace'
 
         // Validate and Standardize
         let sanitizedData: string | null = null;
@@ -621,8 +649,6 @@ export const createBatchQuestions = async (
             return {
                 partId,
                 questionNumber: qNum,
-                passageImageUrl: q.passageImageUrl || null,
-                questionScanUrl: q.questionScanUrl || null,
                 questionText: q.questionText,
                 optionA: q.optionA,
                 optionB: q.optionB,
@@ -635,11 +661,13 @@ export const createBatchQuestions = async (
                 questionTranslation: q.questionTranslation || null, // ✅ New
                 optionTranslations: q.optionTranslations || null, // ✅ New
                 keyVocabulary: q.keyVocabulary || null, // ✅ New
-                passageTitle: q.passageTitle || null, // ✅ New
                 level: sanitizeDifficulty(q.level), // ✅ Sanitized
                 audioUrl: audioUrl || q.audioUrl,
                 passage: q.passage || passage, // ✅ Allow individual passages
-                passageTranslationData: q.passageTranslationData || sanitizedData, // ✅ Allow individual translations
+                passageImageUrl: q.passageImageUrl || passageImageUrl || null,
+                questionScanUrl: q.questionScanUrl || questionScanUrl || null,
+                passageTranslationData: q.passageTranslationData || sanitizedData || null,
+                topic_tag: q.topic_tag || null,
                 transcript: transcript || q.transcript,
                 imageUrl: q.imageUrl || null,
                 status: part.status as any // Inherit status from Part
@@ -810,7 +838,7 @@ export const importQuestions = async (
         const questionsToInsert: any[] = [];
         const invalidQuestions: number[] = [];
 
-        questions.forEach((q, index) => {
+        questions.forEach((q) => {
             // Use questionNumber from Excel if available
             const contentNumber = (q as any).questionNumber;
 

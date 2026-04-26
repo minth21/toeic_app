@@ -159,7 +159,7 @@ export default function Overview() {
             </div>
 
             <Flex vertical gap={32} style={{ width: '100%' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 24 }}>
+                <div className="stagger-list" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 24 }}>
                     {loading ? (
                         <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '40px' }}>
                             <Spin size="large" />
@@ -175,6 +175,7 @@ export default function Overview() {
                                 key={index}
                                 variant="borderless"
                                 hoverable
+                                className="stagger-item"
                                 style={{
                                     borderRadius: 24,
                                     boxShadow: 'var(--card-shadow)',
@@ -233,6 +234,7 @@ export default function Overview() {
                             >
                                 {classStats.length > 0 ? (
                                     <Column
+                                        height={300}
                                         data={classStats}
                                         xField="className"
                                         yField="averageScore"

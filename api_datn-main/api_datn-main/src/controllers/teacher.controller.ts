@@ -177,7 +177,6 @@ export const getAttemptDetailForReport = async (
                         question: {
                             select: {
                                 questionNumber: true,
-                                topic_tag: true,
                                 correctAnswer: true,
                                 explanation: true,
                                 analysis: true

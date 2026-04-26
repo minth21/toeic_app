@@ -54,7 +54,7 @@ interface CreatePart3BulkModalProps {
 export default function CreatePart3BulkModal({ open, onCancel, onSuccess, partId, currentAudioUrl, partNumber, initialData }: CreatePart3BulkModalProps) {
     const [loading, setLoading] = useState(false);
     const [groups, setGroups] = useState<GroupData[]>([]);
-    const [audioFile, setAudioFile] = useState<File | null>(null);
+    const [audioFile, setAudioFile] = useState<File[] | null>(null);
 
     useEffect(() => {
         if (open) {
@@ -305,7 +305,7 @@ export default function CreatePart3BulkModal({ open, onCancel, onSuccess, partId
             for (let j = 0; j < 3; j++) {
                 rows.push({
                     'Số câu': startQ + (i * 3) + j,
-                    'Transcript (Hội thoại)': j === 0 ? 'Nội dung bài nói...' : '',
+                    'Transcript Hội thoại': j === 0 ? 'Nội dung bài nói...' : '',
                     'Nội dung câu hỏi': '', 'A': '', 'B': '', 'C': '', 'D': '', 'Đáp án đúng': '', 'Giải thích': ''
                 });
             }
@@ -323,12 +323,20 @@ export default function CreatePart3BulkModal({ open, onCancel, onSuccess, partId
             let partAudioUrl = currentAudioUrl || '';
 
             // 1. Chỉ upload và cập nhật audio PART một lần duy nhất nếu có file mới
-            if (audioFile) {
-                const audioRes = await uploadApi.audio(audioFile);
+            if (audioFile && audioFile.length > 0) {
+                let audioRes;
+                if (audioFile.length === 2) {
+                    message.loading({ content: 'Đang gộp audio...', key: 'audioMerge' });
+                    audioRes = await uploadApi.mergeAudio(audioFile);
+                } else {
+                    audioRes = await uploadApi.audio(audioFile[0]);
+                }
+
                 if (audioRes.success) {
                     partAudioUrl = audioRes.url;
                     await partApi.update(partId, { audioUrl: partAudioUrl });
-                } else throw new Error('Upload Audio thất bại');
+                    message.success({ content: 'Audio đã được cập nhật!', key: 'audioMerge' });
+                } else throw new Error('Upload/Merge Audio thất bại');
             }
 
             // 2. Lọc các nhóm có nội dung thực sự
@@ -357,7 +365,10 @@ export default function CreatePart3BulkModal({ open, onCancel, onSuccess, partId
                     if (res.success) graphicUrl = res.url;
                 }
 
-                const keyVocabularyJson = JSON.stringify(group.keyVocabulary || []);
+                const keyVocabularyJson = JSON.stringify((group.keyVocabulary || []).map((v: any) => ({
+                    ...v,
+                    ipa: (v.ipa || '').replace(/^\/+|\/+$/g, '').trim()
+                })));
                 const passageTranslationDataJson = JSON.stringify([
                     { type: 'passage', label: 'Transcript', items: group.translationSentences || [] }
                 ]);
@@ -415,19 +426,31 @@ export default function CreatePart3BulkModal({ open, onCancel, onSuccess, partId
     return (
         <Modal
             title={
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <div style={{ width: 36, height: 36, borderRadius: 10, background: 'linear-gradient(135deg, #1E293B 0%, #334155 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }} className="page-animate">
+                    <div style={{ width: 36, height: 36, borderRadius: 10, background: 'linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)' }}>
                         <FileExcelOutlined style={{ color: '#fff', fontSize: 18 }} />
                     </div>
-                    <Title level={4} style={{ margin: 0 }}>
+                    <Title level={4} style={{ margin: 0, color: '#1E3A8A' }}>
                         {initialData && initialData.some((r: any) => r.id) ? `CHỈNH SỬA NHÓM CÂU HỎI PART ${partNumber}` : 'NHẬP CÂU HỎI HÀNG LOẠT'}
                     </Title>
                 </div>
             }
-            open={open} onCancel={onCancel} footer={null} width={1400} centered maskClosable={false} styles={{ body: { padding: '24px', background: '#F4F7FE' } }}
+            open={open} onCancel={onCancel} footer={null} width={1400} centered maskClosable={false} styles={{ body: { padding: '24px', background: '#F0F7FF' } }}
         >
-            <div style={{ maxHeight: '85vh', overflowY: 'auto', paddingRight: 8 }}>
-                <AudioBanner currentAudioUrl={currentAudioUrl} newAudioFile={audioFile} onAudioFileChange={setAudioFile} />
+            <div style={{ maxHeight: '85vh', overflowY: 'auto', paddingRight: 8 }} className="page-animate">
+                <AudioBanner 
+                    currentAudioUrl={currentAudioUrl} 
+                    newAudioFile={audioFile} 
+                    onAudioFileChange={setAudioFile} 
+                    multiple={true}
+                    onDeleteCurrentAudio={async () => {
+                        if (partId) {
+                            await partApi.update(partId, { audioUrl: null });
+                            message.success('Đã xóa audio hiện tại');
+                            onSuccess(); // Refresh list if needed
+                        }
+                    }}
+                />
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20 }}>
                     <Space>
@@ -466,7 +489,7 @@ export default function CreatePart3BulkModal({ open, onCancel, onSuccess, partId
                                     <div style={{ background: '#F8FAFC', padding: 16, borderRadius: 12, border: '1px solid #E2E8F0', height: '100%' }}>
                                         <div style={{ marginBottom: 16 }}>
                                             <div style={{ fontWeight: 800, fontSize: 12, color: '#475569', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
-                                                <FileTextOutlined /> TRANSCRIPT (LỜI THOẠI)
+                                                <FileTextOutlined /> TRANSCRIPT LỜI THOẠI
                                             </div>
                                             <ReactQuill
                                                 theme="snow"
@@ -479,7 +502,7 @@ export default function CreatePart3BulkModal({ open, onCancel, onSuccess, partId
 
                                         <div style={{ marginBottom: 16 }}>
                                             <div style={{ fontWeight: 800, fontSize: 12, color: '#475569', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
-                                                <PictureOutlined /> ĐỒ HỌA (GRAPHIC)
+                                                <PictureOutlined /> ĐỒ HỌA GRAPHIC
                                             </div>
                                             <Upload beforeUpload={(f) => { handleGraphicChange(gIdx, f); return false; }} showUploadList={false}>
                                                 <div style={{ width: '100%', height: 100, border: '1.5px dashed #CBD5E1', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', background: '#fff', overflow: 'hidden' }}>
@@ -558,7 +581,7 @@ export default function CreatePart3BulkModal({ open, onCancel, onSuccess, partId
                                                             value={q.correctAnswer}
                                                             onChange={(val) => handleQuestionChange(gIdx, qIdx, 'correctAnswer', val)}
                                                             style={{ width: 60 }}
-                                                            dropdownStyle={{ minWidth: 60 }}
+                                                            styles={{ popup: { root: { minWidth: 60 } } }}
                                                         >
                                                             {['A', 'B', 'C', 'D'].map(o => <Option key={o} value={o}>{o}</Option>)}
                                                         </Select>
@@ -601,7 +624,7 @@ export default function CreatePart3BulkModal({ open, onCancel, onSuccess, partId
                     <Button onClick={onCancel} size="large" style={{ borderRadius: 12, width: 120 }}>Hủy bỏ</Button>
                     <Button
                         type="primary" onClick={handleSubmit} loading={loading} size="large" icon={<CheckCircleOutlined />}
-                        style={{ background: 'linear-gradient(135deg, #1E293B 0%, #334155 100%)', border: 'none', width: 300, fontWeight: 700, borderRadius: 12, height: 50 }}
+                        style={{ background: 'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)', border: 'none', width: 300, fontWeight: 700, borderRadius: 12, height: 50, boxShadow: '0 4px 14px rgba(37, 99, 235, 0.3)' }}
                     >
                         {initialData && initialData.some(r => r.id) ? 'CẬP NHẬT NHÓM' : 'LƯU TẤT CẢ CÁC NHÓM'}
                     </Button>

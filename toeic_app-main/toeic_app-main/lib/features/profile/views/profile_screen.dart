@@ -10,6 +10,7 @@ import 'edit_profile_screen.dart';
 import 'change_password_screen.dart';
 import '../../auth/views/login_screen.dart';
 import '../../practice/views/class_feedback_screen.dart';
+import 'teacher_opinions_screen.dart';
 // Note: ProfileViewModel might not exist, checking imports.
 // It seems AuthViewModel holds the user. Let's use AuthViewModel for now or check if we need a new VM.
 // The user update happens in AuthViewModel usually.
@@ -289,10 +290,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       );
                     },
                   ),
+                  _buildSettingItem(
+                    icon: Icons.psychology_alt_rounded,
+                    title: 'Ý kiến của giáo viên',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const TeacherOpinionsScreen(),
+                        ),
+                      );
+                    },
+                  ),
                   if (user?.classId != null)
                     _buildSettingItem(
                       icon: Icons.chat_bubble_outline_rounded,
-                      title: 'Ý kiến giáo viên',
+                      title: 'Gửi ý kiến cho giáo viên',
                       onTap: () {
                         Navigator.push(
                           context,
