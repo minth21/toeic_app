@@ -73,6 +73,12 @@ export const getPartById = async (
         const part = await prisma.part.findUnique({
             where: { id: partId },
             include: {
+                test: {
+                    select: {
+                        status: true,
+                        title: true
+                    }
+                },
                 questions: {
                     orderBy: {
                         questionNumber: 'asc'

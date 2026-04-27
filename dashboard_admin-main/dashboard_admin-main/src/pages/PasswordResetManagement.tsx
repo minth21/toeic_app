@@ -75,8 +75,9 @@ const PasswordResetManagement = () => {
             title: 'Người dùng',
             dataIndex: 'username',
             key: 'username',
+            align: 'center' as const,
             render: (text: string, record: any) => (
-                <Space direction="vertical" size={0}>
+                <Space direction="vertical" size={0} style={{ width: '100%', justifyContent: 'center' }}>
                     <Text strong>{record.user?.name || 'N/A'}</Text>
                     <Text type="secondary" style={{ fontSize: '12px' }}>@{text}</Text>
                 </Space>
@@ -86,11 +87,12 @@ const PasswordResetManagement = () => {
             title: 'Email/Lý do',
             dataIndex: 'reason',
             key: 'reason',
+            align: 'center' as const,
             render: (text: string, record: any) => (
-                <Space direction="vertical" size={0}>
+                <Space direction="vertical" size={0} style={{ width: '100%', justifyContent: 'center' }}>
                     <Text type="secondary">{record.email || 'Không có email'}</Text>
                     <Tooltip title={text}>
-                        <Typography.Paragraph ellipsis={{ rows: 1 }} style={{ maxWidth: 200, marginBottom: 0 }}>
+                        <Typography.Paragraph ellipsis={{ rows: 1 }} style={{ maxWidth: 200, marginBottom: 0, margin: '0 auto' }}>
                             {text}
                         </Typography.Paragraph>
                     </Tooltip>
@@ -101,6 +103,7 @@ const PasswordResetManagement = () => {
             title: 'Trạng thái',
             dataIndex: 'status',
             key: 'status',
+            align: 'center' as const,
             render: (status: string) => {
                 let color = 'gold';
                 let icon = <ClockCircleOutlined />;
@@ -116,23 +119,25 @@ const PasswordResetManagement = () => {
                     label = 'Đã từ chối';
                 }
 
-                return <Tag icon={icon} color={color}>{label}</Tag>;
+                return <Tag icon={icon} color={color} style={{ margin: 0 }}>{label}</Tag>;
             },
         },
         {
             title: 'Ngày yêu cầu',
             dataIndex: 'createdAt',
             key: 'createdAt',
+            align: 'center' as const,
             render: (date: string) => dayjs(date).format('HH:mm DD/MM/YYYY'),
         },
         {
             title: 'Thao tác',
             key: 'action',
+            align: 'center' as const,
             render: (_: any, record: any) => (
                 <Space>
                     <Tooltip title="Xem chi tiết">
-                        <Button 
-                            icon={<EyeOutlined />} 
+                        <Button
+                            icon={<EyeOutlined />}
                             onClick={() => {
                                 setSelectedRequest(record);
                                 setIsDetailModalVisible(true);
@@ -141,8 +146,8 @@ const PasswordResetManagement = () => {
                     </Tooltip>
                     {record.status === 'PENDING' && (
                         <>
-                            <Button 
-                                type="primary" 
+                            <Button
+                                type="primary"
                                 icon={<KeyOutlined />}
                                 onClick={() => {
                                     setSelectedRequest(record);
@@ -152,7 +157,7 @@ const PasswordResetManagement = () => {
                             >
                                 Cấp mật khẩu
                             </Button>
-                            <Button 
+                            <Button
                                 danger
                                 onClick={() => {
                                     setSelectedRequest(record);
@@ -171,11 +176,11 @@ const PasswordResetManagement = () => {
 
     return (
         <div style={{ padding: '24px' }}>
-            <Card 
+            <Card
                 title={
                     <Space>
                         <KeyOutlined style={{ color: '#3B82F6' }} />
-                        <Title level={4} style={{ margin: 0 }}>Quản lý yêu cầu cấp lại mật khẩu</Title>
+                        <Title level={4} style={{ margin: 0, fontWeight: 'bold' }}>YÊU CẦU CẤP LẠI MẬT KHẨU</Title>
                     </Space>
                 }
                 extra={
@@ -185,10 +190,10 @@ const PasswordResetManagement = () => {
                 }
                 style={{ borderRadius: '16px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}
             >
-                <Table 
-                    columns={columns} 
-                    dataSource={requests} 
-                    rowKey="id" 
+                <Table
+                    columns={columns}
+                    dataSource={requests}
+                    rowKey="id"
                     loading={loading}
                     pagination={{ pageSize: 10 }}
                 />
@@ -266,7 +271,7 @@ const PasswordResetManagement = () => {
                             <Text>Thời gian: <Text strong>{dayjs(selectedRequest.createdAt).format('HH:mm DD/MM/YYYY')}</Text></Text><br />
                             <Text>Lý do: <Text italic>"{selectedRequest.reason}"</Text></Text>
                         </Card>
-                        
+
                         {selectedRequest.status !== 'PENDING' && (
                             <Card size="small" style={{ background: selectedRequest.status === 'COMPLETED' ? '#f6ffed' : '#fff1f0' }}>
                                 <Title level={5}>Kết quả xử lý</Title>

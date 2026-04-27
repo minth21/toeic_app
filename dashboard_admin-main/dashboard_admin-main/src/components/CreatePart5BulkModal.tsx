@@ -15,7 +15,7 @@ import {
 import ReactQuill from 'react-quill-new';
 import 'quill/dist/quill.snow.css';
 import * as XLSX from 'xlsx';
-import { questionApi } from '../services/api';
+import { questionApi, partApi } from '../services/api';
 import { useAIImport } from '../hooks/useAIImport';
 import { QUILL_MODULES, QUILL_FORMATS } from '../utils/editorUtils';
 
@@ -69,42 +69,91 @@ export default function CreatePart5BulkModal({
     } = useAIImport(questions, setQuestions, 5);
 
     useEffect(() => {
-        if (open) {
-            const finalQuestions: Question[] = Array.from({ length: 30 }, (_, i) => ({
-                questionNumber: 101 + i,
-                questionText: '',
-                optionA: '',
-                optionB: '',
-                optionC: '',
-                optionD: '',
-                correctAnswer: 'A',
-                explanation: '',
-                questionTranslation: '',
-                level: 'B1'
-            }));
+        const loadInitialData = async () => {
+            if (!open) return;
 
-            if (initialData && initialData.length > 0) {
-                initialData.forEach((row: any) => {
-                    const qNum = Number(row['Số câu'] || row['questionNumber'] || 0);
-                    if (qNum >= 101 && qNum <= 130) {
-                        const idx = qNum - 101;
-                        finalQuestions[idx] = {
-                            ...finalQuestions[idx],
-                            questionText: String(row['Nội dung câu hỏi'] || row['questionText'] || finalQuestions[idx].questionText),
-                            optionA: String(row['A'] || row['optionA'] || finalQuestions[idx].optionA),
-                            optionB: String(row['B'] || row['optionB'] || finalQuestions[idx].optionB),
-                            optionC: String(row['C'] || row['optionC'] || finalQuestions[idx].optionC),
-                            optionD: String(row['D'] || row['optionD'] || finalQuestions[idx].optionD),
-                            correctAnswer: String(row['Đáp án'] || row['Đáp án đúng'] || row['correctAnswer'] || finalQuestions[idx].correctAnswer).toUpperCase(),
-                            explanation: String(row['Giải thích'] || row['explanation'] || finalQuestions[idx].explanation),
-                        };
+            setLoading(true);
+            try {
+                // 1. Initialize 30 empty questions
+                const finalQuestions: Question[] = Array.from({ length: 30 }, (_, i) => ({
+                    questionNumber: 101 + i,
+                    questionText: '',
+                    optionA: '',
+                    optionB: '',
+                    optionC: '',
+                    optionD: '',
+                    correctAnswer: 'A',
+                    explanation: '',
+                    questionTranslation: '',
+                    level: 'B1'
+                }));
+
+                // 2. If APPEND mode, fetch and fill existing questions first
+                if (importMode === 'append' && partId) {
+                    const res = await partApi.getQuestions(partId);
+                    if (res.success && res.questions) {
+                        res.questions.forEach((q: any) => {
+                            const qNum = q.questionNumber;
+                            if (qNum >= 101 && qNum <= 130) {
+                                const idx = qNum - 101;
+                                finalQuestions[idx] = {
+                                    ...finalQuestions[idx],
+                                    ...q,
+                                    // Handle stringified fields if any (backend might return objects or strings)
+                                    optionTranslations: typeof q.optionTranslations === 'string' ? JSON.parse(q.optionTranslations) : q.optionTranslations,
+                                    keyVocabulary: typeof q.keyVocabulary === 'string' ? JSON.parse(q.keyVocabulary) : q.keyVocabulary,
+                                };
+                            }
+                        });
                     }
+                }
+
+                // 3. Overlay rows intelligently
+                const currentQuestions = [...finalQuestions];
+                initialData.forEach((row: any) => {
+                    let qNum = Number(row['Số câu'] || row['questionNumber'] || 0);
+                    
+                    if (importMode === 'append') {
+                        // If qNum is provided but busy, find the next empty slot
+                        // If qNum is 0 (not provided), also find the next empty slot
+                        if (qNum < 101 || qNum > 130 || (currentQuestions[qNum - 101].questionText && currentQuestions[qNum - 101].questionText.trim() !== '')) {
+                            const nextEmptyIdx = currentQuestions.findIndex(q => !q.questionText || q.questionText.trim() === '');
+                            if (nextEmptyIdx !== -1) {
+                                qNum = 101 + nextEmptyIdx;
+                            } else {
+                                return; // No more slots
+                            }
+                        }
+                    } else {
+                        // Replace mode: must be within range
+                        if (qNum < 101 || qNum > 130) return;
+                    }
+
+                    const idx = qNum - 101;
+                    currentQuestions[idx] = {
+                        ...currentQuestions[idx],
+                        questionText: String(row['Nội dung câu hỏi'] || row['questionText'] || currentQuestions[idx].questionText),
+                        optionA: String(row['A'] || row['optionA'] || currentQuestions[idx].optionA),
+                        optionB: String(row['B'] || row['optionB'] || currentQuestions[idx].optionB),
+                        optionC: String(row['C'] || row['optionC'] || currentQuestions[idx].optionC),
+                        optionD: String(row['D'] || row['optionD'] || currentQuestions[idx].optionD),
+                        correctAnswer: String(row['Đáp án'] || row['Đáp án đúng'] || row['correctAnswer'] || currentQuestions[idx].correctAnswer).toUpperCase(),
+                        explanation: String(row['Giải thích'] || row['explanation'] || currentQuestions[idx].explanation),
+                    };
                 });
+
+                setQuestions(currentQuestions);
+                setActiveQuestionIndex(0);
+            } catch (err) {
+                console.error('Error loading initial data:', err);
+                message.error('Lỗi khi tải dữ liệu câu hỏi');
+            } finally {
+                setLoading(false);
             }
-            setQuestions(finalQuestions);
-            setActiveQuestionIndex(0);
-        }
-    }, [open, initialData]);
+        };
+
+        loadInitialData();
+    }, [open, initialData, importMode, partId]);
 
     const handleQuestionChange = (index: number, field: keyof Question, val: any) => {
         const newQuestions = [...questions];
@@ -146,37 +195,55 @@ export default function CreatePart5BulkModal({
                     return;
                 }
 
-                const finalQuestions: Question[] = Array.from({ length: 30 }, (_, i) => ({
-                    questionNumber: 101 + i,
-                    questionText: '',
-                    optionA: '',
-                    optionB: '',
-                    optionC: '',
-                    optionD: '',
-                    correctAnswer: 'A',
-                    explanation: '',
-                    questionTranslation: '',
-                    level: 'B1'
-                }));
+                // 3. Overlay rows intelligently
+                const currentQuestions = importMode === 'append' 
+                    ? [...questions] // Use current state if appending
+                    : Array.from({ length: 30 }, (_, i) => ({ // New 30 empty if replacing
+                        questionNumber: 101 + i,
+                        questionText: '',
+                        optionA: '',
+                        optionB: '',
+                        optionC: '',
+                        optionD: '',
+                        correctAnswer: 'A',
+                        explanation: '',
+                        questionTranslation: '',
+                        level: 'B1'
+                    }));
 
                 rows.forEach((row: any) => {
-                    const qNum = Number(row['Số câu'] || row['questionNumber'] || 0);
-                    if (qNum >= 101 && qNum <= 130) {
-                        const idx = qNum - 101;
-                        finalQuestions[idx] = {
-                            ...finalQuestions[idx],
-                            questionText: String(row['Nội dung câu hỏi'] || row['questionText'] || ''),
-                            optionA: String(row['A'] || row['optionA'] || ''),
-                            optionB: String(row['B'] || row['optionB'] || ''),
-                            optionC: String(row['C'] || row['optionC'] || ''),
-                            optionD: String(row['D'] || row['optionD'] || ''),
-                            correctAnswer: String(row['Đáp án'] || row['Đáp án đúng'] || row['correctAnswer'] || 'A').toUpperCase(),
-                            explanation: String(row['Giải thích'] || row['explanation'] || ''),
-                        };
+                    let qNum = Number(row['Số câu'] || row['questionNumber'] || 0);
+                    
+                    if (importMode === 'append') {
+                        // If qNum is provided but busy, find the next empty slot
+                        // If qNum is 0 (not provided), also find the next empty slot
+                        if (qNum < 101 || qNum > 130 || (currentQuestions[qNum - 101].questionText && currentQuestions[qNum - 101].questionText.trim() !== '')) {
+                            const nextEmptyIdx = currentQuestions.findIndex(q => !q.questionText || q.questionText.trim() === '');
+                            if (nextEmptyIdx !== -1) {
+                                qNum = 101 + nextEmptyIdx;
+                            } else {
+                                return; // No more slots
+                            }
+                        }
+                    } else {
+                        // Replace mode: must be within range
+                        if (qNum < 101 || qNum > 130) return;
                     }
+
+                    const idx = qNum - 101;
+                    currentQuestions[idx] = {
+                        ...currentQuestions[idx],
+                        questionText: String(row['Nội dung câu hỏi'] || row['questionText'] || ''),
+                        optionA: String(row['A'] || row['optionA'] || ''),
+                        optionB: String(row['B'] || row['optionB'] || ''),
+                        optionC: String(row['C'] || row['optionC'] || ''),
+                        optionD: String(row['D'] || row['optionD'] || ''),
+                        correctAnswer: String(row['Đáp án'] || row['Đáp án đúng'] || row['correctAnswer'] || 'A').toUpperCase(),
+                        explanation: String(row['Giải thích'] || row['explanation'] || ''),
+                    };
                 });
 
-                setQuestions(finalQuestions);
+                setQuestions(currentQuestions);
                 setActiveQuestionIndex(0);
                 message.success(`Nạp thành công ${rows.length} câu hỏi`);
             } catch (err: any) {
@@ -277,8 +344,8 @@ export default function CreatePart5BulkModal({
                         <Upload beforeUpload={handleExcelImport} showUploadList={false}>
                             <Button icon={<CloudUploadOutlined />} style={{ borderRadius: 8 }}>Nhập Excel</Button>
                         </Upload>
-                        <Button icon={<FileExcelOutlined />} onClick={handleDownloadTemplate} style={{ borderRadius: 8 }}>Mẫu Excel</Button>
-                        <Button type="primary" icon={<ExperimentOutlined />} loading={aiLoading} onClick={handleEnrichPart5All} style={{ background: 'linear-gradient(135deg, #7C3AED 0%, #5B21B6 100%)', border: 'none', borderRadius: 8, fontWeight: 700 }}>AI Magic</Button>
+                        <Button icon={<FileExcelOutlined />} onClick={handleDownloadTemplate} style={{ borderRadius: 8, boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>Mẫu Excel</Button>
+                        <Button type="primary" icon={<ExperimentOutlined />} loading={aiLoading} onClick={handleEnrichPart5All} style={{ background: 'linear-gradient(135deg, #7C3AED 0%, #5B21B6 100%)', border: 'none', borderRadius: 8, fontWeight: 700, boxShadow: '0 4px 12px rgba(124, 58, 237, 0.3)' }}>AI Magic</Button>
                     </Space>
                 </div>
 
@@ -305,7 +372,8 @@ export default function CreatePart5BulkModal({
                                         color: activeQuestionIndex === idx ? '#fff' : '#1E40AF',
                                         fontWeight: 600, fontSize: 13, transition: 'all 0.2s',
                                         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                                        border: activeQuestionIndex === idx ? 'none' : '1px solid transparent'
+                                        border: activeQuestionIndex === idx ? 'none' : '1px solid transparent',
+                                        boxShadow: activeQuestionIndex === idx ? '0 4px 12px rgba(37, 99, 235, 0.4)' : 'none'
                                     }}
                                 >
                                     <span>Câu {q.questionNumber}</span>

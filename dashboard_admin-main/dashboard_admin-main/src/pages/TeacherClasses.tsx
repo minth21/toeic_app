@@ -321,26 +321,30 @@ export default function TeacherClasses() {
             title: 'STT',
             key: 'index',
             width: 70,
+            align: 'center' as const,
             render: (_: any, __: any, index: number) => index + 1,
         },
         {
             title: 'Mã lớp',
             dataIndex: 'classCode',
             key: 'classCode',
+            align: 'center' as const,
             render: (text: string) => <Tag color="blue">{text}</Tag>,
         },
         {
             title: 'Tên lớp',
             dataIndex: 'className',
             key: 'className',
+            align: 'center' as const,
             render: (text: string) => <strong style={{ color: 'var(--text-primary)' }}>{text}</strong>,
         },
         {
             title: 'Sĩ số',
             dataIndex: 'studentCount',
             key: 'studentCount',
+            align: 'center' as const,
             render: (count: number) => (
-                <Space>
+                <Space style={{ width: '100%', justifyContent: 'center' }}>
                     <TeamOutlined style={{ color: '#10B981' }} />
                     <span style={{ fontWeight: 600 }}>{count || 0} học viên</span>
                 </Space>
@@ -350,11 +354,13 @@ export default function TeacherClasses() {
             title: 'Ngày tạo',
             dataIndex: 'createdAt',
             key: 'createdAt',
+            align: 'center' as const,
             render: (date: string) => new Date(date).toLocaleDateString('vi-VN'),
         },
         {
             title: 'Hành động',
             key: 'action',
+            align: 'center' as const,
             render: (_: any, record: Class) => (
                 <Space size="middle">
                     <Button
@@ -394,12 +400,14 @@ export default function TeacherClasses() {
             title: 'STT',
             key: 'index',
             width: 60,
+            align: 'center' as const,
             render: (_: any, __: any, index: number) => index + 1,
         },
         {
             title: 'Mã HV',
             key: 'username',
             width: 120,
+            align: 'center' as const,
             render: (record: any) => (
                 <Tag color="blue" style={{ borderRadius: 6, fontWeight: 500, border: 'none', padding: '2px 10px' }}>
                     {record.username || record.user?.username || '-'}
@@ -410,6 +418,7 @@ export default function TeacherClasses() {
             title: 'Họ và tên',
             dataIndex: 'name',
             key: 'name',
+            align: 'center' as const,
             render: (text: string) => <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{text}</span>
         },
         {
@@ -456,6 +465,7 @@ export default function TeacherClasses() {
             title: 'Hành động',
             key: 'action',
             width: 220,
+            align: 'center' as const,
             render: (record: any) => (
                 <Space>
                     <Button
@@ -484,11 +494,13 @@ export default function TeacherClasses() {
             title: 'Ngày làm',
             dataIndex: 'createdAt',
             key: 'createdAt',
+            align: 'center' as const,
             render: (date: string) => new Date(date).toLocaleString('vi-VN'),
         },
         {
             title: 'Loại bài',
             key: 'testType',
+            align: 'center' as const,
             render: (record: any) => record.test?.title || record.part?.partName || 'Luyện tập lẻ'
         },
         {

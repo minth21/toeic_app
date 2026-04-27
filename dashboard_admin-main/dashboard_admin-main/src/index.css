@@ -255,3 +255,19 @@ body {
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
   margin: 10px 0;
 }
+
+/* Table Header Customization */
+.ant-table-thead > tr > th {
+  white-space: nowrap !important;
+  background-color: var(--bg-secondary) !important;
+  text-align: center !important;
+}
+
+/* Ensure horizontal scroll if content overflows */
+.ant-table {
+  overflow-x: auto !important;
+}
+
+.ant-table-content {
+  overflow-x: auto !important;
+}

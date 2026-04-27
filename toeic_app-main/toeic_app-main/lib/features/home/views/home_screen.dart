@@ -277,11 +277,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   const SizedBox(width: 8),
                   Text(
                     'ĐIỂM TỔNG TOEIC',
-                    style: GoogleFonts.inter(
+                    style: AppTypography.ui(
                       color: Colors.white.withValues(alpha: 0.9),
                       fontSize: 10,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 1.2,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 1.5,
                     ),
                   ),
                 ],
@@ -299,10 +299,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     const SizedBox(width: 4),
                     Text(
                       'Mục tiêu: $targetScore',
-                      style: GoogleFonts.inter(
+                      style: AppTypography.ui(
                         color: Colors.white,
                         fontSize: 10,
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.w900,
                       ),
                     ),
                   ],
@@ -317,9 +317,9 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               Text(
                 '$totalScore',
-                style: GoogleFonts.inter(
+                style: AppTypography.ui(
                   color: Colors.white,
-                  fontSize: 64,
+                  fontSize: 72,
                   fontWeight: FontWeight.w900,
                   height: 1,
                 ),
@@ -392,11 +392,11 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(width: 8),
               Text(
                 'GIA SƯ AI: TƯ VẤN CHIẾN THUẬT',
-                style: GoogleFonts.inter(
+                style: AppTypography.ui(
                   fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.primary.withValues(alpha: 0.8),
-                  letterSpacing: 1.1,
+                  fontWeight: FontWeight.w900,
+                  color: AppColors.primary,
+                  letterSpacing: 1.2,
                 ),
               ),
             ],
@@ -458,9 +458,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       const SizedBox(height: 4),
                       Text(
                         rec['subtitle'] ?? 'Hãy xem chi tiết phân tích từ AI.',
-                        style: GoogleFonts.inter(
+                        style: AppTypography.friendly(
                           fontSize: 13,
                           color: AppColors.textSecondary,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
                     ],
@@ -705,11 +706,11 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               Text(
                 'LUYỆN TẬP GẦN ĐÂY',
-                style: GoogleFonts.inter(
+                style: AppTypography.ui(
                   fontSize: 12,
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w900,
                   color: AppColors.textSecondary,
-                  letterSpacing: 1.1,
+                  letterSpacing: 1.5,
                 ),
               ),
             ],

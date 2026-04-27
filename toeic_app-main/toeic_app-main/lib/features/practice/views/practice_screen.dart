@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../../theme/app_typography.dart';
 import '../../../constants/app_constants.dart';
 import '../models/exam_model.dart';
 import '../viewmodels/practice_viewmodel.dart';
@@ -297,13 +298,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        boxShadow: AppShadows.softShadow,
       ),
       child: Material(
         color: Colors.transparent,
@@ -337,9 +332,9 @@ class _PracticeScreenState extends State<PracticeScreen> {
                         ),
                         child: Text(
                           'SẮP RA MẮT',
-                          style: GoogleFonts.inter(
+                          style: AppTypography.ui(
                             fontSize: 10,
-                            fontWeight: FontWeight.bold,
+                            fontWeight: FontWeight.w900,
                             color: Colors.amber.shade800,
                           ),
                         ),
@@ -365,10 +360,10 @@ class _PracticeScreenState extends State<PracticeScreen> {
                   test.title.isNotEmpty ? test.title : 'Unknown Test',
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.inter(
+                  style: AppTypography.ui(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
-                    color: Theme.of(context).textTheme.bodyLarge?.color,
+                    color: AppColors.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 12), // Increased spacing
@@ -426,7 +421,10 @@ class _PracticeScreenState extends State<PracticeScreen> {
                           : (test.progress == 0
                               ? context.tr('start_now')
                               : (test.progress < 100 ? context.tr('continue') : context.tr('practice_again'))),
-                      style: GoogleFonts.inter(fontWeight: FontWeight.bold),
+                      style: AppTypography.ui(
+                        fontWeight: FontWeight.bold,
+                        color: test.status == 'PENDING' ? Colors.grey.shade600 : Colors.white,
+                      ),
                     ),
                   ),
                 ),
@@ -469,9 +467,9 @@ class _PracticeScreenState extends State<PracticeScreen> {
       ),
       child: Text(
         text,
-        style: GoogleFonts.inter(
+        style: AppTypography.ui(
           fontSize: 11,
-          fontWeight: FontWeight.bold,
+          fontWeight: FontWeight.w900,
           color: color,
         ),
       ),
@@ -495,11 +493,10 @@ class _PracticeScreenState extends State<PracticeScreen> {
           child: Text(
             label,
             overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.inter(
+            style: AppTypography.ui(
               fontSize: 12,
-              color: Theme.of(
-                context,
-              ).textTheme.bodyMedium?.color?.withValues(alpha: 0.8),
+              color: AppColors.textSecondary,
+              fontWeight: FontWeight.w500,
             ),
           ),
         ),

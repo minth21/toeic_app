@@ -420,10 +420,15 @@ export default function ExamBank() {
                     {canEditOrCreate && (
                         <Button
                             type="text"
-                            style={{ color: '#059669', background: isDark ? 'rgba(5, 150, 105, 0.15)' : '#D1FAE5', borderRadius: '8px' }}
+                            disabled={isSpecialist && record.status === 'LOCKED'}
+                            style={{ 
+                                color: (isSpecialist && record.status === 'LOCKED') ? '#A1A1AA' : '#059669', 
+                                background: (isSpecialist && record.status === 'LOCKED') ? 'rgba(161, 161, 170, 0.1)' : (isDark ? 'rgba(5, 150, 105, 0.15)' : '#D1FAE5'), 
+                                borderRadius: '8px' 
+                            }}
                             icon={<EditOutlined />}
                             onClick={() => handleEdit(record)}
-                            title="Chỉnh sửa"
+                            title={(isSpecialist && record.status === 'LOCKED') ? "Không thể sửa đề đã khóa" : "Chỉnh sửa"}
                         />
                     )}
                     {isAdmin && record.status === 'PENDING' && (

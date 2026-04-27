@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import '../../../../theme/app_typography.dart';
 import '../../../../constants/app_constants.dart';
 import '../../../vocabulary/viewmodels/vocabulary_viewmodel.dart';
 
@@ -143,10 +144,11 @@ class _VocabFlashcardPanelState extends State<VocabFlashcardPanel> {
                 const SizedBox(width: 8),
                 Text(
                   'Từ vựng quan trọng',
-                  style: GoogleFonts.inter(
-                    fontWeight: FontWeight.bold,
+                  style: AppTypography.ui(
+                    fontWeight: FontWeight.w900,
                     color: const Color(0xFF92400E),
-                    fontSize: 13,
+                    fontSize: 12,
+                    letterSpacing: 0.5,
                   ),
                 ),
                 const Spacer(),
@@ -159,9 +161,9 @@ class _VocabFlashcardPanelState extends State<VocabFlashcardPanel> {
                   ),
                   child: Text(
                     '${_currentIndex + 1}/$count',
-                    style: GoogleFonts.inter(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
+                    style: AppTypography.ui(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w900,
                       color: const Color(0xFFB45309),
                     ),
                   ),
@@ -221,7 +223,7 @@ class _VocabFlashcardPanelState extends State<VocabFlashcardPanel> {
                                 children: [
                                   TextSpan(
                                     text: word,
-                                    style: GoogleFonts.inter(
+                                    style: AppTypography.ui(
                                       fontSize: 22,
                                       fontWeight: FontWeight.w900,
                                       color: const Color(0xFF78350F),
@@ -231,9 +233,9 @@ class _VocabFlashcardPanelState extends State<VocabFlashcardPanel> {
                                   if (type.isNotEmpty)
                                     TextSpan(
                                       text: ' ($type)',
-                                      style: GoogleFonts.inter(
+                                      style: AppTypography.ui(
                                         fontSize: 16,
-                                        fontWeight: FontWeight.w600,
+                                        fontWeight: FontWeight.w700,
                                         color: const Color(0xFFB45309),
                                       ),
                                     ),
@@ -246,10 +248,11 @@ class _VocabFlashcardPanelState extends State<VocabFlashcardPanel> {
                               const SizedBox(height: 2),
                               Text(
                                 ipa,
-                                style: GoogleFonts.inter(
+                                style: AppTypography.friendly(
                                   fontSize: 13,
                                   color: const Color(0xFFB45309),
                                   fontStyle: FontStyle.italic,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                             ],
@@ -264,10 +267,11 @@ class _VocabFlashcardPanelState extends State<VocabFlashcardPanel> {
                             // Meaning
                             Text(
                               meaning,
-                              style: GoogleFonts.inter(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
+                              style: AppTypography.friendly(
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
                                 color: const Color(0xFF1E293B),
+                                height: 1.4,
                               ),
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
@@ -353,10 +357,11 @@ class _VocabFlashcardPanelState extends State<VocabFlashcardPanel> {
                     _currentIndex < count - 1
                         ? '← Vuốt để xem từ tiếp theo →'
                         : '✓ Đã xem hết từ vựng câu này',
-                    style: GoogleFonts.inter(
+                    style: AppTypography.friendly(
                       fontSize: 11,
-                      color: const Color(0xFFB45309).withValues(alpha: 0.7),
+                      color: const Color(0xFFB45309).withValues(alpha: 0.8),
                       fontStyle: FontStyle.italic,
+                      fontWeight: FontWeight.w600,
                     ),
                     textAlign: TextAlign.center,
                   ),

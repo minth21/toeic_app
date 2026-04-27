@@ -337,6 +337,7 @@ const ClassManagement: React.FC = () => {
             title: 'STT',
             key: 'index',
             width: 60,
+            align: 'center' as const,
             render: (_: any, __: any, index: number) => index + 1,
         },
         {
@@ -344,12 +345,14 @@ const ClassManagement: React.FC = () => {
             dataIndex: 'username',
             key: 'username',
             width: 120,
+            align: 'center' as const,
             render: (text: string) => <Tag color="blue" style={{ borderRadius: 6, fontWeight: 500 }}>{text || '-'}</Tag>
         },
         {
             title: 'Họ và tên',
             dataIndex: 'name',
             key: 'name',
+            align: 'center' as const,
             render: (text: string) => <span style={{ fontWeight: 600, color: '#1E293B' }}>{text}</span>
         },
         {
@@ -377,6 +380,7 @@ const ClassManagement: React.FC = () => {
             title: 'Hành động',
             key: 'action',
             width: 80,
+            align: 'center' as const,
             render: (_: any, record: any) => (
                 <Tooltip title="Xóa">
                     <Button
@@ -422,8 +426,9 @@ const ClassManagement: React.FC = () => {
         {
             title: 'Giáo viên',
             key: 'teacher',
+            align: 'center' as const,
             render: (t: any) => (
-                <Space>
+                <Space style={{ width: '100%', justifyContent: 'center' }}>
                     <Avatar src={t.avatarUrl} icon={<UserOutlined />} />
                     <Text strong>{t.name}</Text>
                 </Space>

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../constants/app_constants.dart';
+import '../../../theme/app_typography.dart';
 import '../viewmodels/auth_viewmodel.dart';
 import '../../navigation/main_navigation.dart';
 import 'force_change_password_screen.dart';
@@ -109,11 +110,12 @@ class _LoginScreenState extends State<LoginScreen> {
                     shaderCallback: (bounds) =>
                         AppColors.premiumGradient.createShader(bounds),
                     child: Text(
-                      'TOEIC - TEST',
-                      style: GoogleFonts.inter(
+                      'ANTIGRAVITY',
+                      style: AppTypography.ui(
                         fontSize: 32,
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.w900,
                         color: Colors.white,
+                        letterSpacing: 1.5,
                       ),
                       textAlign: TextAlign.center,
                     ),
@@ -121,9 +123,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: 8),
 
                   Text(
-                    'Ôn luyện mọi lúc mọi nơi',
-                    style: GoogleFonts.inter(
+                    'Chinh phục TOEIC cùng Gia sư AI',
+                    style: AppTypography.friendly(
                       fontSize: 16,
+                      fontWeight: FontWeight.w500,
                       color: AppColors.textSecondary,
                     ),
                     textAlign: TextAlign.center,
@@ -219,9 +222,10 @@ class _LoginScreenState extends State<LoginScreen> {
                               )
                             : Text(
                                 AppStrings.login,
-                                style: GoogleFonts.inter(
+                                style: AppTypography.ui(
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
+                                  color: Colors.white,
                                 ),
                               ),
                       );

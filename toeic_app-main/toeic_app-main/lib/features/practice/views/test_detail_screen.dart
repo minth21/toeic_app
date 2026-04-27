@@ -8,6 +8,7 @@ import '../models/part_model.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
 import '../../../constants/app_constants.dart';
+import '../../../theme/app_typography.dart';
 import '../models/exam_model.dart';
 import '../../../l10n/app_localizations.dart';
 import 'test_simulation_screen.dart';
@@ -929,24 +930,35 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
             child: Row(
               children: [
                 Container(
-                  width: 48,
-                  height: 48,
+                  width: 52,
+                  height: 52,
                   decoration: BoxDecoration(
-                    color: AppColors.indigo50,
-                    borderRadius: BorderRadius.circular(14),
+                    gradient: LinearGradient(
+                      colors: [
+                        AppColors.success,
+                        AppColors.success.withValues(alpha: 0.8),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.success.withValues(alpha: 0.25),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
                   child: Center(
-                    child: Text(
-                      '${part.partNumber}',
-                      style: GoogleFonts.inter(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 20,
-                      ),
+                    child: Icon(
+                      _getPartIcon(part.partNumber),
+                      color: Colors.white,
+                      size: 26,
                     ),
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 14),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -955,11 +967,12 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
                         children: [
                           Flexible(
                             child: Text(
-                              part.partName.isNotEmpty ? part.partName : 'Unknown Part',
-                              style: GoogleFonts.inter(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                                color: AppColors.textPrimary,
+                              'PART ${part.partNumber}: ${part.partName.toUpperCase().replaceFirst('PART ${part.partNumber}:', '').replaceFirst('PART ${part.partNumber}', '').trim()}',
+                              style: AppTypography.ui(
+                                fontWeight: FontWeight.w900,
+                                fontSize: 15,
+                                color: const Color(0xFF1E3A8A), // Dark Blue for Premium feel
+                                letterSpacing: 0.2,
                               ),
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -975,7 +988,7 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
                               ),
                               child: Text(
                                 'CHƯA DUYỆT',
-                                style: GoogleFonts.inter(
+                                style: AppTypography.ui(
                                   fontSize: 10,
                                   fontWeight: FontWeight.bold,
                                   color: Colors.grey.shade600,
@@ -983,36 +996,50 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
                               ),
                             ),
                           ],
-                          if (part.instructions != null &&
-                              part.instructions!.isNotEmpty) ...[
-                            const SizedBox(width: 4),
-                            GestureDetector(
-                              onTap: () => _showInstructionsDialog(part),
-                              child: Icon(
-                                Icons.info_outline_rounded,
-                                size: 18,
-                                color: AppColors.primary.withValues(alpha: 0.7),
-                              ),
-                            ),
-                          ],
                         ],
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 6),
                       Row(
                         children: [
                           Icon(
-                            Icons.help_outline,
+                            Icons.help_outline_rounded,
                             size: 14,
                             color: AppColors.textHint,
                           ),
                           const SizedBox(width: 4),
                           Text(
                             '${part.totalQuestions} câu hỏi',
-                            style: GoogleFonts.inter(
+                            style: AppTypography.ui(
                               color: AppColors.textSecondary,
-                              fontSize: 13,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
+                          if (part.instructions != null && part.instructions!.isNotEmpty) ...[
+                            const SizedBox(width: 12),
+                            GestureDetector(
+                              onTap: () => _showInstructionsDialog(part),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.info_outline_rounded,
+                                    size: 14,
+                                    color: AppColors.primary,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'Hướng dẫn',
+                                    style: AppTypography.ui(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppColors.primary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ],

@@ -36,7 +36,7 @@ const safeParseArray = (str: any) => {
         let cleaned = typeof str === 'string' ? str.replace(/```json|```/g, '').trim() : str;
         let parsed = typeof cleaned === 'string' ? JSON.parse(cleaned) : cleaned;
         if (typeof parsed === 'string') parsed = JSON.parse(parsed);
-        
+
         if (Array.isArray(parsed)) return parsed;
         if (typeof parsed === 'object' && parsed !== null) return [parsed];
         return [];
@@ -165,6 +165,56 @@ export default function CreatePart6Modal({ open, onCancel, onSuccess, partId, mo
         }
     }, [open, mode, initialData, form]);
 
+    const handleRemoveGroup = () => {
+        const currentPassages = form.getFieldValue('passages') || [];
+        if (currentPassages.length <= 1) {
+            message.warning('Phải có ít nhất một nhóm!');
+            return;
+        }
+
+        Modal.confirm({
+            title: 'Xác nhận xóa',
+            content: `Bạn có chắc chắn muốn xóa Nhóm ${currentInsightIndex + 1}?`,
+            okText: 'Xóa',
+            okType: 'danger',
+            cancelText: 'Hủy',
+            onOk: () => {
+                const newPassages = currentPassages.filter((_: any, idx: number) => idx !== currentInsightIndex);
+                form.setFieldValue('passages', newPassages);
+                
+                // Update current index
+                if (currentInsightIndex >= newPassages.length) {
+                    setCurrentInsightIndex(Math.max(0, newPassages.length - 1));
+                }
+                
+                // Update aiDoneIndexes
+                setAiDoneIndexes(prev => prev
+                    .filter(idx => idx !== currentInsightIndex)
+                    .map(idx => idx > currentInsightIndex ? idx - 1 : idx)
+                );
+                
+                message.success('Đã xóa nhóm');
+            }
+        });
+    };
+
+    const handleMagicScanAll = async () => {
+        const passages = form.getFieldValue('passages') || [];
+        setIsAiProcessing(true);
+        try {
+            message.info('Đang bắt đầu Magic Scan toàn bộ các nhóm...');
+            for (let i = 0; i < passages.length; i++) {
+                setCurrentInsightIndex(i);
+                await handleMagicScan(i, true);
+            }
+            message.success('Đã hoàn thành Magic Scan cho tất cả các nhóm!');
+        } catch (e) {
+            message.error('Có lỗi xảy ra trong quá trình Scan hàng loạt');
+        } finally {
+            setIsAiProcessing(false);
+        }
+    };
+
     const handleMagicScan = async (index: number, isBatch = false) => {
         if (!isBatch) { setIsAiProcessing(true); setCurrentInsightIndex(index); }
         try {
@@ -190,7 +240,7 @@ export default function CreatePart6Modal({ open, onCancel, onSuccess, partId, mo
                 const updatedPassages = [...form.getFieldValue('passages')];
                 const existingQuestions = updatedPassages[index].questions || [];
                 const startNum = updatedPassages[index].startQuestion || aiData.questions[0]?.questionNumber;
-                
+
                 updatedPassages[index] = {
                     ...updatedPassages[index],
                     passage: (aiData.passageHtml || '').replace(/<img[^>]*>/g, ''),
@@ -248,7 +298,7 @@ export default function CreatePart6Modal({ open, onCancel, onSuccess, partId, mo
 
                 const pUrls = (passageFileLists[i] || []).map(f => f.url || f.response?.url).filter(Boolean).join(',');
                 const sUrls = (questionFileLists[i] || []).map(f => f.url || f.response?.url).filter(Boolean).join(',');
-                
+
                 console.log(`[Finish] Group ${i + 1}: pUrls="${pUrls}", sUrls="${sUrls}"`);
 
                 const transPayload = (item.passageTranslationData || []).map((section: any) => ({
@@ -262,9 +312,9 @@ export default function CreatePart6Modal({ open, onCancel, onSuccess, partId, mo
                     passageImageUrl: pUrls || null,
                     passageTranslationData: JSON.stringify(transPayload),
                     questions: (item.questions || []).map((q: any) => ({
-                        ...q, 
-                        passage: passageHtml, 
-                        passageImageUrl: pUrls || null, 
+                        ...q,
+                        passage: passageHtml,
+                        passageImageUrl: pUrls || null,
                         questionScanUrl: sUrls || null,
                         passageTranslationData: JSON.stringify(transPayload),
                         optionTranslations: JSON.stringify(q.optionTranslations || {}),
@@ -373,8 +423,11 @@ export default function CreatePart6Modal({ open, onCancel, onSuccess, partId, mo
 
                         <div style={{ marginTop: 'auto', paddingTop: 20 }}>
                             <Space direction="vertical" style={{ width: '100%' }} size="middle">
-                                <Button block icon={<ThunderboltOutlined />} style={{ borderRadius: 12, height: 42, fontWeight: 600, color: '#475569' }}>Phân tích tất cả</Button>
-                                <Button block icon={<DeleteOutlined />} style={{ borderRadius: 12, height: 42, fontWeight: 600, color: '#EF4444' }}>Xóa nhóm hiện tại</Button>
+                                <Button block icon={<ThunderboltOutlined />} 
+                                    onClick={handleMagicScanAll} 
+                                    loading={isAiProcessing}
+                                    style={{ borderRadius: 12, height: 42, fontWeight: 600, color: '#475569', boxShadow: '0 4px 10px rgba(71, 85, 105, 0.1)' }}>Phân tích tất cả</Button>
+                                <Button block icon={<DeleteOutlined />} onClick={handleRemoveGroup} style={{ borderRadius: 12, height: 42, fontWeight: 600, color: '#EF4444', boxShadow: '0 4px 10px rgba(239, 68, 68, 0.1)' }}>Xóa nhóm hiện tại</Button>
                             </Space>
                         </div>
                     </Sider>
@@ -415,7 +468,7 @@ export default function CreatePart6Modal({ open, onCancel, onSuccess, partId, mo
                                             )}
                                         </div>
 
-                                        <Form.Item label={<span style={{ fontWeight: 700, color: '#475569', fontSize: 13 }}>TIÊU ĐỀ ĐOẠN VĂN (VÍ DỤ: QUESTIONS 131-134 REFER TO...)</span>} name={[field.name, 'passageTitle']}>
+                                        <Form.Item label={<span style={{ fontWeight: 700, color: '#475569', fontSize: 13 }}>TIÊU ĐỀ ĐOẠN VĂN</span>} name={[field.name, 'passageTitle']}>
                                             <ReactQuill theme="snow" style={{ height: 80, marginBottom: 40 }}
                                                 modules={{ toolbar: [['bold', 'italic', 'underline', { 'color': [] }]] }}
                                                 placeholder="Questions 131-134 refer to the following flyer." />
@@ -445,102 +498,102 @@ export default function CreatePart6Modal({ open, onCancel, onSuccess, partId, mo
                                             style={{ borderRadius: 20, background: '#F8FAFC', border: '1px solid #E2E8F0', marginBottom: 40 }}
                                             styles={{ header: { borderBottom: 'none', padding: '16px 24px' }, body: { padding: '0 24px 24px' } }}>
 
-                                                <div style={{ background: '#fff', borderRadius: 16, padding: 20, border: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column', gap: 20 }}>
-                                                    {currentPassageType === 'text' ? (
-                                                        <Form.Item name={[field.name, 'passage']} label={<span style={{ fontWeight: 700, fontSize: 12 }}>NỘI DUNG VĂN BẢN GỐC</span>} style={{ marginBottom: 0 }}>
-                                                            <ReactQuill theme="snow" style={{ height: 350, marginBottom: 40 }} modules={QUILL_MODULES} formats={QUILL_FORMATS} />
-                                                        </Form.Item>
-                                                    ) : (
-                                                        <Space direction="vertical" style={{ width: '100%' }} size="large">
-                                                            <div>
-                                                                <Text strong style={{ fontSize: 11, color: '#64748B' }}>1. ẢNH ĐOẠN VĂN</Text>
-                                                                <Dragger multiple showUploadList={false} action={`${api.defaults.baseURL}/upload/image`} name="image" headers={{ Authorization: `Bearer ${localStorage.getItem('admin_token')}` }} onChange={({ fileList }) => setPassageFileLists(prev => ({ ...prev, [currentInsightIndex]: fileList }))} style={{ background: '#F8FAFC', borderRadius: 12, border: '1px dashed #BFDBFE', padding: 12, marginTop: 8 }}>
-                                                                    <CameraOutlined style={{ fontSize: 20, color: '#3B82F6' }} />
-                                                                    <div style={{ fontSize: 12, color: '#64748B' }}>Thêm ảnh</div>
-                                                                </Dragger>
-                                                                <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-                                                                    {getPreviewUrls(passageFileLists[currentInsightIndex]).map((url, i) => (
-                                                                        <div key={i} style={{ position: 'relative' }}>
-                                                                            <Image src={url} width={50} height={50} style={{ borderRadius: 8, objectFit: 'cover', border: '1px solid #E2E8F0' }} />
-                                                                        </div>
-                                                                    ))}
-                                                                </div>
+                                            <div style={{ background: '#fff', borderRadius: 16, padding: 20, border: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column', gap: 20 }}>
+                                                {currentPassageType === 'text' ? (
+                                                    <Form.Item name={[field.name, 'passage']} label={<span style={{ fontWeight: 700, fontSize: 12 }}>NỘI DUNG VĂN BẢN GỐC</span>} style={{ marginBottom: 0 }}>
+                                                        <ReactQuill theme="snow" style={{ height: 350, marginBottom: 40 }} modules={QUILL_MODULES} formats={QUILL_FORMATS} />
+                                                    </Form.Item>
+                                                ) : (
+                                                    <Space direction="vertical" style={{ width: '100%' }} size="large">
+                                                        <div>
+                                                            <Text strong style={{ fontSize: 11, color: '#64748B' }}>1. ẢNH ĐOẠN VĂN</Text>
+                                                            <Dragger multiple showUploadList={false} action={`${api.defaults.baseURL}/upload/image`} name="image" headers={{ Authorization: `Bearer ${localStorage.getItem('admin_token')}` }} onChange={({ fileList }) => setPassageFileLists(prev => ({ ...prev, [currentInsightIndex]: fileList }))} style={{ background: '#F8FAFC', borderRadius: 12, border: '1px dashed #BFDBFE', padding: 12, marginTop: 8 }}>
+                                                                <CameraOutlined style={{ fontSize: 20, color: '#3B82F6' }} />
+                                                                <div style={{ fontSize: 12, color: '#64748B' }}>Thêm ảnh</div>
+                                                            </Dragger>
+                                                            <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+                                                                {getPreviewUrls(passageFileLists[currentInsightIndex]).map((url, i) => (
+                                                                    <div key={i} style={{ position: 'relative' }}>
+                                                                        <Image src={url} width={50} height={50} style={{ borderRadius: 8, objectFit: 'cover', border: '1px solid #E2E8F0' }} />
+                                                                    </div>
+                                                                ))}
                                                             </div>
-                                                            <div>
-                                                                <Text strong style={{ fontSize: 11, color: '#64748B' }}>2. ẢNH CÂU HỎI</Text>
-                                                                <Dragger multiple showUploadList={false} action={`${api.defaults.baseURL}/upload/image`} name="image" headers={{ Authorization: `Bearer ${localStorage.getItem('admin_token')}` }} onChange={({ fileList }) => setQuestionFileLists(prev => ({ ...prev, [currentInsightIndex]: fileList }))} style={{ background: '#F8FAFC', borderRadius: 12, border: '1px dashed #BBF7D0', padding: 12, marginTop: 8 }}>
-                                                                    <CameraOutlined style={{ fontSize: 20, color: '#22C55E' }} />
-                                                                    <div style={{ fontSize: 12, color: '#64748B' }}>Thêm ảnh</div>
-                                                                </Dragger>
-                                                                <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-                                                                    {getPreviewUrls(questionFileLists[currentInsightIndex]).map((url, i) => (
-                                                                        <div key={i} style={{ position: 'relative' }}>
-                                                                            <Image src={url} width={50} height={50} style={{ borderRadius: 8, objectFit: 'cover', border: '1px solid #E2E8F0' }} />
-                                                                        </div>
-                                                                    ))}
-                                                                </div>
+                                                        </div>
+                                                        <div>
+                                                            <Text strong style={{ fontSize: 11, color: '#64748B' }}>2. ẢNH CÂU HỎI</Text>
+                                                            <Dragger multiple showUploadList={false} action={`${api.defaults.baseURL}/upload/image`} name="image" headers={{ Authorization: `Bearer ${localStorage.getItem('admin_token')}` }} onChange={({ fileList }) => setQuestionFileLists(prev => ({ ...prev, [currentInsightIndex]: fileList }))} style={{ background: '#F8FAFC', borderRadius: 12, border: '1px dashed #BBF7D0', padding: 12, marginTop: 8 }}>
+                                                                <CameraOutlined style={{ fontSize: 20, color: '#22C55E' }} />
+                                                                <div style={{ fontSize: 12, color: '#64748B' }}>Thêm ảnh</div>
+                                                            </Dragger>
+                                                            <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+                                                                {getPreviewUrls(questionFileLists[currentInsightIndex]).map((url, i) => (
+                                                                    <div key={i} style={{ position: 'relative' }}>
+                                                                        <Image src={url} width={50} height={50} style={{ borderRadius: 8, objectFit: 'cover', border: '1px solid #E2E8F0' }} />
+                                                                    </div>
+                                                                ))}
                                                             </div>
-                                                        </Space>
-                                                    )}
-                                                </div>
+                                                        </div>
+                                                    </Space>
+                                                )}
+                                            </div>
 
-                                                <div style={{ background: '#fff', borderRadius: 16, padding: 20, border: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column' }}>
-                                                    <div style={{ background: '#F0F9FF', padding: '10px 16px', borderRadius: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                                                        <Space><GlobalOutlined style={{ color: '#2563EB' }} /><Text strong style={{ fontSize: 13, color: '#2563EB' }}>PHÂN LOẠI & DỊCH SONG NGỮ</Text></Space>
-                                                        <Form.List name={[field.name, 'passageTranslationData']}>
-                                                            {(_, { add }) => (
-                                                                <Button size="small" type="primary" icon={<PlusOutlined />} onClick={() => add({ label: 'Đoạn mới', items: [] })} style={{ borderRadius: 6, fontSize: 11, fontWeight: 700 }}>Thêm đoạn mới</Button>
-                                                            )}
-                                                        </Form.List>
-                                                    </div>
-                                                    <div style={{ flex: 1, overflowY: 'auto', maxHeight: 350, paddingRight: 8 }} className="custom-scrollbar">
-                                                        <Form.List name={[field.name, 'passageTranslationData']}>
-                                                            {(sectionFields, { remove: removeSection }) => (
-                                                                <>
-                                                                    {sectionFields.length === 0 && <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Chưa có bản dịch" />}
-                                                                    {sectionFields.map((sf) => (
-                                                                        <div key={sf.key} style={{ background: '#fff', borderRadius: 12, border: '1px solid #E2E8F0', padding: 16, marginBottom: 16 }}>
-                                                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                                                                                <Form.Item name={[sf.name, 'label']} noStyle>
-                                                                                    <Input placeholder="Tên đoạn (vd: Email, Thư tay...)" style={{ fontWeight: 800, width: '250px', borderRadius: 8, border: 'none', background: '#F8FAFC' }} />
-                                                                                </Form.Item>
-                                                                                <Space>
-                                                                                    <Form.List name={[sf.name, 'items']}>
-                                                                                        {(_, { add: addItem }) => (
-                                                                                            <Button size="small" type="primary" ghost icon={<PlusOutlined />} onClick={() => addItem()} style={{ borderRadius: 6, fontSize: 11, fontWeight: 700 }}>Thêm câu</Button>
-                                                                                        )}
-                                                                                    </Form.List>
-                                                                                    <Button type="text" danger icon={<DeleteOutlined />} onClick={() => removeSection(sf.name)} />
-                                                                                </Space>
-                                                                            </div>
-                                                                            <Form.List name={[sf.name, 'items']}>
-                                                                                {(itemFields, { remove: removeItem }) => (
-                                                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                                                                                        {itemFields.map((itemField, itemIdx) => (
-                                                                                            <div key={itemField.key} style={{ padding: '8px 0', borderBottom: '1px dashed #E2E8F0', position: 'relative' }}>
-                                                                                                <Row gutter={12} align="middle">
-                                                                                                    <Col flex="40px"><Tag color="blue" style={{ margin: 0 }}>EN</Tag></Col>
-                                                                                                    <Col flex="auto">
-                                                                                                        <Form.Item name={[itemField.name, 'en']} noStyle><Input variant="borderless" placeholder="English text" style={{ fontWeight: 500 }} /></Form.Item>
-                                                                                                    </Col>
-                                                                                                    <Col flex="30px"><Button type="text" danger size="small" icon={<DeleteOutlined />} onClick={() => removeItem(itemIdx)} /></Col>
-                                                                                                </Row>
-                                                                                                <Row gutter={12} align="middle" style={{ marginTop: 4 }}>
-                                                                                                    <Col flex="40px"><Tag color="green" style={{ margin: 0 }}>VI</Tag></Col>
-                                                                                                    <Col flex="auto">
-                                                                                                        <Form.Item name={[itemField.name, 'vi']} noStyle><Input variant="borderless" placeholder="Bản dịch tiếng Việt" style={{ fontStyle: 'italic', color: '#059669' }} /></Form.Item>
-                                                                                                    </Col>
-                                                                                                </Row>
-                                                                                            </div>
-                                                                                        ))}
-                                                                                    </div>
-                                                                                )}
-                                                                            </Form.List>
+                                            <div style={{ background: '#fff', borderRadius: 16, padding: 20, border: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column' }}>
+                                                <div style={{ background: '#F0F9FF', padding: '10px 16px', borderRadius: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                                                    <Space><GlobalOutlined style={{ color: '#2563EB' }} /><Text strong style={{ fontSize: 13, color: '#2563EB' }}>PHÂN LOẠI & DỊCH SONG NGỮ</Text></Space>
+                                                    <Form.List name={[field.name, 'passageTranslationData']}>
+                                                        {(_, { add }) => (
+                                                            <Button size="small" type="primary" icon={<PlusOutlined />} onClick={() => add({ label: 'Đoạn mới', items: [] })} style={{ borderRadius: 6, fontSize: 11, fontWeight: 700, boxShadow: '0 4px 8px rgba(37, 99, 235, 0.2)' }}>Thêm đoạn mới</Button>
+                                                        )}
+                                                    </Form.List>
+                                                </div>
+                                                <div style={{ flex: 1, overflowY: 'auto', maxHeight: 350, paddingRight: 8 }} className="custom-scrollbar">
+                                                    <Form.List name={[field.name, 'passageTranslationData']}>
+                                                        {(sectionFields, { remove: removeSection }) => (
+                                                            <>
+                                                                {sectionFields.length === 0 && <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Chưa có bản dịch" />}
+                                                                {sectionFields.map((sf) => (
+                                                                    <div key={sf.key} style={{ background: '#fff', borderRadius: 12, border: '1px solid #E2E8F0', padding: 16, marginBottom: 16 }}>
+                                                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                                                                            <Form.Item name={[sf.name, 'label']} noStyle>
+                                                                                <Input placeholder="Tên đoạn (vd: Email, Thư tay...)" style={{ fontWeight: 800, width: '250px', borderRadius: 8, border: 'none', background: '#F8FAFC' }} />
+                                                                            </Form.Item>
+                                                                            <Space>
+                                                                                <Form.List name={[sf.name, 'items']}>
+                                                                                    {(_, { add: addItem }) => (
+                                                                                        <Button size="small" type="primary" ghost icon={<PlusOutlined />} onClick={() => addItem()} style={{ borderRadius: 6, fontSize: 11, fontWeight: 700, boxShadow: '0 4px 8px rgba(37, 99, 235, 0.1)' }}>Thêm câu</Button>
+                                                                                    )}
+                                                                                </Form.List>
+                                                                                <Button type="text" danger icon={<DeleteOutlined />} onClick={() => removeSection(sf.name)} />
+                                                                            </Space>
                                                                         </div>
-                                                                    ))}
-                                                                </>
-                                                            )}
-                                                        </Form.List>
+                                                                        <Form.List name={[sf.name, 'items']}>
+                                                                            {(itemFields, { remove: removeItem }) => (
+                                                                                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                                                                                    {itemFields.map((itemField, itemIdx) => (
+                                                                                        <div key={itemField.key} style={{ padding: '8px 0', borderBottom: '1px dashed #E2E8F0', position: 'relative' }}>
+                                                                                            <Row gutter={12} align="middle">
+                                                                                                <Col flex="40px"><Tag color="blue" style={{ margin: 0 }}>EN</Tag></Col>
+                                                                                                <Col flex="auto">
+                                                                                                    <Form.Item name={[itemField.name, 'en']} noStyle><Input variant="borderless" placeholder="English text" style={{ fontWeight: 500 }} /></Form.Item>
+                                                                                                </Col>
+                                                                                                <Col flex="30px"><Button type="text" danger size="small" icon={<DeleteOutlined />} onClick={() => removeItem(itemIdx)} /></Col>
+                                                                                            </Row>
+                                                                                            <Row gutter={12} align="middle" style={{ marginTop: 4 }}>
+                                                                                                <Col flex="40px"><Tag color="green" style={{ margin: 0 }}>VI</Tag></Col>
+                                                                                                <Col flex="auto">
+                                                                                                    <Form.Item name={[itemField.name, 'vi']} noStyle><Input variant="borderless" placeholder="Bản dịch tiếng Việt" style={{ fontStyle: 'italic', color: '#059669' }} /></Form.Item>
+                                                                                                </Col>
+                                                                                            </Row>
+                                                                                        </div>
+                                                                                    ))}
+                                                                                </div>
+                                                                            )}
+                                                                        </Form.List>
+                                                                    </div>
+                                                                ))}
+                                                            </>
+                                                        )}
+                                                    </Form.List>
                                                 </div>
                                             </div>
                                         </Card>

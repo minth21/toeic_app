@@ -59,10 +59,12 @@ export default function Dashboard() {
             const parsedUser = JSON.parse(userData);
             setUser(parsedUser);
 
-            // Tự động bật Modal đổi mật khẩu nếu là lần đầu đăng nhập (Ngoại trừ ADMIN)
+            // Bỏ tự động bật Modal đổi mật khẩu
+            /*
             if (parsedUser.isFirstLogin && parsedUser.role !== 'ADMIN') {
                 setIsPassModalVisible(true);
             }
+            */
         } else {
             navigate('/login');
         }

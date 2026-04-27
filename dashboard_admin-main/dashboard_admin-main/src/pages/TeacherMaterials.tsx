@@ -54,20 +54,23 @@ export default function TeacherMaterials() {
             title: 'Mã lớp',
             dataIndex: 'classCode',
             key: 'classCode',
+            align: 'center' as const,
             render: (text: string) => <Tag color="blue">{text}</Tag>,
         },
         {
             title: 'Tên lớp',
             dataIndex: 'className',
             key: 'className',
+            align: 'center' as const,
             render: (text: string) => <strong style={{ color: '#1E3A8A' }}>{text}</strong>,
         },
         {
             title: 'Học viên',
             dataIndex: 'studentCount',
             key: 'studentCount',
+            align: 'center' as const,
             render: (count: number) => (
-                <Space>
+                <Space style={{ width: '100%', justifyContent: 'center' }}>
                     <TeamOutlined style={{ color: '#10B981' }} />
                     <span>{count || 0} HV</span>
                 </Space>
@@ -76,6 +79,7 @@ export default function TeacherMaterials() {
         {
             title: 'Quản lý',
             key: 'action',
+            align: 'center' as const,
             render: (_: any, record: Class) => (
                 <Button
                     type="primary"

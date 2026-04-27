@@ -521,10 +521,15 @@ export default function TestDetail() {
                     {canEditOrCreate && (
                         <Button
                             type="text"
-                            style={{ color: '#059669', background: '#ECFDF5', borderRadius: '8px' }}
+                            disabled={isSpecialist && test?.status === 'LOCKED'}
+                            style={{ 
+                                color: (isSpecialist && test?.status === 'LOCKED') ? '#A1A1AA' : '#059669', 
+                                background: (isSpecialist && test?.status === 'LOCKED') ? 'rgba(161, 161, 170, 0.1)' : '#ECFDF5', 
+                                borderRadius: '8px' 
+                            }}
                             icon={<EditOutlined />}
                             onClick={() => handleEdit(record)}
-                            title="Chỉnh sửa"
+                            title={(isSpecialist && test?.status === 'LOCKED') ? "Không thể sửa part của đề đã khóa" : "Chỉnh sửa"}
                         />
                     )}
                     {isAdmin && (record.status === 'PENDING' || record.status === 'REJECTED') && (
@@ -765,6 +770,7 @@ export default function TestDetail() {
                     <Button
                         type="primary"
                         icon={<PlusOutlined />}
+                        disabled={isSpecialist && test?.status === 'LOCKED'}
                         onClick={() => setCreateModalVisible(true)}
                         size="large"
                         style={{
@@ -772,9 +778,9 @@ export default function TestDetail() {
                             fontWeight: 600,
                             height: 48,
                             padding: '0 24px',
-                            background: 'linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)',
+                            background: (isSpecialist && test?.status === 'LOCKED') ? '#CBD5E1' : 'linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)',
                             border: 'none',
-                            boxShadow: '0 4px 14px rgba(37, 99, 235, 0.35)'
+                            boxShadow: (isSpecialist && test?.status === 'LOCKED') ? 'none' : '0 4px 14px rgba(37, 99, 235, 0.35)'
                         }}
                     >
                         Tạo Part mới

@@ -498,7 +498,7 @@ export class AuthService {
             email: user.email || undefined,
             role: user.role,
             authProvider: user.authProvider,
-            isFirstLogin: user.isFirstLogin ?? true, // Bất buộc đổi mật khẩu lần đầu
+            isFirstLogin: user.isFirstLogin ?? false, // Mặc định không bắt buộc đổi mật khẩu lần đầu
             phoneNumber: user.phoneNumber || undefined,
             dateOfBirth: user.dateOfBirth?.toISOString() || undefined,
             gender: user.gender || undefined,

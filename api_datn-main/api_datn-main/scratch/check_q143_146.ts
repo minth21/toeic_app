@@ -2,13 +2,7 @@ import { PrismaClient } from '@prisma/client';
 import * as dotenv from 'dotenv';
 dotenv.config();
 
-const prisma = new PrismaClient({
-    datasources: {
-        db: {
-            url: process.env.DATABASE_URL
-        }
-    }
-});
+const prisma = new PrismaClient();
 
 async function main() {
     const questions = await prisma.question.findMany({

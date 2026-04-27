@@ -109,14 +109,15 @@ export default function ClassFeedbackManagement() {
             title: 'Học viên',
             key: 'user',
             width: 200,
+            align: 'center' as const,
             render: (_, record) => (
-                <Space>
+                <Space style={{ width: '100%', justifyContent: 'center' }}>
                     <Avatar
                         src={record.user?.avatarUrl}
                         icon={<UserOutlined />}
                         style={{ backgroundColor: token.colorPrimary }}
                     />
-                    <Space direction="vertical" size={0}>
+                    <Space direction="vertical" size={0} style={{ textAlign: 'left' }}>
                         <Text strong>{record.user?.name}</Text>
                         <Text type="secondary" style={{ fontSize: '11px' }}>ID: {record.userId.substring(0, 8)}...</Text>
                     </Space>
@@ -127,8 +128,9 @@ export default function ClassFeedbackManagement() {
             title: 'Lớp học',
             key: 'class',
             width: 180,
+            align: 'center' as const,
             render: (_, record) => (
-                <Space direction="vertical" size={0}>
+                <Space direction="vertical" size={0} style={{ width: '100%', justifyContent: 'center' }}>
                     <Text strong>
                         <TeamOutlined style={{ marginRight: 8, color: '#3B82F6' }} />
                         {record.class?.className}
@@ -142,9 +144,10 @@ export default function ClassFeedbackManagement() {
         {
             title: 'Nội dung & Phản hồi',
             key: 'content',
+            align: 'center' as const,
             render: (_, record) => (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    <div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'center' }}>
+                    <div style={{ textAlign: 'center' }}>
                         <Tag color="blue">Câu hỏi:</Tag>
                         <Paragraph style={{ margin: '4px 0 0 0', whiteSpace: 'pre-wrap' }}>{record.content}</Paragraph>
                     </div>
@@ -153,7 +156,9 @@ export default function ClassFeedbackManagement() {
                             padding: '10px 14px',
                             background: '#F0FDF4',
                             borderRadius: '12px',
-                            borderLeft: '4px solid #22C55E'
+                            borderLeft: '4px solid #22C55E',
+                            textAlign: 'left',
+                            maxWidth: '90%'
                         }}>
                             <Space align="start">
                                 <CommentOutlined style={{ color: '#22C55E', marginTop: 4 }} />
@@ -179,7 +184,7 @@ export default function ClassFeedbackManagement() {
             dataIndex: 'status',
             key: 'status',
             width: 130,
-            align: 'center',
+            align: 'center' as const,
             render: (status: string) => {
                 const isPending = status === 'PENDING';
                 return (
@@ -197,7 +202,7 @@ export default function ClassFeedbackManagement() {
             title: 'Thao tác',
             key: 'actions',
             width: 180,
-            align: 'center',
+            align: 'center' as const,
             render: (_, record) => (
                 <Space direction="vertical" style={{ width: '100%' }}>
                     <Button

@@ -121,8 +121,9 @@ export default function ComplaintManagement() {
             title: 'Bài thi',
             key: 'test',
             width: 250,
+            align: 'center' as const,
             render: (_, record) => (
-                <Space direction="vertical" size={0}>
+                <Space direction="vertical" size={0} style={{ width: '100%', justifyContent: 'center' }}>
                     <Text strong style={{ fontSize: '15px' }}>
                         <FileTextOutlined style={{ marginRight: 8, color: token.colorPrimary }} />
                         {record.test?.title}
@@ -135,8 +136,9 @@ export default function ComplaintManagement() {
             title: 'Người gửi',
             key: 'user',
             width: 180,
+            align: 'center' as const,
             render: (_, record) => (
-                <Space>
+                <Space style={{ width: '100%', justifyContent: 'center' }}>
                     <div style={{
                         width: 32, height: 32, borderRadius: '50%',
                         background: token.colorBgLayout, display: 'flex',
@@ -144,7 +146,7 @@ export default function ComplaintManagement() {
                     }}>
                         <UserOutlined style={{ color: token.colorPrimary }} />
                     </div>
-                    <Space direction="vertical" size={0}>
+                    <Space direction="vertical" size={0} style={{ textAlign: 'left' }}>
                         <Text strong>{record.user?.name}</Text>
                         <Tag color="blue" style={{ fontSize: '10px', margin: 0 }}>{record.user?.role}</Tag>
                     </Space>
@@ -156,9 +158,10 @@ export default function ComplaintManagement() {
             dataIndex: 'content',
             key: 'content',
             ellipsis: true,
+            align: 'center' as const,
             render: (content: string) => (
                 <Tooltip title={content}>
-                    <div style={{ maxWidth: 400, whiteSpace: 'pre-wrap' }}>{content}</div>
+                    <div style={{ maxWidth: 400, whiteSpace: 'pre-wrap', margin: '0 auto' }}>{content}</div>
                 </Tooltip>
             ),
         },
@@ -167,7 +170,7 @@ export default function ComplaintManagement() {
             dataIndex: 'status',
             key: 'status',
             width: 150,
-            align: 'center',
+            align: 'center' as const,
             render: (status: string) => {
                 const isPending = status === 'PENDING';
                 return (
@@ -186,6 +189,7 @@ export default function ComplaintManagement() {
             dataIndex: 'createdAt',
             key: 'createdAt',
             width: 150,
+            align: 'center' as const,
             render: (date: string) => new Date(date).toLocaleString('vi-VN'),
         },
     ];
@@ -195,7 +199,7 @@ export default function ComplaintManagement() {
             title: 'Hành động',
             key: 'actions',
             width: 120,
-            align: 'center',
+            align: 'center' as const,
             render: (_, record) => (
                 record.status === 'PENDING' ? (
                     <Button

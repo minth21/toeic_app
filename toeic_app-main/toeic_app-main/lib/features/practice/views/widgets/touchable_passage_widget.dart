@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
 import 'package:provider/provider.dart';
+import '../../../../theme/app_typography.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../constants/app_constants.dart';
 import '../../../vocabulary/viewmodels/vocabulary_viewmodel.dart';
@@ -108,18 +109,18 @@ class _TouchablePassageWidgetState extends State<TouchablePassageWidget> {
                   children: [
                     Text(
                       word,
-                      style: const TextStyle(
+                      style: AppTypography.header(
                         fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF1E3A8A),
+                        color: const Color(0xFF1E3A8A),
                       ),
                     ),
                     if (ipa.isNotEmpty || type.isNotEmpty)
                       Text(
                         '${ipa.isNotEmpty ? ipa : ''} ${type.isNotEmpty ? '($type)' : ''}',
-                        style: TextStyle(
+                        style: AppTypography.friendly(
                           fontSize: 14,
                           color: Colors.grey.shade600,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                   ],
@@ -131,40 +132,43 @@ class _TouchablePassageWidgetState extends State<TouchablePassageWidget> {
               ],
             ),
             const Divider(height: 32),
-            const Text(
+            Text(
               'Nghĩa Tiếng Việt',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
+              style: AppTypography.ui(
+                fontSize: 12,
+                fontWeight: FontWeight.w900,
                 color: Colors.grey,
+                letterSpacing: 1.1,
               ),
             ),
             const SizedBox(height: 8),
             Text(
               meaning,
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
+              style: AppTypography.friendly(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
             ),
             if (example.isNotEmpty) ...[
               const SizedBox(height: 20),
-              const Text(
+              Text(
                 'Ví dụ (Context)',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
+                style: AppTypography.ui(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w900,
                   color: Colors.grey,
+                  letterSpacing: 1.1,
                 ),
               ),
               const SizedBox(height: 8),
               Text(
                 example,
-                style: const TextStyle(
+                style: AppTypography.reading(
                   fontSize: 15,
                   fontStyle: FontStyle.italic,
+                  color: AppColors.textPrimary,
                 ),
               ),
               Text(
                 exampleVi,
-                style: TextStyle(fontSize: 14, color: Colors.grey.shade700),
+                style: AppTypography.friendly(fontSize: 14, color: Colors.grey.shade700, fontWeight: FontWeight.w500),
               ),
             ],
             const SizedBox(height: 12),
@@ -247,8 +251,7 @@ class _TouchablePassageWidgetState extends State<TouchablePassageWidget> {
       return RichText(
         text: TextSpan(
           text: sentence,
-          style: widget.textStyle?.copyWith(height: 1.6, color: Colors.black87) ?? 
-                 const TextStyle(fontSize: 16, height: 1.6, color: Colors.black87),
+          style: widget.textStyle ?? AppTypography.reading(color: Colors.black87),
         ),
       );
     }
@@ -263,18 +266,16 @@ class _TouchablePassageWidgetState extends State<TouchablePassageWidget> {
         TextSpan(
           text: word,
           style: widget.textStyle?.copyWith(
-            height: 1.6,
-            fontWeight: FontWeight.w600,
-            color: Colors.blue.shade800,
+            fontWeight: FontWeight.bold,
+            color: Colors.blue.shade900,
             decoration: TextDecoration.underline,
-            decorationColor: Colors.blue.withValues(alpha: 0.3),
-          ) ?? TextStyle(
-            fontSize: 16,
-            height: 1.6,
-            color: Colors.blue.shade800,
-            fontWeight: FontWeight.w600,
+            decorationColor: Colors.blue.withValues(alpha: 0.4),
+          ) ?? AppTypography.reading(
+            fontWeight: FontWeight.bold,
+            color: Colors.blue.shade900,
+          ).copyWith(
             decoration: TextDecoration.underline,
-            decorationColor: Colors.blue.withValues(alpha: 0.3),
+            decorationColor: Colors.blue.withValues(alpha: 0.4),
           ),
           recognizer: TapGestureRecognizer()
             ..onTap = () => _showWordTranslation(word, sentence, vocab),

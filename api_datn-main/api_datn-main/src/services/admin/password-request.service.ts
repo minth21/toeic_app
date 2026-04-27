@@ -66,7 +66,7 @@ export class PasswordRequestService {
                     where: { id: user.id },
                     data: { 
                         password: hashedPassword,
-                        isFirstLogin: true, // Bắt buộc đổi lại khi đăng nhập bằng pass admin cấp
+                        isFirstLogin: false, // Không bắt buộc đổi lại khi đăng nhập bằng pass admin cấp
                     },
                 }),
                 (prisma as any).passwordResetRequest.update({
