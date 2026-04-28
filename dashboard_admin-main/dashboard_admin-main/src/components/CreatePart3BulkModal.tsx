@@ -114,7 +114,7 @@ export default function CreatePart3BulkModal({ open, onCancel, onSuccess, partId
                                     initialGroups[gIdx].keyVocabulary = vocab.map((v: any) => ({
                                         word: v.word || v.text || '',
                                         type: v.type || v.lemma || '',
-                                        ipa: v.ipa || '',
+                                        ipa: v.ipa || v.pronunciation || '',
                                         meaning: v.meaning || ''
                                     }));
                                 }
@@ -367,7 +367,7 @@ export default function CreatePart3BulkModal({ open, onCancel, onSuccess, partId
 
                 const keyVocabularyJson = JSON.stringify((group.keyVocabulary || []).map((v: any) => ({
                     ...v,
-                    ipa: (v.ipa || '').replace(/^\/+|\/+$/g, '').trim()
+                    ipa: (v.ipa || v.pronunciation || '').replace(/^\/+|\/+$/g, '').trim()
                 })));
                 const passageTranslationDataJson = JSON.stringify([
                     { type: 'passage', label: 'Transcript', items: group.translationSentences || [] }

@@ -90,37 +90,22 @@ class _LoginScreenState extends State<LoginScreen> {
                         gradient: AppColors.premiumGradient,
                       ),
                       child: Container(
-                        padding: const EdgeInsets.all(20),
+                        padding: const EdgeInsets.all(10), // Reduced padding for image
                         decoration: const BoxDecoration(
                           color: Colors.white,
                           shape: BoxShape.circle,
                         ),
-                        child: Icon(
-                          Icons.school_rounded,
-                          size: 60,
-                          color: AppColors.primary,
+                        child: Image.asset(
+                          'assets/images/toeic_logo.png',
+                          width: 80,
+                          height: 80,
+                          fit: BoxFit.contain,
                         ),
                       ),
                     ),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 32),
 
-                  // App Title with gradient
-                  ShaderMask(
-                    shaderCallback: (bounds) =>
-                        AppColors.premiumGradient.createShader(bounds),
-                    child: Text(
-                      'ANTIGRAVITY',
-                      style: AppTypography.ui(
-                        fontSize: 32,
-                        fontWeight: FontWeight.w900,
-                        color: Colors.white,
-                        letterSpacing: 1.5,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
 
                   Text(
                     'Chinh phục TOEIC cùng Gia sư AI',

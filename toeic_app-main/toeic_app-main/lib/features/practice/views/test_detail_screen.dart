@@ -844,7 +844,7 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    'Cấu trúc đề thi',
+                    'Cấu trúc đề ôn luyện',
                     style: GoogleFonts.inter(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -999,24 +999,31 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
                         ],
                       ),
                       const SizedBox(height: 6),
-                      Row(
+                      Wrap(
+                        spacing: 12,
+                        runSpacing: 4,
+                        crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
-                          Icon(
-                            Icons.help_outline_rounded,
-                            size: 14,
-                            color: AppColors.textHint,
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.help_outline_rounded,
+                                size: 14,
+                                color: AppColors.textHint,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                '${part.totalQuestions} câu hỏi',
+                                style: AppTypography.ui(
+                                  color: AppColors.textSecondary,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
                           ),
-                          const SizedBox(width: 4),
-                          Text(
-                            '${part.totalQuestions} câu hỏi',
-                            style: AppTypography.ui(
-                              color: AppColors.textSecondary,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          if (part.instructions != null && part.instructions!.isNotEmpty) ...[
-                            const SizedBox(width: 12),
+                          if (part.instructions != null && part.instructions!.isNotEmpty)
                             GestureDetector(
                               onTap: () => _showInstructionsDialog(part),
                               child: Row(
@@ -1039,7 +1046,6 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
                                 ],
                               ),
                             ),
-                          ],
                         ],
                       ),
                     ],
@@ -1079,23 +1085,28 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
                     ),
                   ),
                 if (part.userProgress != null)
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      _buildPartActionButton(
-                        icon: Icons.history_rounded,
-                        label: 'Xem lại',
-                        onTap: () => _directReview(part),
-                        isPrimary: false,
+                  Flexible(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _buildPartActionButton(
+                            icon: Icons.history_rounded,
+                            label: 'Xem lại',
+                            onTap: () => _directReview(part),
+                            isPrimary: false,
+                          ),
+                          const SizedBox(width: 4),
+                          _buildPartActionButton(
+                            icon: Icons.refresh_rounded,
+                            label: 'Làm bài',
+                            onTap: () => _directRetake(part),
+                            isPrimary: true,
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 4),
-                      _buildPartActionButton(
-                        icon: Icons.refresh_rounded,
-                        label: 'Làm bài',
-                        onTap: () => _directRetake(part),
-                        isPrimary: true,
-                      ),
-                    ],
+                    ),
                   )
                 else if (status == 'PENDING')
                   Column(
@@ -1211,12 +1222,15 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
                     color: AppColors.primary,
                   ),
                   const SizedBox(width: 10),
-                  Text(
-                    'Hướng dẫn: ${part.partName}',
-                    style: GoogleFonts.inter(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary,
+                  Expanded(
+                    child: Text(
+                      'Hướng dẫn: ${part.partName}',
+                      style: GoogleFonts.inter(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textPrimary,
+                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ],
@@ -1494,12 +1508,15 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  '— Phản hồi cho bài làm của bạn',
-                  style: GoogleFonts.inter(
-                    fontSize: 12,
-                    color: AppColors.textSecondary,
-                    fontStyle: FontStyle.italic,
+                Expanded(
+                  child: Text(
+                    '— Phản hồi cho bài làm của bạn',
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                      fontStyle: FontStyle.italic,
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 TextButton.icon(
@@ -1582,7 +1599,7 @@ class _TestDetailScreenState extends State<TestDetailScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Bạn có thắc mắc về đề thi này?',
+                        'Bạn có thắc mắc về đề ôn luyện này?',
                         style: GoogleFonts.inter(
                           fontWeight: FontWeight.bold,
                           fontSize: 14,

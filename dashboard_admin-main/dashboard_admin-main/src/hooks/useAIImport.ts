@@ -11,6 +11,19 @@ export const useAIImport = (groups: any[], setGroups: (val: any[] | ((prev: any[
     const [aiProgress, setAiProgress] = useState(0);
     const [batchLabel, setBatchLabel] = useState<string>('');
 
+    const cleanHtml = (text: string) => {
+        if (!text || typeof text !== 'string') return text;
+        return text
+            .replace(/&nbsp;/g, ' ')
+            .replace(/&amp;/g, '&')
+            .replace(/&lt;/g, '<')
+            .replace(/&gt;/g, '>')
+            .replace(/&quot;/g, '"')
+            .replace(/&#39;/g, "'")
+            .replace(/\s+/g, ' ')
+            .trim();
+    };
+
     /**
      * Handles AI generation for a specific group (Used in Parts 1-4, 6-7)
      */
@@ -46,19 +59,51 @@ export const useAIImport = (groups: any[], setGroups: (val: any[] | ((prev: any[
 
                 // 1. Handle Passage Translation Data (Touch-to-Translate)
                 if (aiData.passageTranslations) {
-                    newGroups[gIdx].passageTranslationData = aiData.passageTranslations;
+                    const cleanedTranslations = aiData.passageTranslations.map((pt: any) => ({
+                        ...pt,
+                        label: cleanHtml(pt.label),
+                        items: (pt.items || []).map((item: any) => {
+                            const en = cleanHtml(item.en);
+                            const vi = cleanHtml(item.vi);
+                            
+                            // Tự động đục lỗ nếu phát hiện số câu hỏi trong câu EN
+                            const qMatch = en.match(/\((\d{3})\)|\[(\d{3})\]/);
+                            if (qMatch) {
+                                const qNum = qMatch[1] || qMatch[2];
+                                
+                                // Đục lỗ EN: 
+                                // Nếu câu chỉ chứa dấu gạch hoặc là một câu ngắn chứa số, đục lỗ toàn bộ phần trước số
+                                // Nếu là câu dài, chỉ đục lỗ từ đứng ngay trước số
+                                let maskedEn = en;
+                                if (en.length < 50 || en.includes('___')) {
+                                    maskedEn = en.replace(/^.*(\(\d{3}\)|\[\d{3}\])/g, `____ [${qNum}]`);
+                                } else {
+                                    maskedEn = en.replace(/(\S+)\s*(\(\d{3}\)|\[\d{3}\])/g, `____ [${qNum}]`);
+                                }
+                                
+                                // Đục lỗ VI: Luôn đồng nhất là gạch trống
+                                const maskedVi = `_______ [${qNum}]`;
+                                
+                                return { ...item, en: maskedEn, vi: maskedVi };
+                            }
+                            
+                            return { ...item, en, vi };
+                        })
+                    }));
+                    
+                    newGroups[gIdx].passageTranslationData = cleanedTranslations;
                     // Flatten to simple translation string for backward compatibility/UI
-                    const allVi = aiData.passageTranslations.flatMap((pt: any) => pt.items || []).map((i: any) => i.vi).join(' ');
+                    const allVi = cleanedTranslations.flatMap((pt: any) => pt.items || []).map((i: any) => i.vi).join(' ');
                     newGroups[gIdx].translation = allVi;
                 }
 
                 // 2. Handle Vocabulary
                 if (aiData.vocabulary && aiData.vocabulary.length > 0) {
                     newGroups[gIdx].vocabulary = aiData.vocabulary.map((v: any) => ({
-                        text: v.word || v.text,
-                        pos: v.type || v.pos,
-                        ipa: v.ipa || '',
-                        meaning: v.meaning
+                        text: cleanHtml(v.word || v.text),
+                        pos: cleanHtml(v.type || v.pos),
+                        ipa: cleanHtml(v.ipa || v.pronunciation || ''),
+                        meaning: cleanHtml(v.meaning)
                     }));
                 }
 
@@ -67,8 +112,9 @@ export const useAIImport = (groups: any[], setGroups: (val: any[] | ((prev: any[
                     aiData.questions.forEach((aiQ: any) => {
                         const qIdx = newGroups[gIdx].questions.findIndex((q: any) => q.questionNumber === aiQ.questionNumber);
                         if (qIdx !== -1) {
-                            const analysis = aiQ.analysis || '';
-                            const evidence = aiQ.evidence ? `<br/><br/><b>Dẫn chứng:</b> ${aiQ.evidence}` : '';
+                            const analysis = cleanHtml(aiQ.analysis || '');
+                            const rawEvidence = cleanHtml(aiQ.evidence || '');
+                            const evidence = rawEvidence ? `<br/><br/><b>Dẫn chứng:</b> ${rawEvidence}` : '';
                             
                             // Compatibility: Part 6 uses .explanation, others might use .explanation field inside question
                             if (partNumber === 6) {
@@ -162,19 +208,38 @@ export const useAIImport = (groups: any[], setGroups: (val: any[] | ((prev: any[
                             const useOldTranslation = q.questionTranslation?.trim() && q.questionTranslation.length > 5;
                             const useOldVocab = q.keyVocabulary && (typeof q.keyVocabulary === 'string' ? q.keyVocabulary.length > 10 : q.keyVocabulary.length > 0);
 
+                            // Clean option translations if they exist
+                            let cleanedOptionTranslations = q.optionTranslations;
+                            if (aiItem.optionTranslations) {
+                                const rawOT = aiItem.optionTranslations;
+                                const cleanOT: any = {};
+                                Object.keys(rawOT).forEach(key => {
+                                    cleanOT[key] = cleanHtml(rawOT[key]);
+                                });
+                                cleanedOptionTranslations = JSON.stringify(cleanOT);
+                            }
+
+                            // Clean vocabulary if it exists
+                            let cleanedVocab = q.keyVocabulary;
+                            if (aiItem.keyVocabulary && Array.isArray(aiItem.keyVocabulary)) {
+                                const cleanV = aiItem.keyVocabulary.map((v: any) => ({
+                                    word: cleanHtml(v.word || v.text),
+                                    type: cleanHtml(v.type || v.pos),
+                                    ipa: cleanHtml(v.ipa || v.pronunciation || ''),
+                                    meaning: cleanHtml(v.meaning)
+                                }));
+                                cleanedVocab = JSON.stringify(cleanV);
+                            }
+
                             return {
                                 ...q,
                                 correctAnswer: (!q.correctAnswer || q.correctAnswer === '')
                                     ? (String(aiItem.calculatedAnswer || q.correctAnswer).toUpperCase())
                                     : q.correctAnswer,
-                                explanation: useOldExplanation ? q.explanation : (aiItem.explanation ?? q.explanation),
-                                questionTranslation: useOldTranslation ? q.questionTranslation : (aiItem.questionTranslation ?? q.questionTranslation),
-                                optionTranslations: aiItem.optionTranslations
-                                    ? JSON.stringify(aiItem.optionTranslations)
-                                    : q.optionTranslations,
-                                keyVocabulary: useOldVocab ? q.keyVocabulary : (aiItem.keyVocabulary
-                                    ? JSON.stringify(aiItem.keyVocabulary)
-                                    : q.keyVocabulary),
+                                explanation: useOldExplanation ? q.explanation : cleanHtml(aiItem.explanation ?? q.explanation),
+                                questionTranslation: useOldTranslation ? q.questionTranslation : cleanHtml(aiItem.questionTranslation ?? q.questionTranslation),
+                                optionTranslations: cleanedOptionTranslations,
+                                keyVocabulary: useOldVocab ? q.keyVocabulary : cleanedVocab,
                                 level: aiItem.level ?? q.level,
                             };
                         }));

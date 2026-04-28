@@ -493,7 +493,7 @@ export const scanPart6FromImageService = async (imageBuffer: Buffer, mimeType: s
     YÊU CẦU QUAN TRỌNG (BẮT BUỘC):
     1. PHÂN LOẠI & DỊCH TOÀN BỘ: Nhận diện loại văn bản (Letter, Email, Advertisement, v.v.). Dịch TẤT CẢ văn bản trong ảnh bao gồm cả TIÊU ĐỀ, ngày tháng, địa chỉ (nếu có).
     2. TÁCH BIỆT TỪNG CÂU (SENTENCE-BY-SENTENCE): Trong mảng "items", hãy PHÂN TÁCH văn bản thành từng câu ngắn. MỖI CÂU LÀ MỘT ITEM. Tuyệt đối không gộp 2 câu vào 1 item.
-    3. GIỮ NGUYÊN BỐ CỤC: Đảm bảo thứ tự các câu trong mảng "items" khớp hoàn toàn với thứ tự từ trên xuống dưới trong ảnh.
+    3. GIỮ NGUYÊN BỐ CỤC & CHỖ TRỐNG: Đảm bảo thứ tự các câu trong mảng "items" khớp hoàn toàn với thứ tự trong ảnh. Tại các vị trí có chỗ trống (vd: ____), hãy giữ nguyên định dạng là "____ [Số câu]" ở cả bản EN và VI. TUYỆT ĐỐI không điền đáp án vào đây.
     4. TỪ VỰNG: Trích xuất TỐI THIỂU 10 từ vựng trọng tâm.
     
     Output JSON: 
@@ -805,12 +805,12 @@ const enrichPart6WithInsights = async (passage: string, questions: any[]) => {
 
     YÊU CẦU ĐẶC BIỆT CHO DỊCH SONG NGỮ BAO GỒM (passageTranslations):
     5. TÁCH BIỆT TỪNG CÂU (SENTENCE-BY-SENTENCE): Bắt buộc chia mảng "items" thành từng câu đơn lẻ. Tuyệt đối không gộp nhiều câu.
-    6. Đối với cả câu Tiếng Anh ("en") và câu Tiếng Việt ("vi"), ở vị trí có khoét lỗ / chỗ trống điền từ, BẮT BUỘC ghép trực tiếp CỤM TỪ CỦA ĐÁP ÁN ĐÚNG vào thẳng trong câu, đi kèm với số thứ tự câu hỏi trong ngoặc đơn ở đằng sau. 
-    - Cấu trúc: "[cụm từ đáp án đúng] (Số câu hỏi)".
-    - VD Tiếng Anh: "Over the years, you have shown great initiative (136), creativity, and leadership."
-    - VD Tiếng Việt: "Trong những năm qua, bạn đã thể hiện sự chủ động tuyệt vời (136), sự sáng tạo và năng lực lãnh đạo."
-    - LƯU Ý: Luôn luôn viết hoa chữ cái đầu tiên của mọi câu trong bản dịch theo đúng chuẩn ngữ pháp.
-    - TUYỆT ĐỐI không được để lại dấu gạch dưới "___" hoặc khoảng trắng nào trong bản dịch!
+    6. Đối với cả câu Tiếng Anh ("en") và câu Tiếng Việt ("vi"), ở vị trí có khoét lỗ / chỗ trống điền từ (ví dụ: "____"), TUYỆT ĐỐI KHÔNG được điền đáp án đúng vào. Bạn phải giữ nguyên hiện trạng là dấu gạch trống kèm số thứ tự câu hỏi.
+    - Cấu trúc: "____ [Số câu hỏi]".
+    - VD Tiếng Anh: "Over the years, you have shown great ____ [136], creativity, and leadership."
+    - VD Tiếng Việt: "Trong những năm qua, bạn đã thể hiện sự ____ [136] tuyệt vời, sự sáng tạo và năng lực lãnh đạo."
+    - LƯU Ý 1: Đảm bảo vị trí dấu gạch trống trong bản dịch tiếng Việt phải tương ứng với ngữ cảnh của câu tiếng Anh để không làm lộn số câu.
+    - LƯU Ý 2: Luôn luôn viết hoa chữ cái đầu tiên của mọi câu trong bản dịch theo đúng chuẩn ngữ pháp.
 
     YÊU CẦU TỪ VỰNG TỔNG:
     6. vocabulary: Phải trích xuất TỐI THIỂU 10 từ vựng quan trọng từ bài đọc và câu hỏi.

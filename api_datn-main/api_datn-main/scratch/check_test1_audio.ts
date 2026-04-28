@@ -13,7 +13,7 @@ async function main() {
   });
 
   if (!test) {
-    console.log('Không tìm thấy đề thi nào tên "Test 1"');
+    console.log('Không tìm thấy đề ôn luyện nào tên "Test 1"');
     return;
   }
 

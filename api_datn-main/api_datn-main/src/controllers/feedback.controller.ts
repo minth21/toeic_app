@@ -204,10 +204,10 @@ export class FeedbackController {
 
             const feedback = await (prisma as any).studentFeedback.update({
                 where: { id },
-                data: { 
+                data: {
                     teacherReply,
                     repliedAt: new Date(),
-                    status: 'RESOLVED' 
+                    status: 'RESOLVED'
                 },
                 include: {
                     class: { select: { className: true } }
@@ -217,7 +217,7 @@ export class FeedbackController {
             // Gửi thông báo cho Học viên
             await NotificationService.createNotification({
                 userId: feedback.userId,
-                title: `📩 Giáo viên vừa phản hồi thắc mắc của bạn`,
+                title: `Giáo viên vừa phản hồi thắc mắc của bạn`,
                 content: `Giáo viên ${teacherName} đã trả lời ý kiến của bạn trong lớp ${feedback.class.className}.`,
                 type: 'FEEDBACK_RESOLVED' as NotificationType,
                 relatedId: feedback.id
@@ -246,7 +246,7 @@ export class FeedbackController {
 
             // Kiểm tra lớp học và quyền của giáo viên
             const targetClass = await prisma.class.findFirst({
-                where: { 
+                where: {
                     id: classId,
                     teacherId: teacherId
                 },
@@ -288,6 +288,44 @@ export class FeedbackController {
         } catch (error) {
             logger.error('Error in sendTeacherOpinion:', error);
             return errorResponse(res, 'Lỗi khi gửi ý kiến');
+        }
+    }
+
+    /**
+     * 6. Xem chi tiết một ý kiến
+     * GET /api/feedbacks/:id
+     */
+    static async getFeedbackDetail(req: Request, res: Response) {
+        try {
+            const { id } = req.params;
+            const user = (req as any).user;
+
+            const feedback = await (prisma as any).studentFeedback.findUnique({
+                where: { id },
+                include: {
+                    user: { select: { name: true, avatarUrl: true, email: true } },
+                    teacher: { select: { name: true, avatarUrl: true } },
+                    class: { select: { className: true, classCode: true } }
+                }
+            });
+
+            if (!feedback) {
+                return errorResponse(res, 'Không tìm thấy ý kiến', HTTP_STATUS.NOT_FOUND);
+            }
+
+            // Kiểm tra quyền xem chi tiết
+            const isOwner = feedback.userId === user.id;
+            const isTargetTeacher = feedback.teacherId === user.id;
+            const isAdmin = user.role === 'ADMIN';
+
+            if (!isOwner && !isTargetTeacher && !isAdmin) {
+                return errorResponse(res, 'Bạn không có quyền xem chi tiết ý kiến này', HTTP_STATUS.FORBIDDEN);
+            }
+
+            return successResponse(res, feedback, 'Tải chi tiết ý kiến thành công');
+        } catch (error) {
+            logger.error('Error in getFeedbackDetail:', error);
+            return errorResponse(res, 'Lỗi khi tải chi tiết ý kiến');
         }
     }
 }

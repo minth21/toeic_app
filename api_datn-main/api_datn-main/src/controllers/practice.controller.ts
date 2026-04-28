@@ -101,7 +101,7 @@ export const submitPart = async (
         questions.forEach(q => {
             const selected = (answerMap.get(q.id) || '').toString().trim().toUpperCase();
             const correct = (q.correctAnswer || '').toString().trim().toUpperCase();
-            
+
             if (selected === correct && selected.length > 0) {
                 correctCount++;
                 correctQuestionNumbers.push(q.questionNumber);
@@ -147,10 +147,10 @@ export const submitPart = async (
             // Get current user stats for comparison
             const currentUser = await tx.user.findUnique({
                 where: { id: userId },
-                select: { 
-                    highestScore: true, 
-                    studentClassId: true, 
-                    totalAttempts: true, 
+                select: {
+                    highestScore: true,
+                    studentClassId: true,
+                    totalAttempts: true,
                     averageScore: true,
                     currentStreak: true,
                     lastActiveAt: true
@@ -215,21 +215,21 @@ export const submitPart = async (
             const oldTotalAttempts = currentUser?.totalAttempts || 0;
             const oldAverage = currentUser?.averageScore || 0;
             const newAverage = Math.round((oldAverage * oldTotalAttempts + toeicScore) / (oldTotalAttempts + 1));
-            
+
             // --- STREAK CALCULATION ---
             let newStreak = currentUser?.currentStreak || 0;
             const now = new Date();
             const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-            
+
             if (!currentUser?.lastActiveAt) {
                 newStreak = 1;
             } else {
                 const lastActive = new Date(currentUser.lastActiveAt);
                 const lastActiveStart = new Date(lastActive.getFullYear(), lastActive.getMonth(), lastActive.getDate()).getTime();
-                
+
                 const msPerDay = 24 * 60 * 60 * 1000;
                 const diffDays = (todayStart - lastActiveStart) / msPerDay;
-                
+
                 if (diffDays === 1) {
                     // Yesterday was active -> Increment
                     newStreak += 1;
@@ -337,7 +337,7 @@ export const submitPart = async (
                     const selected = (answerMap.get(q.id) || '').toString().trim().toUpperCase();
                     const correct = (q.correctAnswer || '').toString().trim().toUpperCase();
                     const isCorrect = selected === correct && selected.length > 0;
-                    
+
                     if (isCorrect) {
                         topicMatrix[tag].correct++;
                     } else {
@@ -357,7 +357,7 @@ export const submitPart = async (
                     total,
                     timeTaken || 0,
                     user?.name || 'Học viên',
-                    JSON.stringify(topicMatrix), 
+                    JSON.stringify(topicMatrix),
                     `Part ${partData?.partNumber || 5}`,
                     user?.targetScore || undefined,
                     false,
@@ -417,9 +417,9 @@ export const submitPart = async (
                         where: { id: userId },
                         data: { progress: Math.round(finalAiResult.progressScore || percentage) }
                     });
-                    
+
                     await calculateEstimatedScore(userId);
-                    
+
                     // console.log("[AI] Consolidated assessment created above.");
 
                     // Smart Notification
@@ -514,7 +514,7 @@ export const submitFullTest = async (
         const answerMap = new Map(answers.map((a: any) => [a.questionId, a.selectedOption]));
         const flaggedMap = new Map(answers.map((a: any) => [a.questionId, a.isFlagged || false]));
         const timeMap = new Map(answers.map((a: any) => [a.questionId, a.timeSpent || 0]));
-        
+
         // 3. Calculate scores per Section
         let correctListening = 0;
         let totalListening = 0;
@@ -529,13 +529,13 @@ export const submitFullTest = async (
             const selected = (answerMap.get(q.id) || '').toString().trim().toUpperCase();
             const correct = (q.correctAnswer || '').toString().trim().toUpperCase();
             const isCorrect = selected === correct && selected.length > 0;
-            
+
             if (isCorrect) {
                 correctQuestionNumbers.push(q.questionNumber);
             } else {
                 incorrectQuestionNumbers.push(q.questionNumber);
             }
-            
+
             if (q.partNumber <= 4) {
                 totalListening++;
                 if (isCorrect) correctListening++;
@@ -559,8 +559,8 @@ export const submitFullTest = async (
             // Get user data for streak
             const currentUser = await tx.user.findUnique({
                 where: { id: userId },
-                select: { 
-                    currentStreak: true, 
+                select: {
+                    currentStreak: true,
                     lastActiveAt: true,
                     totalAttempts: true,
                     highestScore: true,
@@ -572,16 +572,16 @@ export const submitFullTest = async (
             let newStreak = currentUser?.currentStreak || 0;
             const now = new Date();
             const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-            
+
             if (!currentUser?.lastActiveAt) {
                 newStreak = 1;
             } else {
                 const lastActive = new Date(currentUser.lastActiveAt);
                 const lastActiveStart = new Date(lastActive.getFullYear(), lastActive.getMonth(), lastActive.getDate()).getTime();
-                
+
                 const msPerDay = 24 * 60 * 60 * 1000;
                 const diffDays = (todayStart - lastActiveStart) / msPerDay;
-                
+
                 if (diffDays === 1) {
                     newStreak += 1;
                 } else if (diffDays > 1) {
@@ -629,7 +629,7 @@ export const submitFullTest = async (
             for (const part of test.parts) {
                 const pCorrect = partCorrectCounts[part.id] || 0;
                 const pTotal = part.questions.length;
-                
+
                 // Find latest attempt number
                 const latest = await tx.userPartProgress.findFirst({
                     where: { userId, partId: part.id },
@@ -815,8 +815,8 @@ export const getPartHistory = async (
         });
 
         const history = await prisma.testAttempt.findMany({
-            where: { 
-                userId, 
+            where: {
+                userId,
                 part: {
                     partNumber: targetPart?.partNumber || 0
                 }

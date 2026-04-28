@@ -1413,7 +1413,7 @@ class _Part1SimulationScreenState extends State<Part1SimulationScreen> {
                     ),
                     child: HtmlWidget(
                       _selectedPart?.instructions ??
-                          "Bạn sẽ thấy một bức ảnh cho mỗi câu hỏi. Hãy nghe 4 phương án mô tả và chọn đáp án đúng nhất. Lưu ý: Các phương án sẽ không được in trong đề thi.",
+                          "Bạn sẽ thấy một bức ảnh cho mỗi câu hỏi. Hãy nghe 4 phương án mô tả và chọn đáp án đúng nhất. Lưu ý: Các phương án sẽ không được in trong đề ôn luyện.",
                       textStyle: GoogleFonts.inter(
                         fontSize: 15,
                         height: 1.7,

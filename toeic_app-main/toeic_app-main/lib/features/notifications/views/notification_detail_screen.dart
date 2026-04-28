@@ -183,11 +183,11 @@ class NotificationDetailScreen extends StatelessWidget {
   String _getTypeLabel(NotificationType type) {
     switch (type) {
       case NotificationType.newTestOpened:
-        return 'BÀI THI MỚI';
+        return 'BÀI LUYỆN TẬP';
       case NotificationType.feedbackResolved:
         return 'GÓP Ý';
       case NotificationType.testApproved:
-        return 'ĐỀ THI';
+        return 'ĐỀ ÔN LUYỆN';
       case NotificationType.roadmapReceived:
         return 'LỘ TRÌNH AI';
       default:

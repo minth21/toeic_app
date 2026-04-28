@@ -374,7 +374,7 @@ export const updateTest = async (
         if (title !== undefined) updateData.title = title;
         if (testType !== undefined) updateData.testType = testType;
         if (difficulty !== undefined) updateData.difficulty = difficulty;
-        
+
         // Only ADMIN can change status
         if (status !== undefined && isAdmin) {
             updateData.status = status;
@@ -385,12 +385,12 @@ export const updateTest = async (
             console.warn(`User ${user.id} tried to update status to ${status} without ADMIN role.`);
             // Silent refusal of status update for non-admins
         }
-        
+
         if (duration !== undefined) {
             const parsed = parseInt(duration);
             if (!isNaN(parsed)) updateData.duration = parsed;
         }
-        
+
         if (totalQuestions !== undefined) {
             const parsed = parseInt(totalQuestions);
             if (!isNaN(parsed)) updateData.totalQuestions = parsed;
@@ -532,9 +532,9 @@ export const approveTest = async (
 
         const updatedTest = await prisma.test.update({
             where: { id },
-            data: { 
+            data: {
                 status: 'LOCKED' as any,
-                rejectReason: null 
+                rejectReason: null
             }
         } as any);
 
@@ -620,7 +620,7 @@ export const approveTestFull = async (
             // 1. Approve the Test
             prisma.test.update({
                 where: { id },
-                data: { 
+                data: {
                     status: 'LOCKED' as any,
                     rejectReason: null
                 },
@@ -628,9 +628,9 @@ export const approveTestFull = async (
             // 2. Approve all Parts of this Test
             prisma.part.updateMany({
                 where: { testId: id },
-                data: { 
+                data: {
                     status: 'LOCKED' as any,
-                    rejectReason: null 
+                    rejectReason: null
                 } as any,
             }),
             // 3. Approve all Questions inside those Parts
@@ -668,8 +668,8 @@ export const approveTestFull = async (
         (async () => {
             try {
                 await NotificationService.broadcastNotification({
-                    title: '🚀 Siêu phẩm đề thi mới!',
-                    content: `Toàn bộ đề thi "${test.title}" đã được công khai. Cơ hội vàng để ôn luyện TOEIC đây rồi!`,
+                    title: 'Siêu phẩm đề thi mới!',
+                    content: `Đề thi "${test.title}" đã được mở. Cơ hội vàng để ôn luyện TOEIC đây rồi!`,
                     type: 'NEW_TEST_OPENED' as any,
                     relatedId: test.id
                 });
@@ -713,9 +713,9 @@ export const toggleTestLock = async (
         }
 
         if ((test.status as any) === 'PENDING') {
-            res.status(400).json({ 
-                success: false, 
-                message: 'Bài thi đang chờ duyệt, vui lòng duyệt trước khi thay đổi trạng thái khóa.' 
+            res.status(400).json({
+                success: false,
+                message: 'Bài thi đang chờ duyệt, vui lòng duyệt trước khi thay đổi trạng thái khóa.'
             });
             return;
         }
@@ -761,7 +761,7 @@ export const toggleTestLock = async (
             (async () => {
                 try {
                     await NotificationService.broadcastNotification({
-                        title: '🔔 Đề thi đã mở lại!',
+                        title: 'Đề thi đã mở lại!',
                         content: `Đề thi "${updatedTest.title}" đã có thể truy cập trở lại. Đừng bỏ lỡ cơ hội luyện tập nhé!`,
                         type: 'NEW_TEST_OPENED' as any,
                         relatedId: updatedTest.id

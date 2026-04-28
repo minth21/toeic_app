@@ -2,47 +2,27 @@
   "success": true,
   "data": {
     "user": {
-      "id": "7e710857-2f8a-4a82-815b-5ae912c25c9c",
-      "name": "Minh Tâm",
-      "progress": 70,
-      "targetScore": 550,
-      "estimatedScore": 115,
-      "estimatedListening": 15,
-      "estimatedReading": 100,
-      "totalAttempts": 3,
-      "max_p1": 1,
+      "id": "5b909ee0-f003-4ee6-8db5-a8a3ef82b0d6",
+      "name": "Thi Giang",
+      "progress": 100,
+      "targetScore": 350,
+      "estimatedScore": 100,
+      "estimatedListening": 85,
+      "estimatedReading": 15,
+      "totalAttempts": 7,
+      "max_p1": 6,
       "id_p1": "7ca75557-a03f-4037-96d6-a4a3a152b80e",
-      "max_p5": 21,
-      "id_p5": "647de6a5-c74e-4012-a94c-10ab8d897d28"
+      "max_p2": 9,
+      "id_p2": "d4baaadc-ce81-4164-81c9-c7ab79eca779",
+      "max_p3": 0,
+      "id_p3": "7e02336e-fb84-4da0-9862-bd63d8c28094",
+      "max_p5": 4,
+      "id_p5": "261486ba-e02c-4a7e-a247-d0d128140274"
     },
     "streak": 1,
     "recentActivities": [
       {
-        "id": "6b311b7d-4311-48d6-8264-752064b23e38",
-        "partId": "647de6a5-c74e-4012-a94c-10ab8d897d28",
-        "partNumber": 5,
-        "title": "TOEIC-TEST 1",
-        "partName": "Part 5: Incomplete Sentences",
-        "score": 21,
-        "totalQuestions": 30,
-        "percentage": 70,
-        "toeicScore": 100,
-        "createdAt": "2026-04-26T07:12:42.358Z"
-      },
-      {
-        "id": "0ba69949-0df4-41ef-829e-1aead77e141e",
-        "partId": "7ca75557-a03f-4037-96d6-a4a3a152b80e",
-        "partNumber": 1,
-        "title": "TOEIC-TEST 1",
-        "partName": "Part 1: Photographs",
-        "score": 1,
-        "totalQuestions": 6,
-        "percentage": 17,
-        "toeicScore": 15,
-        "createdAt": "2026-04-26T00:41:28.871Z"
-      },
-      {
-        "id": "3d34bb7f-ad38-49b8-b32e-900ec360722e",
+        "id": "fe875bd1-db7c-4927-bd1f-0cf33171b64e",
         "partId": "7ca75557-a03f-4037-96d6-a4a3a152b80e",
         "partNumber": 1,
         "title": "TOEIC-TEST 1",
@@ -51,33 +31,97 @@
         "totalQuestions": 6,
         "percentage": 100,
         "toeicScore": 40,
-        "createdAt": "2026-04-26T00:38:05.886Z"
+        "createdAt": "2026-04-22T19:35:22.031Z"
+      },
+      {
+        "id": "2c60ccec-0817-44b1-b9bc-f6e96583d9b9",
+        "partId": "7ca75557-a03f-4037-96d6-a4a3a152b80e",
+        "partNumber": 1,
+        "title": "TOEIC-TEST 1",
+        "partName": "Part 1: Photographs",
+        "score": 6,
+        "totalQuestions": 6,
+        "percentage": 100,
+        "toeicScore": 40,
+        "createdAt": "2026-04-22T19:25:15.588Z"
+      },
+      {
+        "id": "336950aa-e1c5-4277-b734-78dd50ade978",
+        "partId": "261486ba-e02c-4a7e-a247-d0d128140274",
+        "partNumber": 5,
+        "title": "TOEIC-TEST 2",
+        "partName": "Part 5: Incomplete Sentences",
+        "score": 4,
+        "totalQuestions": 5,
+        "percentage": 80,
+        "toeicScore": 15,
+        "createdAt": "2026-04-22T19:14:58.385Z"
       }
     ],
     "learningTimeline": [
       {
-        "id": "6b311b7d-4311-48d6-8264-752064b23e38",
-        "date": "2026-04-26T07:12:42.358Z",
-        "title": "TOEIC-TEST 1",
-        "partName": "Part 5: Incomplete Sentences",
-        "partNumber": 5,
-        "score": 21,
-        "total": 30,
-        "toeicScore": 100
-      },
-      {
-        "id": "0ba69949-0df4-41ef-829e-1aead77e141e",
-        "date": "2026-04-26T00:41:28.871Z",
+        "id": "fe875bd1-db7c-4927-bd1f-0cf33171b64e",
+        "date": "2026-04-22T19:35:22.031Z",
         "title": "TOEIC-TEST 1",
         "partName": "Part 1: Photographs",
         "partNumber": 1,
-        "score": 1,
+        "score": 6,
         "total": 6,
+        "toeicScore": 40
+      },
+      {
+        "id": "2c60ccec-0817-44b1-b9bc-f6e96583d9b9",
+        "date": "2026-04-22T19:25:15.588Z",
+        "title": "TOEIC-TEST 1",
+        "partName": "Part 1: Photographs",
+        "partNumber": 1,
+        "score": 6,
+        "total": 6,
+        "toeicScore": 40
+      },
+      {
+        "id": "336950aa-e1c5-4277-b734-78dd50ade978",
+        "date": "2026-04-22T19:14:58.385Z",
+        "title": "TOEIC-TEST 2",
+        "partName": "Part 5: Incomplete Sentences",
+        "partNumber": 5,
+        "score": 4,
+        "total": 5,
         "toeicScore": 15
       },
       {
-        "id": "3d34bb7f-ad38-49b8-b32e-900ec360722e",
-        "date": "2026-04-26T00:38:05.886Z",
+        "id": "ad8f4063-2133-4c98-be13-47ebc31465ee",
+        "date": "2026-04-22T19:07:59.208Z",
+        "title": "TOEIC-TEST 1",
+        "partName": "Part 3: Conversations",
+        "partNumber": 3,
+        "score": 0,
+        "total": 12,
+        "toeicScore": 5
+      },
+      {
+        "id": "65357510-bf09-4cc5-9866-f2ed8e3b13df",
+        "date": "2026-04-22T19:00:30.283Z",
+        "title": "TOEIC-TEST 1",
+        "partName": "Part 3: Conversations",
+        "partNumber": 3,
+        "score": 3,
+        "total": 12,
+        "toeicScore": 25
+      },
+      {
+        "id": "ae3378f2-82f1-4ad6-bddc-e779879d7272",
+        "date": "2026-04-22T18:27:19.028Z",
+        "title": "TOEIC-TEST 1",
+        "partName": "Part 2: Question-Response",
+        "partNumber": 2,
+        "score": 9,
+        "total": 25,
+        "toeicScore": 55
+      },
+      {
+        "id": "2cdf975b-2b47-40eb-a535-b0dbc7978d46",
+        "date": "2026-04-22T18:26:19.446Z",
         "title": "TOEIC-TEST 1",
         "partName": "Part 1: Photographs",
         "partNumber": 1,
@@ -87,14 +131,6 @@
       }
     ],
     "activityStats": [
-      {
-        "date": "2026-01-27",
-        "count": 0
-      },
-      {
-        "date": "2026-01-28",
-        "count": 0
-      },
       {
         "date": "2026-01-29",
         "count": 0
@@ -433,7 +469,7 @@
       },
       {
         "date": "2026-04-23",
-        "count": 0
+        "count": 7
       },
       {
         "date": "2026-04-24",
@@ -445,13 +481,21 @@
       },
       {
         "date": "2026-04-26",
-        "count": 3
+        "count": 0
+      },
+      {
+        "date": "2026-04-27",
+        "count": 0
+      },
+      {
+        "date": "2026-04-28",
+        "count": 0
       }
     ],
     "recommendations": [
       {
-        "title": "Ôn lại Part 1: Photographs",
-        "subtitle": "Bạn đạt 17% ở lần làm gần nhất.",
+        "title": "Ôn lại Part 3: Conversations",
+        "subtitle": "Bạn đạt 0% ở lần làm gần nhất.",
         "type": "REVIEW",
         "icon": "warning"
       },
@@ -463,20 +507,20 @@
       }
     ],
     "resumeLearning": {
-      "id": "6b311b7d-4311-48d6-8264-752064b23e38",
-      "partId": "647de6a5-c74e-4012-a94c-10ab8d897d28",
-      "partNumber": 5,
+      "id": "fe875bd1-db7c-4927-bd1f-0cf33171b64e",
+      "partId": "7ca75557-a03f-4037-96d6-a4a3a152b80e",
+      "partNumber": 1,
       "title": "TOEIC-TEST 1",
-      "createdAt": "2026-04-26T07:12:42.358Z"
+      "createdAt": "2026-04-22T19:35:22.031Z"
     },
     "milestones": [
       {
-        "date": "2026-04-26",
+        "date": "2026-04-23",
         "label": "🌱 Ngày đầu khởi nghiệp"
       },
       {
-        "date": "2026-04-26",
-        "label": "🏆 Kỷ lục cày cuốc: 3 bài"
+        "date": "2026-04-23",
+        "label": "🏆 Kỷ lục cày cuốc: 7 bài"
       }
     ]
   }

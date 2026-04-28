@@ -3,18 +3,30 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('Querying database: toeic_practice...');
-  const question = await prisma.question.findFirst({
-    where: { questionNumber: 131 },
+  const questions = await prisma.question.findMany({
+    where: {
+      questionNumber: {
+        in: [131, 132, 133, 134, 135, 136, 137, 138]
+      }
+    },
+    select: {
+      id: true,
+      questionNumber: true,
+      keyVocabulary: true,
+      passageTranslationData: true
+    },
+    orderBy: {
+      questionNumber: 'asc'
+    }
   });
-  if (!question) {
-    console.log('NOT FOUND question 131');
-    return;
-  }
-  console.log('--- DATA QUESTION 131 ---');
-  console.log(JSON.stringify(question, null, 2));
+
+  console.log('--- DATABASE CHECK (131-138) ---');
+  questions.forEach(q => {
+    console.log(`\n[Question ${q.questionNumber}]`);
+    console.log('keyVocabulary:', q.keyVocabulary);
+  });
 }
 
 main()
-  .catch((e) => console.error(e))
+  .catch(e => console.error(e))
   .finally(async () => await prisma.$disconnect());

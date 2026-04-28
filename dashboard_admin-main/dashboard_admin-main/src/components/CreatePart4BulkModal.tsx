@@ -102,7 +102,7 @@ export default function CreatePart4BulkModal({ open, onCancel, onSuccess, partId
                                     initialGroups[gIdx].keyVocabulary = vocab.map((v: any) => ({
                                         word: v.word || v.text || '',
                                         type: v.type || v.lemma || '',
-                                        ipa: v.ipa || '',
+                                        ipa: v.ipa || v.pronunciation || '',
                                         meaning: v.meaning || ''
                                     }));
                                 }

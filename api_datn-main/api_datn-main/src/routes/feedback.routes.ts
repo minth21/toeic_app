@@ -14,6 +14,9 @@ router.post('/', roleMiddleware(['STUDENT'] as any[]), FeedbackController.sendFe
 // 2. Lấy danh sách ý kiến (GV xem của lớp, HV xem của mình, Admin xem hết)
 router.get('/', roleMiddleware(['ADMIN', 'TEACHER', 'STUDENT'] as any[]), FeedbackController.getFeedbacks);
 
+// 6. Xem chi tiết một ý kiến
+router.get('/:id', roleMiddleware(['ADMIN', 'TEACHER', 'STUDENT'] as any[]), FeedbackController.getFeedbackDetail);
+
 // 3. GV xử lý xong ý kiến (Chỉ TEACHER hoặc ADMIN)
 router.patch('/:id/resolve', roleMiddleware(['ADMIN', 'TEACHER'] as any[]), FeedbackController.resolveFeedback);
 

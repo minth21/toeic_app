@@ -1214,14 +1214,35 @@ export default function PartDetail() {
                                                                 <Divider titlePlacement="left" styles={{ content: { margin: 0 } }} style={{ borderTopStyle: 'dashed', borderTopColor: '#DDD6FE', marginBottom: 16 }}>
                                                                     <span style={{ color: '#059669', fontWeight: 700, fontSize: 14 }}>TỪ VỰNG QUAN TRỌNG</span>
                                                                 </Divider>
-                                                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                                                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
                                                                     {vocabulary.map((v: any, i: number) => (
-                                                                        <Tag key={i} color="green" style={{ borderRadius: 6, margin: 0, padding: '4px 10px', fontSize: 13 }}>
+                                                                        <Tag 
+                                                                            key={i} 
+                                                                            style={{ 
+                                                                                borderRadius: 20, 
+                                                                                margin: 0, 
+                                                                                padding: '5px 16px', 
+                                                                                fontSize: 14,
+                                                                                background: '#F7FEE7',
+                                                                                border: '1px solid #D9F99D',
+                                                                                color: '#374151',
+                                                                                display: 'flex',
+                                                                                alignItems: 'center'
+                                                                            }}
+                                                                        >
                                                                             <b style={{ color: '#065F46' }}>{v.word || v.text}</b>
-                                                                            {(v.type || v.lemma) && <span style={{ color: '#059669', marginLeft: 4 }}>({v.type || v.lemma})</span>}
-                                                                            {v.ipa && <span style={{ color: '#6B7280', marginLeft: 4, fontStyle: 'italic' }}>/{v.ipa}/</span>}
-                                                                            <span style={{ margin: '0 4px' }}>:</span>
-                                                                            {v.meaning}
+                                                                            {(v.type || v.lemma || v.pos) && (
+                                                                                <span style={{ color: '#059669', marginLeft: 5 }}>
+                                                                                    ({v.type || v.lemma || v.pos})
+                                                                                </span>
+                                                                            )}
+                                                                            {(v.ipa || v.pronunciation) && (
+                                                                                <span style={{ color: '#6B7280', marginLeft: 5, fontStyle: 'italic' }}>
+                                                                                    {v.ipa || v.pronunciation}
+                                                                                </span>
+                                                                            )}
+                                                                            <span style={{ margin: '0 5px', color: '#84CC16', fontWeight: 900 }}>:</span>
+                                                                            <span>{v.meaning}</span>
                                                                         </Tag>
                                                                     ))}
                                                                 </div>

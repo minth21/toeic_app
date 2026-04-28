@@ -282,7 +282,7 @@ export default function CreatePart5BulkModal({
                         ? q.keyVocabulary 
                         : JSON.stringify((q.keyVocabulary || []).map((v: any) => ({
                             ...v,
-                            ipa: (v.ipa || '').replace(/^\/+|\/+$/g, '').trim()
+                            ipa: (v.ipa || v.pronunciation || '').replace(/^\/+|\/+$/g, '').trim()
                         }))),
                 })),
                 mode: importMode
@@ -488,7 +488,7 @@ export default function CreatePart5BulkModal({
                                                                             <Tag color="blue" style={{ margin: 0, fontSize: 10, lineHeight: '16px' }}>{v.type || v.pos || 'n'}</Tag>
                                                                         </div>
                                                                         <div style={{ fontSize: 12, color: '#64748B' }}>
-                                                                            <span style={{ color: '#3B82F6', marginRight: 6 }}>{v.ipa}</span>
+                                                                            <span style={{ color: '#3B82F6', marginRight: 6 }}>{v.ipa || v.pronunciation}</span>
                                                                             <span>{v.meaning}</span>
                                                                         </div>
                                                                     </div>

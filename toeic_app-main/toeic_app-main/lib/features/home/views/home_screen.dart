@@ -28,7 +28,6 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-
   @override
   void initState() {
     super.initState();
@@ -37,7 +36,9 @@ class _HomeScreenState extends State<HomeScreen> {
       context.read<DashboardViewModel>().loadDashboard();
       context.read<VocabularyViewModel>().loadFlashcards();
       context.read<NotificationViewModel>().loadNotifications();
-      context.read<AuthViewModel>().refreshCurrentUser(); // Cập nhật thông tin lớp học mới nhất
+      context
+          .read<AuthViewModel>()
+          .refreshCurrentUser(); // Cập nhật thông tin lớp học mới nhất
       final progressVM = context.read<ProgressViewModel>();
       final timelineVM = context.read<AiTimelineViewModel>();
       final userId = context.read<AuthViewModel>().currentUser?.id;
@@ -50,18 +51,20 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   String _getAiDynamicTagline(int currentScore, int targetScore) {
-    if (currentScore == 0) return '🚀 Bắt đầu bài thi thử để AI lập lộ trình cho bạn nhé!';
-    
+    if (currentScore == 0) {
+      return 'Bắt đầu bài thi thử để AI lập lộ trình cho bạn nhé!';
+    }
+
     final gap = targetScore - currentScore;
     final List<String> taglines = [
-      '🔥 Bạn chỉ còn cách mục tiêu $gap điểm nữa thôi. Cố lên!',
-      '💡 Mẹo nhỏ: Tập trung vào Part 5 để gỡ điểm ngữ pháp nhanh nhất.',
-      '🎧 Đừng quên luyện nghe 15 phút mỗi sáng để nhạy bén hơn nhé.',
-      '📚 Hôm nay hãy thử chinh phục 10 từ vựng Part 7 xem sao?',
-      '🎯 Tập trung vào những phần bạn còn yếu để bứt phá điểm số.',
-      '✨ AI đã cập nhật chiến thuật mới dựa trên kết quả hôm qua của bạn.'
+      'Bạn chỉ còn cách mục tiêu $gap điểm nữa thôi. Cố lên!',
+      'Mẹo nhỏ: Tập trung vào Part 5 để gỡ điểm ngữ pháp nhanh nhất.',
+      'Đừng quên luyện nghe 15 phút mỗi sáng để nhạy bén hơn nhé.',
+      'Hôm nay hãy thử chinh phục 10 từ vựng Part 7 xem sao?',
+      'Tập trung vào những phần bạn còn yếu để bứt phá điểm số.',
+      'AI đã cập nhật chiến thuật mới dựa trên kết quả hôm qua của bạn.',
     ];
-    
+
     // Simple rotation based on day or score to feel "alive"
     return taglines[DateTime.now().second % taglines.length];
   }
@@ -70,10 +73,9 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     final dashboardViewModel = context.watch<DashboardViewModel>();
 
-    if (dashboardViewModel.isLoading && dashboardViewModel.dashboardData == null) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+    if (dashboardViewModel.isLoading &&
+        dashboardViewModel.dashboardData == null) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     // Prefer name from AuthViewModel (available immediately after login)
@@ -89,8 +91,12 @@ class _HomeScreenState extends State<HomeScreen> {
         onRefresh: () async {
           await Future.wait([
             dashboardViewModel.loadDashboard(),
-            if (mounted) context.read<NotificationViewModel>().loadNotifications(),
-            if (mounted) context.read<AuthViewModel>().refreshCurrentUser(), // Refresh cả profile khi kéo
+            if (mounted)
+              context.read<NotificationViewModel>().loadNotifications(),
+            if (mounted)
+              context
+                  .read<AuthViewModel>()
+                  .refreshCurrentUser(), // Refresh cả profile khi kéo
           ]);
         },
         child: CustomScrollView(
@@ -111,7 +117,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     ? dashboardViewModel.readingScore
                     : context.watch<ProgressViewModel>().readingScore,
                 // Ưu tiên lấy targetScore từ AuthViewModel (đã set bên tab tiến độ)
-                authUser?.targetScore ?? context.watch<ProgressViewModel>().targetScore,
+                authUser?.targetScore ??
+                    context.watch<ProgressViewModel>().targetScore,
               ),
             ),
 
@@ -120,10 +127,12 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Consumer<AiTimelineViewModel>(
                 builder: (context, timelineVM, _) {
                   if (timelineVM.isLoading) return const SizedBox.shrink();
-                  
-                  final roadmaps = timelineVM.assessments.where((a) => a.type == AiAssessmentType.roadmap).toList();
+
+                  final roadmaps = timelineVM.assessments
+                      .where((a) => a.type == AiAssessmentType.roadmap)
+                      .toList();
                   if (roadmaps.isEmpty) return const SizedBox.shrink();
-                  
+
                   // Show the most recent roadmap
                   return PersonalRoadmapWidget(roadmap: roadmaps.first);
                 },
@@ -146,10 +155,8 @@ class _HomeScreenState extends State<HomeScreen> {
               _buildAiCoachingSection(dashboardViewModel),
 
             // D. Quick Categories (Menu Kỹ năng)
-            SliverToBoxAdapter(
-              child: _buildQuickCategories(context),
-            ),
-            
+            SliverToBoxAdapter(child: _buildQuickCategories(context)),
+
             // E. Recent Activity Section (RESTORED)
             _buildRecentActivitySection(dashboardViewModel.recentActivities),
 
@@ -166,7 +173,11 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildSliverAppBar(String userName, DashboardViewModel dashboardViewModel, UserModel? authUser) {
+  Widget _buildSliverAppBar(
+    String userName,
+    DashboardViewModel dashboardViewModel,
+    UserModel? authUser,
+  ) {
     return SliverAppBar(
       expandedHeight: 120,
       floating: true,
@@ -193,7 +204,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       style: AppTypography.friendly(
                         fontSize: 22,
                         fontWeight: FontWeight.bold,
-                        color: Theme.of(context).textTheme.displayLarge?.color ?? AppColors.textPrimary,
+                        color:
+                            Theme.of(context).textTheme.displayLarge?.color ??
+                            AppColors.textPrimary,
                       ),
                     ),
                     Consumer<NotificationViewModel>(
@@ -209,12 +222,19 @@ class _HomeScreenState extends State<HomeScreen> {
                               boxShadow: AppShadows.softShadow,
                             ),
                             child: IconButton(
-                              icon: Icon(Icons.notifications_none_rounded,
-                                  color: Theme.of(context).textTheme.bodyLarge?.color),
+                              icon: Icon(
+                                Icons.notifications_none_rounded,
+                                color: Theme.of(
+                                  context,
+                                ).textTheme.bodyLarge?.color,
+                              ),
                               onPressed: () {
                                 Navigator.push(
                                   context,
-                                  MaterialPageRoute(builder: (context) => const NotificationScreen()),
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        const NotificationScreen(),
+                                  ),
                                 );
                               },
                             ),
@@ -232,14 +252,18 @@ class _HomeScreenState extends State<HomeScreen> {
                     Expanded(
                       child: Text(
                         _getAiDynamicTagline(
-                          dashboardViewModel.predictedScore > 0 ? dashboardViewModel.predictedScore : context.watch<ProgressViewModel>().totalScore,
-                          authUser?.targetScore ?? 500
+                          dashboardViewModel.predictedScore > 0
+                              ? dashboardViewModel.predictedScore
+                              : context.watch<ProgressViewModel>().totalScore,
+                          authUser?.targetScore ?? 500,
                         ),
                         style: AppTypography.friendly(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
-                          color: (Theme.of(context).textTheme.bodyMedium?.color ?? AppColors.textSecondary)
-                              .withValues(alpha: 0.8),
+                          color:
+                              (Theme.of(context).textTheme.bodyMedium?.color ??
+                                      AppColors.textSecondary)
+                                  .withValues(alpha: 0.8),
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -255,7 +279,12 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildHeroCard(int totalScore, int listeningScore, int readingScore, int targetScore) {
+  Widget _buildHeroCard(
+    int totalScore,
+    int listeningScore,
+    int readingScore,
+    int targetScore,
+  ) {
     final gap = targetScore - totalScore;
 
     return Container(
@@ -273,7 +302,11 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               Row(
                 children: [
-                  const Icon(Icons.bar_chart_rounded, color: Colors.amberAccent, size: 16),
+                  const Icon(
+                    Icons.bar_chart_rounded,
+                    color: Colors.amberAccent,
+                    size: 16,
+                  ),
                   const SizedBox(width: 8),
                   Text(
                     'ĐIỂM TỔNG TOEIC',
@@ -287,7 +320,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 ],
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(12),
@@ -295,7 +331,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.flag_rounded, color: Colors.amberAccent, size: 12),
+                    const Icon(
+                      Icons.flag_rounded,
+                      color: Colors.amberAccent,
+                      size: 12,
+                    ),
                     const SizedBox(width: 4),
                     Text(
                       'Mục tiêu: $targetScore',
@@ -342,13 +382,21 @@ class _HomeScreenState extends State<HomeScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              _buildSkillScore(Icons.headphones, context.tr('listening'), listeningScore),
+              _buildSkillScore(
+                Icons.headphones,
+                context.tr('listening'),
+                listeningScore,
+              ),
               Container(
                 width: 1,
                 height: 20,
                 color: Colors.white.withValues(alpha: 0.2),
               ),
-              _buildSkillScore(Icons.menu_book, context.tr('reading'), readingScore),
+              _buildSkillScore(
+                Icons.menu_book,
+                context.tr('reading'),
+                readingScore,
+              ),
             ],
           ),
         ],
@@ -380,7 +428,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-
   Widget _buildAiCoachingSection(DashboardViewModel vm) {
     return SliverPadding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 0),
@@ -388,7 +435,11 @@ class _HomeScreenState extends State<HomeScreen> {
         delegate: SliverChildListDelegate([
           Row(
             children: [
-              const Icon(Icons.psychology_alt_rounded, color: AppColors.primary, size: 20),
+              const Icon(
+                Icons.psychology_alt_rounded,
+                color: AppColors.primary,
+                size: 20,
+              ),
               const SizedBox(width: 8),
               Text(
                 'GIA SƯ AI: TƯ VẤN CHIẾN THUẬT',
@@ -422,8 +473,8 @@ class _HomeScreenState extends State<HomeScreen> {
         color: Colors.transparent,
         child: InkWell(
           onTap: () {
-             // Link to Progress tab when clicking advice
-             context.read<NavigationViewModel>().setIndex(3);
+            // Link to Progress tab when clicking advice
+            context.read<NavigationViewModel>().setIndex(3);
           },
           borderRadius: BorderRadius.circular(20),
           child: Padding(
@@ -437,9 +488,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
-                    rec['icon'] == 'warning' ? Icons.lightbulb_rounded : Icons.auto_awesome, 
-                    color: Colors.amber, 
-                    size: 20
+                    rec['icon'] == 'warning'
+                        ? Icons.lightbulb_rounded
+                        : Icons.auto_awesome,
+                    color: Colors.amber,
+                    size: 20,
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -467,7 +520,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     ],
                   ),
                 ),
-                const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.textHint),
+                const Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  size: 14,
+                  color: AppColors.textHint,
+                ),
               ],
             ),
           ),
@@ -475,7 +532,6 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
-
 
   Widget _buildQuickCategories(BuildContext context) {
     return Padding(
@@ -492,7 +548,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   AppColors.primary.withValues(alpha: 0.1),
                   AppColors.primary,
                   onTap: () {
-                    context.read<PracticeViewModel>().setSkillFilter('listening');
+                    context.read<PracticeViewModel>().setSkillFilter(
+                      'listening',
+                    );
                     context.read<NavigationViewModel>().setIndex(1);
                   },
                 ),
@@ -614,8 +672,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-
-
   Widget _buildClassCard(BuildContext context, UserModel user) {
     return Container(
       margin: const EdgeInsets.fromLTRB(20, 0, 20, 24),
@@ -623,7 +679,10 @@ class _HomeScreenState extends State<HomeScreen> {
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(24),
         boxShadow: AppShadows.softShadow,
-        border: Border.all(color: AppColors.primary.withValues(alpha: 0.05), width: 1),
+        border: Border.all(
+          color: AppColors.primary.withValues(alpha: 0.05),
+          width: 1,
+        ),
       ),
       child: Material(
         color: Colors.transparent,
@@ -631,7 +690,9 @@ class _HomeScreenState extends State<HomeScreen> {
           onTap: () {
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => const ClassMaterialsScreen()),
+              MaterialPageRoute(
+                builder: (context) => const ClassMaterialsScreen(),
+              ),
             );
           },
           borderRadius: BorderRadius.circular(24),
@@ -645,7 +706,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     color: AppColors.primary.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  child: const Icon(Icons.school_rounded, color: AppColors.primary, size: 28),
+                  child: const Icon(
+                    Icons.school_rounded,
+                    color: AppColors.primary,
+                    size: 28,
+                  ),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -672,7 +737,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.primary,
                     borderRadius: BorderRadius.circular(12),
@@ -695,7 +763,9 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildRecentActivitySection(List<dynamic> activities) {
-    if (activities.isEmpty) return const SliverToBoxAdapter(child: SizedBox.shrink());
+    if (activities.isEmpty) {
+      return const SliverToBoxAdapter(child: SizedBox.shrink());
+    }
 
     return SliverPadding(
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
@@ -716,7 +786,9 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
           ),
           const SizedBox(height: 16),
-          ...activities.take(3).map((activity) => _buildRecentActivityCard(activity)),
+          ...activities
+              .take(3)
+              .map((activity) => _buildRecentActivityCard(activity)),
         ]),
       ),
     );
@@ -724,7 +796,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildRecentActivityCard(dynamic activity) {
     final int percentage = activity['percentage'] ?? 0;
-    final bool isCorrect = percentage >= 50; // Đưa về 50% để bài làm hôm qua hiện Xanh đúng chuẩn
+    final bool isCorrect =
+        percentage >= 50; // Đưa về 50% để bài làm hôm qua hiện Xanh đúng chuẩn
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -738,11 +811,15 @@ class _HomeScreenState extends State<HomeScreen> {
         leading: Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: (isCorrect ? AppColors.success : AppColors.error).withValues(alpha: 0.1),
+            color: (isCorrect ? AppColors.success : AppColors.error).withValues(
+              alpha: 0.1,
+            ),
             shape: BoxShape.circle,
           ),
           child: Icon(
-            isCorrect ? Icons.check_circle_outline : Icons.highlight_off_rounded,
+            isCorrect
+                ? Icons.check_circle_outline
+                : Icons.highlight_off_rounded,
             color: isCorrect ? AppColors.success : AppColors.error,
             size: 24,
           ),

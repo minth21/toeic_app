@@ -196,7 +196,7 @@ class AppLocalizations {
       'questions': 'câu',
       'minutes': 'phút',
       'start_now': 'Làm bài ngay',
-      'no_tests_found': 'Không tìm thấy đề thi nào',
+      'no_tests_found': 'Không tìm thấy đề ôn luyện nào',
       'difficulty': 'Độ khó',
       'duration': 'Thời gian',
       'total_questions': 'Tổng số câu',
@@ -216,7 +216,7 @@ class AppLocalizations {
       'completed': 'Hoàn thành',
       'points_to_go': 'điểm nữa!',
       'target_achieved': 'Đã hoàn thành mục tiêu!',
-      'no_performance_data_msg': 'Hãy thi thử để bắt đầu ghi lại điểm số',
+      'no_performance_data_msg': 'Hãy luyện tập để bắt đầu ghi lại điểm số',
       'no_ai_assessments_msg': 'Chưa có nhận xét AI nào.',
       'achievement_points_label': 'Điểm',
 

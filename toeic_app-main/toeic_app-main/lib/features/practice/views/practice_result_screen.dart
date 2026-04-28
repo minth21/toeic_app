@@ -1053,7 +1053,7 @@ class _PracticeResultScreenState extends State<PracticeResultScreen> {
           if (practiceTest == null) {
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Không tìm thấy dữ liệu đề thi.')),
+                const SnackBar(content: Text('Không tìm thấy dữ liệu đề ôn luyện.')),
               );
             }
             return;

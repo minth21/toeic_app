@@ -123,37 +123,59 @@ export default function CreatePart6Modal({ open, onCancel, onSuccess, partId, mo
                     passageSections = [{ label: 'ĐOẠN VĂN', items: [] }];
                 }
 
-                form.setFieldsValue({
-                    passages: [{
-                        passageTitle: cleanContent(passage.passage?.match(/<p[^>]*>\s*<b>\s*(.*?)\s*<\/b>\s*<\/p>/)?.[1] || ''),
-                        passage: (passage.passage || '').replace(/<p[^>]*>\s*<b>\s*.*?\s*<\/b>\s*<\/p>/, '').trim(),
-                        passageType: pUrls.length > 0 ? 'image' : 'text',
-                        passageTranslationData: passageSections,
-                        keyVocabulary: safeParseArray(firstQ.keyVocabulary).filter(v => v !== null).map((v: any) => ({
-                            word: (v.word || v.text || '').trim(),
-                            type: v.type || v.lemma || '',
-                            pronunciation: v.pronunciation || v.ipa || '',
-                            meaning: v.meaning || ''
-                        })),
-                        startQuestion: firstQ.questionNumber,
-                        endQuestion: lastQ.questionNumber,
-                        questions: questions.map((q: any) => ({
-                            id: q.id,
-                            questionNumber: q.questionNumber,
-                            questionText: cleanContent(q.questionText || ''),
-                            imageUrl: q.imageUrl,
-                            optionA: cleanContent(q.optionA || ''),
-                            optionB: cleanContent(q.optionB || ''),
-                            optionC: cleanContent(q.optionC || ''),
-                            optionD: cleanContent(q.optionD || ''),
-                            optionTranslations: safeParseObj(q.optionTranslations),
-                            questionTranslation: cleanContent(q.questionTranslation || ''),
-                            correctAnswer: q.correctAnswer,
-                            analysis: q.analysis,
-                            evidence: q.evidence
-                        }))
-                    }]
+                // Thu thập từ vựng từ TẤT CẢ câu hỏi trong nhóm
+                const vocabMap = new Map();
+                questions.forEach((q: any) => {
+                    const qVocabs = safeParseArray(q.keyVocabulary);
+                    qVocabs.forEach((v: any) => {
+                        if (v && (v.word || v.text)) {
+                            const key = (v.word || v.text).toLowerCase().trim();
+                            if (!vocabMap.has(key)) {
+                                vocabMap.set(key, {
+                                    word: (v.word || v.text || '').trim(),
+                                    type: v.type || v.lemma || '',
+                                    ipa: v.ipa || v.pronunciation || '',
+                                    meaning: v.meaning || ''
+                                });
+                            }
+                        }
+                    });
                 });
+
+                const consolidatedVocab = Array.from(vocabMap.values());
+                console.log(`[Edit Mode] Consolidated Vocab (${consolidatedVocab.length} items):`, consolidatedVocab);
+
+                setTimeout(() => {
+                    if (consolidatedVocab.length > 0) {
+                        message.info(`Đã tải ${consolidatedVocab.length} từ vựng hệ thống`);
+                    }
+                    form.setFieldsValue({
+                        passages: [{
+                            passageTitle: cleanContent(passage.passage?.match(/<p[^>]*>\s*<b>\s*(.*?)\s*<\/b>\s*<\/p>/)?.[1] || ''),
+                            passage: (passage.passage || '').replace(/<p[^>]*>\s*<b>\s*.*?\s*<\/b>\s*<\/p>/, '').trim(),
+                            passageType: pUrls.length > 0 ? 'image' : 'text',
+                            passageTranslationData: passageSections,
+                            keyVocabulary: consolidatedVocab,
+                            startQuestion: firstQ.questionNumber,
+                            endQuestion: lastQ.questionNumber,
+                            questions: questions.map((q: any) => ({
+                                id: q.id,
+                                questionNumber: q.questionNumber,
+                                questionText: cleanContent(q.questionText || ''),
+                                imageUrl: q.imageUrl,
+                                optionA: cleanContent(q.optionA || ''),
+                                optionB: cleanContent(q.optionB || ''),
+                                optionC: cleanContent(q.optionC || ''),
+                                optionD: cleanContent(q.optionD || ''),
+                                optionTranslations: safeParseObj(q.optionTranslations),
+                                questionTranslation: cleanContent(q.questionTranslation || ''),
+                                correctAnswer: q.correctAnswer,
+                                analysis: q.analysis,
+                                evidence: q.evidence
+                            }))
+                        }]
+                    });
+                }, 50);
 
                 setPassageFileLists({ 0: pUrls.map((url: string, i: number) => ({ uid: `-p-${i}`, status: 'done', url })) });
                 setQuestionFileLists({ 0: sUrls.map((url: string, i: number) => ({ uid: `-s-${i}`, status: 'done', url })) });
