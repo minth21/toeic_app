@@ -369,6 +369,19 @@ export class ClassController {
                 return errorResponse(res, 'Thiếu ID học viên', HTTP_STATUS.BAD_REQUEST);
             }
 
+            const classData = await p.class.findUnique({ 
+                where: { id: classId },
+                include: { _count: { select: { students: true } } }
+            });
+
+            if (!classData) {
+                return errorResponse(res, 'Không tìm thấy lớp học', HTTP_STATUS.NOT_FOUND);
+            }
+
+            if (classData._count.students >= classData.maxCapacity) {
+                return errorResponse(res, `Lớp học đã đạt sĩ số tối đa (${classData.maxCapacity} học viên)`, HTTP_STATUS.BAD_REQUEST);
+            }
+
             const student = await p.user.findUnique({ where: { id: studentId } });
             if (!student || student.role !== 'STUDENT') {
                 return errorResponse(res, 'Không tìm thấy học viên hợp lệ', HTTP_STATUS.NOT_FOUND);

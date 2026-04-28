@@ -227,7 +227,7 @@ export default function UserManagement() {
             }
 
             let data;
-            const autoRoles = ['STUDENT', 'TEACHER', 'SPECIALIST'];
+            const autoRoles = ['STUDENT', 'TEACHER'];
             if (autoRoles.includes(submitValues.role)) {
                 data = await userApi.createUserAuto(submitValues);
             } else {
@@ -594,7 +594,7 @@ export default function UserManagement() {
                             style={{ width: 180 }}
                         >
                             <Option value="ALL">Tất cả vai trò</Option>
-                            <Option value="SPECIALIST">Chuyên viên</Option>
+                            {/* SPECIALIST role hidden */}
                             <Option value="TEACHER">Giáo viên</Option>
                             <Option value="STUDENT">Học viên</Option>
                         </Select>
@@ -868,7 +868,7 @@ export default function UserManagement() {
                                     suffixIcon={<SafetyCertificateOutlined style={{ color: '#94A3B8' }} />}
                                     disabled={editingUser?.role === 'ADMIN'}
                                 >
-                                    <Option value="SPECIALIST">Chuyên viên</Option>
+                                    {/* SPECIALIST role hidden */}
                                     <Option value="TEACHER">Giáo viên</Option>
                                     <Option value="STUDENT">Học viên</Option>
                                 </Select>
@@ -939,7 +939,7 @@ export default function UserManagement() {
                                 >
                                     <Option value="STUDENT">Học viên</Option>
                                     <Option value="TEACHER">Giáo viên</Option>
-                                    <Option value="SPECIALIST">Chuyên viên</Option>
+                                    {/* SPECIALIST role hidden */}
                                 </Select>
                             </Form.Item>
                         </Col>
@@ -953,7 +953,7 @@ export default function UserManagement() {
                             const role = getFieldValue('role');
                             if (!role) return null;
 
-                            const isAutoRole = ['STUDENT', 'TEACHER', 'SPECIALIST'].includes(role);
+                            const isAutoRole = ['STUDENT', 'TEACHER'].includes(role);
 
                             return (
                                 <>

@@ -17,8 +17,8 @@ export default function Login() {
             const response = await authApi.login(values);
 
             if (response.success && response.user && response.token) {
-                // Allow ADMIN, SPECIALIST, REVIEWER and TEACHER
-                const allowedRoles = ['ADMIN', 'SPECIALIST', 'REVIEWER', 'TEACHER'];
+                // Block SPECIALIST access
+                const allowedRoles = ['ADMIN', 'REVIEWER', 'TEACHER'];
                 if (!allowedRoles.includes(response.user.role)) {
                     message.error('Bạn không có quyền truy cập Trang quản trị!');
                     setLoading(false);

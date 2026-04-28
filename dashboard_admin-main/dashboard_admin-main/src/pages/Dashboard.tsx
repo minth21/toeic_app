@@ -119,20 +119,17 @@ export default function Dashboard() {
             if (path === '/' || path === '/dashboard' || path === '/exam-bank') navigate('/teacher/materials', { replace: true });
         }
 
-        // 2. SPECIALIST (CV) Guard
+        // 2. SPECIALIST (CV) Guard - Blocked access
         if (role === 'SPECIALIST') {
-            const forbiddenPaths = ['/users', '/classes', '/teacher/classes'];
-            const isForbidden = forbiddenPaths.some(p => path.startsWith(p));
-
-            if (isForbidden) {
-                message.error('Chuyên viên không có quyền quản lý Người dùng/Lớp học/Học viên. Chuyển về Ngân hàng đề.');
-                navigate('/exam-bank', { replace: true });
-            }
-            // Redirect from / or /dashboard to /exam-bank for Specialists
-            if (path === '/' || path === '/dashboard') navigate('/exam-bank', { replace: true });
+            message.error('Vai trò Chuyên viên không còn được hỗ trợ truy cập!');
+            // Clear local storage and redirect
+            localStorage.removeItem('admin_token');
+            localStorage.removeItem('admin_user');
+            navigate('/login');
+            return;
         }
 
-        // 3. Prevent unauthorized direct access to sensitive paths (for other potential roles)
+        // 3. Prevent unauthorized direct access to sensitive paths
         if (role === 'STUDENT' && path === '/dashboard') {
             navigate('/exam-bank', { replace: true });
         }
