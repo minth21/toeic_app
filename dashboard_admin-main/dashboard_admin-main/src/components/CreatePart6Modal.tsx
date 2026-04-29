@@ -340,7 +340,10 @@ export default function CreatePart6Modal({ open, onCancel, onSuccess, partId, mo
                         questionScanUrl: sUrls || null,
                         passageTranslationData: JSON.stringify(transPayload),
                         optionTranslations: JSON.stringify(q.optionTranslations || {}),
-                        keyVocabulary: JSON.stringify(item.keyVocabulary || [])
+                        // Only attach keyVocabulary if it's not empty, or preserve existing for edit mode
+                        keyVocabulary: item.keyVocabulary && item.keyVocabulary.length > 0 
+                            ? JSON.stringify(item.keyVocabulary) 
+                            : undefined
                     }))
                 };
 

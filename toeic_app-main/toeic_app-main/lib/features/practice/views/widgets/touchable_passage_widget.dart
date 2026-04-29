@@ -13,6 +13,7 @@ class TouchablePassageWidget extends StatefulWidget {
   final List<Map<String, dynamic>> translations;
   final TextStyle? textStyle;
   final bool showAllTranslations;
+  final bool isReviewMode;
 
   const TouchablePassageWidget({
     super.key,
@@ -20,6 +21,7 @@ class TouchablePassageWidget extends StatefulWidget {
     required this.translations,
     this.textStyle,
     this.showAllTranslations = false,
+    this.isReviewMode = false,
   });
 
   @override
@@ -247,7 +249,7 @@ class _TouchablePassageWidgetState extends State<TouchablePassageWidget> {
     bool isActive,
     List<dynamic> vocab,
   ) {
-    if (!isActive) {
+    if (!isActive || !widget.isReviewMode) {
       return RichText(
         text: TextSpan(
           text: sentence,
@@ -491,6 +493,7 @@ class _TouchablePassageWidgetState extends State<TouchablePassageWidget> {
 
                         return GestureDetector(
                           onTap: () {
+                            if (!widget.isReviewMode) return; // Disable touch-to-translate during practice
                             if (widget.showAllTranslations) return; // Disable manual toggle in "Show All" mode
                             setState(() {
                               _tappedKey = isTapped ? null : currentKey;

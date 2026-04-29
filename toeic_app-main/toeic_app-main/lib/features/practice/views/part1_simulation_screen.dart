@@ -1149,6 +1149,7 @@ class _Part1SimulationScreenState extends State<Part1SimulationScreen> {
             child: TouchablePassageWidget(
               htmlContent: text,
               translations: const [],
+              isReviewMode: false,
             ),
           ),
         ],

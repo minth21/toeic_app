@@ -318,7 +318,6 @@ export const updateQuestion = async (
                 evidence, // ✅ New
                 questionTranslation, // ✅ New
                 optionTranslations, // ✅ New
-                keyVocabulary, // ✅ New
                 level: sanitizeDifficulty(level), // ✅ Sanitized
                 passage,
                 audioUrl,
@@ -328,6 +327,10 @@ export const updateQuestion = async (
                 questionScanUrl,
                 passageTranslationData: sanitizedData,
                 topic_tag,
+                // Safety check: Don't overwrite with empty string or empty array if provided as such
+                ...(keyVocabulary !== undefined && keyVocabulary !== null && keyVocabulary !== '[]' && keyVocabulary !== '' 
+                    ? { keyVocabulary } 
+                    : {}),
             },
         });
 

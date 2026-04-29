@@ -237,7 +237,7 @@ export default function ClassFeedbackManagement() {
     return (
         <div style={{ padding: '24px', background: token.colorBgLayout, minHeight: '100vh' }}>
             <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Typography.Title level={3} style={{ margin: 0 }}>Quản lý ý kiến học viên</Typography.Title>
+                <Typography.Title level={3} style={{ margin: 0 }}></Typography.Title>
                 <Button
                     icon={<ReloadOutlined />}
                     onClick={fetchFeedbacks}

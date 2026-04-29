@@ -723,6 +723,7 @@ class _TestSimulationScreenState extends State<TestSimulationScreen> {
               child: TouchablePassageWidget(
                 htmlContent: _buildPassageHtml(passage, activeQuestionNumber),
                 translations: translations,
+                isReviewMode: false,
                 textStyle: const TextStyle(
                   fontSize: 16,
                   height: 1.6,

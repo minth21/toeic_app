@@ -4,23 +4,35 @@
     "user": {
       "id": "5b909ee0-f003-4ee6-8db5-a8a3ef82b0d6",
       "name": "Thi Giang",
-      "progress": 100,
+      "progress": 63,
       "targetScore": 350,
-      "estimatedScore": 100,
+      "estimatedScore": 175,
       "estimatedListening": 85,
-      "estimatedReading": 15,
-      "totalAttempts": 7,
+      "estimatedReading": 90,
+      "totalAttempts": 8,
       "max_p1": 6,
       "id_p1": "7ca75557-a03f-4037-96d6-a4a3a152b80e",
       "max_p2": 9,
       "id_p2": "d4baaadc-ce81-4164-81c9-c7ab79eca779",
       "max_p3": 0,
       "id_p3": "7e02336e-fb84-4da0-9862-bd63d8c28094",
-      "max_p5": 4,
-      "id_p5": "261486ba-e02c-4a7e-a247-d0d128140274"
+      "max_p5": 19,
+      "id_p5": "647de6a5-c74e-4012-a94c-10ab8d897d28"
     },
-    "streak": 1,
+    "streak": 2,
     "recentActivities": [
+      {
+        "id": "69e4b2aa-8313-4506-aa7a-b3e1887fe903",
+        "partId": "647de6a5-c74e-4012-a94c-10ab8d897d28",
+        "partNumber": 5,
+        "title": "TOEIC-TEST 1",
+        "partName": "Part 5: Incomplete Sentences",
+        "score": 19,
+        "totalQuestions": 30,
+        "percentage": 63,
+        "toeicScore": 90,
+        "createdAt": "2026-04-29T05:12:13.724Z"
+      },
       {
         "id": "fe875bd1-db7c-4927-bd1f-0cf33171b64e",
         "partId": "7ca75557-a03f-4037-96d6-a4a3a152b80e",
@@ -44,21 +56,19 @@
         "percentage": 100,
         "toeicScore": 40,
         "createdAt": "2026-04-22T19:25:15.588Z"
-      },
-      {
-        "id": "336950aa-e1c5-4277-b734-78dd50ade978",
-        "partId": "261486ba-e02c-4a7e-a247-d0d128140274",
-        "partNumber": 5,
-        "title": "TOEIC-TEST 2",
-        "partName": "Part 5: Incomplete Sentences",
-        "score": 4,
-        "totalQuestions": 5,
-        "percentage": 80,
-        "toeicScore": 15,
-        "createdAt": "2026-04-22T19:14:58.385Z"
       }
     ],
     "learningTimeline": [
+      {
+        "id": "69e4b2aa-8313-4506-aa7a-b3e1887fe903",
+        "date": "2026-04-29T05:12:13.724Z",
+        "title": "TOEIC-TEST 1",
+        "partName": "Part 5: Incomplete Sentences",
+        "partNumber": 5,
+        "score": 19,
+        "total": 30,
+        "toeicScore": 90
+      },
       {
         "id": "fe875bd1-db7c-4927-bd1f-0cf33171b64e",
         "date": "2026-04-22T19:35:22.031Z",
@@ -131,10 +141,6 @@
       }
     ],
     "activityStats": [
-      {
-        "date": "2026-01-29",
-        "count": 0
-      },
       {
         "date": "2026-01-30",
         "count": 0
@@ -490,6 +496,10 @@
       {
         "date": "2026-04-28",
         "count": 0
+      },
+      {
+        "date": "2026-04-29",
+        "count": 1
       }
     ],
     "recommendations": [
@@ -507,11 +517,11 @@
       }
     ],
     "resumeLearning": {
-      "id": "fe875bd1-db7c-4927-bd1f-0cf33171b64e",
-      "partId": "7ca75557-a03f-4037-96d6-a4a3a152b80e",
-      "partNumber": 1,
+      "id": "69e4b2aa-8313-4506-aa7a-b3e1887fe903",
+      "partId": "647de6a5-c74e-4012-a94c-10ab8d897d28",
+      "partNumber": 5,
       "title": "TOEIC-TEST 1",
-      "createdAt": "2026-04-22T19:35:22.031Z"
+      "createdAt": "2026-04-29T05:12:13.724Z"
     },
     "milestones": [
       {

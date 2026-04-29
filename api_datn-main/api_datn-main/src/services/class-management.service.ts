@@ -15,18 +15,18 @@ export class ClassManagementService {
       where: { classId },
       include: {
         userProgress: userId ? {
-            where: { userId }
+          where: { userId }
         } : undefined
       },
       orderBy: { createdAt: 'desc' },
     });
 
     return materials.map(m => {
-        const { userProgress, ...rest } = m as any;
-        return {
-            ...rest,
-            isCompleted: userProgress && userProgress.length > 0 ? userProgress[0].isCompleted : false
-        };
+      const { userProgress, ...rest } = m as any;
+      return {
+        ...rest,
+        isCompleted: userProgress && userProgress.length > 0 ? userProgress[0].isCompleted : false
+      };
     });
   }
 
@@ -41,10 +41,10 @@ export class ClassManagementService {
       // Create subfolder based on type (e.g., class_materials/pdf)
       const subFolder = `class_materials/${dto.type.toLowerCase()}s`;
       const uploadRes = await uploadFileToCloudinary(file.buffer, subFolder);
-      
+
       // Log to DB (Antigravity Audit Log)
       await saveAssetToDb(uploadRes, teacherId);
-      
+
       finalUrl = uploadRes.secure_url;
     }
 
@@ -64,7 +64,7 @@ export class ClassManagementService {
     (async () => {
       try {
         await NotificationService.notifyClass(classId, {
-          title: '📍 Tài liệu học tập mới',
+          title: ' Tài liệu học tập mới',
           content: `Giáo viên vừa thêm tài liệu "${dto.title}" vào lớp của bạn.`,
           type: 'SYSTEM' as any,
           relatedId: material.id
@@ -138,16 +138,16 @@ export class ClassManagementService {
 
     // Notify Students (Async)
     (async () => {
-        try {
-          await NotificationService.notifyClass(classId, {
-            title: '📅 Lịch học mới',
-            content: `Buổi học "${dto.title}" đã được lên lịch vào ngày ${dto.sessionDate}.`,
-            type: 'SYSTEM' as any,
-            relatedId: session.id
-          });
-        } catch (err) {
-          console.error('Failed to notify class about new session:', err);
-        }
+      try {
+        await NotificationService.notifyClass(classId, {
+          title: '📅 Lịch học mới',
+          content: `Buổi học "${dto.title}" đã được lên lịch vào ngày ${dto.sessionDate}.`,
+          type: 'SYSTEM' as any,
+          relatedId: session.id
+        });
+      } catch (err) {
+        console.error('Failed to notify class about new session:', err);
+      }
     })();
 
     return session;

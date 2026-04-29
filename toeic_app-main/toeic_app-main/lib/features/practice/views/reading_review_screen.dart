@@ -1425,6 +1425,7 @@ class _ReadingReviewScreenState extends State<ReadingReviewScreen> {
         TouchablePassageWidget(
           htmlContent: _buildPassageHtml(q.questionNumber),
           translations: q.passageTranslations,
+          isReviewMode: true,
           showAllTranslations: false,
           textStyle: AppTypography.reading(
             fontSize: 17, // Optimized for Lora
