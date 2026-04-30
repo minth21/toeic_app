@@ -41,7 +41,7 @@ export const submitPart = async (
         const [part, questionsSource] = await Promise.all([
             p.part.findUnique({
                 where: { id: partId },
-                select: { partNumber: true, partName: true }
+                select: { partNumber: true, partName: true, testId: true }
             }),
             (prisma.question as any).findMany({
                 where: {
@@ -178,6 +178,7 @@ export const submitPart = async (
             const attempt = await tx.testAttempt.create({
                 data: {
                     userId,
+                    testId: part.testId,
                     partId,
                     startTime: new Date(Date.now() - (timeTaken || 0) * 1000), // Approximate start time
                     endTime: new Date(),

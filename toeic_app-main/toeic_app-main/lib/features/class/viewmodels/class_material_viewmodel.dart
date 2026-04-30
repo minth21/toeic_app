@@ -40,6 +40,32 @@ class ClassMaterialViewModel extends ChangeNotifier {
     }
   }
 
+  Future<void> completeMaterial(String materialId, String token) async {
+    try {
+      final response = await _apiService.completeMaterial(materialId, token);
+      if (response['success'] == true) {
+        // Update local state to show checkmark immediately
+        final index = _materials.indexWhere((m) => m.id == materialId);
+        if (index != -1) {
+          final m = _materials[index];
+          _materials[index] = ClassMaterial(
+            id: m.id,
+            title: m.title,
+            description: m.description,
+            type: m.type,
+            category: m.category,
+            url: m.url,
+            createdAt: m.createdAt,
+            isCompleted: true,
+          );
+          notifyListeners();
+        }
+      }
+    } catch (e) {
+      debugPrint('Error marking material as complete: $e');
+    }
+  }
+
   void clearError() {
     _errorMessage = null;
     notifyListeners();

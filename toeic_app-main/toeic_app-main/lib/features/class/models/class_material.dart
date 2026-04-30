@@ -9,6 +9,7 @@ class ClassMaterial {
   final MaterialCategory category;
   final String url;
   final DateTime createdAt;
+  final bool isCompleted;
 
   ClassMaterial({
     required this.id,
@@ -18,6 +19,7 @@ class ClassMaterial {
     required this.category,
     required this.url,
     required this.createdAt,
+    this.isCompleted = false,
   });
 
   factory ClassMaterial.fromJson(Map<String, dynamic> json) {
@@ -50,6 +52,7 @@ class ClassMaterial {
       category: category,
       url: json['url'] ?? '',
       createdAt: DateTime.parse(json['createdAt']),
+      isCompleted: json['isCompleted'] ?? false,
     );
   }
 }

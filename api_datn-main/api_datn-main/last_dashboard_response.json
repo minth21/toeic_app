@@ -19,7 +19,7 @@
       "max_p5": 19,
       "id_p5": "647de6a5-c74e-4012-a94c-10ab8d897d28"
     },
-    "streak": 2,
+    "streak": 3,
     "recentActivities": [
       {
         "id": "69e4b2aa-8313-4506-aa7a-b3e1887fe903",
@@ -141,10 +141,6 @@
       }
     ],
     "activityStats": [
-      {
-        "date": "2026-01-30",
-        "count": 0
-      },
       {
         "date": "2026-01-31",
         "count": 0
@@ -500,6 +496,10 @@
       {
         "date": "2026-04-29",
         "count": 1
+      },
+      {
+        "date": "2026-04-30",
+        "count": 0
       }
     ],
     "recommendations": [

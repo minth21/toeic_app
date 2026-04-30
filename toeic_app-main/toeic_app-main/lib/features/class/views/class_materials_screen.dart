@@ -244,14 +244,26 @@ class _MaterialCard extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            material.title,
-                            style: GoogleFonts.inter(
-                              fontWeight: FontWeight.w900,
-                              fontSize: 18,
-                              color: AppColors.textPrimary,
-                              height: 1.3,
-                            ),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  material.title,
+                                  style: GoogleFonts.inter(
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 18,
+                                    color: AppColors.textPrimary,
+                                    height: 1.3,
+                                  ),
+                                ),
+                              ),
+                              if (material.isCompleted)
+                                const Icon(
+                                  Icons.check_circle_rounded,
+                                  color: Colors.green,
+                                  size: 20,
+                                ),
+                            ],
                           ),
                           const SizedBox(height: 8),
                           if (material.description != null && material.description!.isNotEmpty) ...[
@@ -345,6 +357,14 @@ class _MaterialCard extends StatelessWidget {
   }
 
   void _handleOpen(BuildContext context) async {
+    final authVM = context.read<AuthViewModel>();
+    final materialVM = context.read<ClassMaterialViewModel>();
+
+    // Mark as completed in background
+    if (!material.isCompleted) {
+      materialVM.completeMaterial(material.id, authVM.token!);
+    }
+
     if (material.type == ClassMaterialType.video) {
       final videoId = YoutubePlayer.convertUrlToId(material.url);
       if (videoId != null) {
