@@ -281,14 +281,14 @@ export class ClassController {
 
             // Header
             worksheet.columns = [
-                { header: 'STT', key: 'stt', width: 8, style: { alignment: { horizontal: 'center' } } },
+                { header: 'STT', key: 'stt', width: 8 },
                 { header: 'Mã HV', key: 'username', width: 15 },
                 { header: 'Họ và tên', key: 'name', width: 25 },
                 { header: 'Số điện thoại', key: 'phoneNumber', width: 20 },
-                { header: 'Listening (Dự kiến)', key: 'listening', width: 20, style: { alignment: { horizontal: 'center' } } },
-                { header: 'Reading (Dự kiến)', key: 'reading', width: 20, style: { alignment: { horizontal: 'center' } } },
-                { header: 'Tổng điểm', key: 'total', width: 15, style: { font: { bold: true }, alignment: { horizontal: 'center' } } },
-                { header: 'Mục tiêu', key: 'target', width: 15, style: { alignment: { horizontal: 'center' } } }
+                { header: 'Listening (Dự kiến)', key: 'listening', width: 20 },
+                { header: 'Reading (Dự kiến)', key: 'reading', width: 20 },
+                { header: 'Tổng điểm', key: 'total', width: 15, style: { font: { bold: true } } },
+                { header: 'Mục tiêu', key: 'target', width: 15 }
             ];
 
             // Thêm dữ liệu

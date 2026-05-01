@@ -1395,31 +1395,31 @@ export default function PartDetail() {
             ),
         } : null,
         {
-            title: part?.partNumber === 1 ? 'Nội dung' : 'Câu hỏi',
+            title: Number(part?.partNumber) === 1 ? 'Nội dung' : 'Câu hỏi',
             dataIndex: 'questionText',
             key: 'questionText',
-            width: 450,
-            align: 'center' as const,
+            width: 500,
+            onHeaderCell: () => ({ style: { textAlign: 'center' } }),
             render: (text: string, record: Question) => (
-                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'center', wordBreak: 'break-word', width: '100%' }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'flex-start', wordBreak: 'break-word', width: '100%' }}>
                     <b style={{ color: '#1E293B', marginRight: 8 }}>{record.questionNumber}.</b>
                     <div
                         dangerouslySetInnerHTML={{
                             __html: (text || '(Không có nội dung)')
                                 .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
                         }}
-                        style={{ margin: 0, fontWeight: 600, color: '#1E3A8A', textAlign: 'left' }}
+                        style={{ margin: 0, fontWeight: 600, color: '#1E3A8A', textAlign: 'left', flex: 1, fontSize: '14px' }}
                     />
                 </div>
-            )
+            ),
         },
         // Only show Translation and AI Enrichment for Reading parts (5, 6, 7)
-        (part?.partNumber && part.partNumber > 4) ? {
-            title: 'Dịch câu hỏi',
+        (Number(part?.partNumber) > 4) ? {
+            title: 'Dịch nghĩa & Từ vựng',
             dataIndex: 'questionTranslation',
-            key: 'translation',
-            width: 350,
-            align: 'center' as const,
+            key: 'questionTranslation',
+            width: 400,
+            onHeaderCell: () => ({ style: { textAlign: 'center' } }),
             render: (text: string, record: Question) => {
                 let vocabList: any[] = [];
                 if (record.keyVocabulary) {
@@ -1433,12 +1433,12 @@ export default function PartDetail() {
                 }
 
                 return (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', wordBreak: 'break-word', alignItems: 'center', width: '100%' }}>
-                        <div style={{ fontSize: '13px', color: '#64748B', fontStyle: 'italic', textAlign: 'center' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', wordBreak: 'break-word', alignItems: 'flex-start', width: '100%' }}>
+                        <div style={{ fontSize: '13px', color: '#64748B', fontStyle: 'italic', textAlign: 'left' }}>
                             {text || <span style={{ color: '#CBD5E1' }}>Chưa có bản dịch</span>}
                         </div>
                         {vocabList.length > 0 && (
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', justifyContent: 'center' }}>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', justifyContent: 'flex-start' }}>
                                 {vocabList.map((v: any, idx: number) => (
                                     <Tooltip key={idx} title={`${v.ipa || ''} - ${v.meaning || ''}`}>
                                         <Tag color="blue" style={{ fontSize: '11px', margin: 0, borderRadius: '4px', cursor: 'help' }}>
@@ -1452,21 +1452,38 @@ export default function PartDetail() {
                 );
             }
         } : null,
+        (![1, 2].includes(Number(part?.partNumber))) ? {
+            title: 'Giải thích',
+            dataIndex: 'explanation',
+            key: 'explanation',
+            width: 350,
+            onHeaderCell: () => ({ style: { textAlign: 'center' } }),
+            render: (text: string) => (
+                <div
+                    className="explanation-content"
+                    style={{ textAlign: 'left', fontSize: '13px', maxHeight: '150px', overflow: 'hidden', color: '#475569' }}
+                    dangerouslySetInnerHTML={{ 
+                        __html: (text || 'Chưa có giải thích')
+                            .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
+                    }}
+                />
+            ),
+        } : null,
         {
             title: 'A',
             dataIndex: 'optionA',
             key: 'optionA',
             width: 150,
-            align: 'center' as const,
-            render: (text: string) => <span style={{ fontSize: '13px' }}>{text}</span>
+            onHeaderCell: () => ({ style: { textAlign: 'center' } }),
+            render: (text: string) => <span style={{ fontSize: '13px' }}>{text}</span>,
         },
         {
             title: 'B',
             dataIndex: 'optionB',
             key: 'optionB',
             width: 150,
-            align: 'center' as const,
-            render: (text: string) => <span style={{ fontSize: '13px' }}>{text}</span>
+            onHeaderCell: () => ({ style: { textAlign: 'center' } }),
+            render: (text: string) => <span style={{ fontSize: '13px' }}>{text}</span>,
         },
         {
             title: 'C',
@@ -1652,51 +1669,52 @@ export default function PartDetail() {
                 {(part?.partNumber >= 1 && part?.partNumber <= 4) && (
                     <Card
                         style={{
-                            marginBottom: 24,
+                            marginBottom: 32,
                             borderRadius: 20,
-                            border: 'none',
+                            border: '1px solid #E2E8F0',
                             boxShadow: modernShadow,
-                            background: 'var(--bg-surface)',
+                            background: '#FFF',
                             overflow: 'hidden'
                         }}
-                        styles={{ body: { padding: 0 } }}
+                        styles={{ body: { padding: '24px 32px' } }}
                     >
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 24 }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 20, flex: 1 }}>
                                 <div style={{
-                                    width: 48,
+                                    width: 64,
                                     height: 48,
-                                    borderRadius: 14,
+                                    borderRadius: 12,
                                     background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
                                     color: '#FFF',
-                                    fontSize: 14,
+                                    fontSize: 13,
                                     fontWeight: 800,
-                                    boxShadow: '0 4px 12px rgba(16, 185, 129, 0.2)'
+                                    boxShadow: '0 4px 10px rgba(16, 185, 129, 0.2)',
+                                    flexShrink: 0
                                 }}>
                                     AUDIO
                                 </div>
                                 <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 16 }}>
                                     <div style={{ flex: 1 }}>
                                         {part?.audioUrl ? (
-                                            <div style={{ width: '100%' }}>
-                                                <AudioPlayer src={part.audioUrl} />
-                                            </div>
+                                            <AudioPlayer src={part.audioUrl} />
                                         ) : (
-                                            <span style={{ color: '#94A3B8', fontStyle: 'italic', fontSize: 13 }}>Chưa có file nghe chung cho phần này</span>
+                                            <div style={{ color: '#94A3B8', fontStyle: 'italic', fontSize: 13, paddingLeft: 8 }}>
+                                                Chưa có file nghe cho phần này
+                                            </div>
                                         )}
                                     </div>
                                     {canEditOrCreate && (
-                                        <Space>
+                                        <Space size="middle">
                                             <Button 
                                                 icon={<EditOutlined />} 
                                                 onClick={() => {
                                                     setTempAudioFiles(null);
                                                     setIsAudioModalVisible(true);
                                                 }}
-                                                style={{ borderRadius: 8, fontWeight: 600, border: '1px solid #10B981', color: '#10B981' }}
+                                                style={{ borderRadius: 10, fontWeight: 600, border: '1px solid #10B981', color: '#10B981', height: 40 }}
                                             >
                                                 Thay đổi
                                             </Button>
@@ -1728,7 +1746,7 @@ export default function PartDetail() {
                             boxShadow: modernShadow,
                             background: 'var(--bg-surface)'
                         }}
-                        bodyStyle={{ padding: '16px 24px' }}
+                        styles={{ body: { padding: '16px 24px' } }}
                     >
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             {canEditOrCreate ? (
@@ -2509,7 +2527,7 @@ export default function PartDetail() {
                 width={650}
                 open={importDrawerVisible}
                 onClose={() => setImportDrawerVisible(false)}
-                bodyStyle={{ padding: '24px' }}
+                styles={{ body: { padding: '24px' } }}
                 headerStyle={{ borderBottom: '1px solid var(--border-color)' }}
             >
                 <Space direction="vertical" size={24} style={{ width: '100%' }}>

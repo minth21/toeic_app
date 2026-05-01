@@ -28,51 +28,8 @@ router.post(
     authController.login.bind(authController)
 );
 
-/**
- * @route   POST /api/auth/register
- * @desc    Đăng ký tài khoản mới
- * @access  Public
- */
-router.post(
-    '/register',
-    [
-        body('name')
-            .notEmpty()
-            .withMessage('Tên không được để trống')
-            .trim()
-            .isLength({ min: 2 })
-            .withMessage('Tên phải có ít nhất 2 ký tự'),
-        body('email')
-            .isEmail()
-            .withMessage('Email không hợp lệ')
-            .normalizeEmail(),
-        body('password')
-            .notEmpty()
-            .withMessage('Password không được để trống')
-            .isLength({ min: 6 })
-            .withMessage('Password phải có ít nhất 6 ký tự'),
-        validateRequest,
-    ],
-    authController.register.bind(authController)
-);
 
-
-
-/**
- * @route   POST /api/auth/google
- * @desc    Đăng nhập bằng Google
- * @access  Public
- */
-router.post(
-    '/google',
-    [
-        body('idToken')
-            .notEmpty()
-            .withMessage('Google ID Token là bắt buộc'),
-        validateRequest,
-    ],
-    authController.googleLogin.bind(authController)
-);
+// [REMOVED] Public registration and Google login are disabled to enforce internal user management.
 
 /**
  * @route   GET /api/auth/me

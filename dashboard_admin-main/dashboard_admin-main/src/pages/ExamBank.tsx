@@ -317,9 +317,9 @@ export default function ExamBank() {
             dataIndex: 'title',
             key: 'title',
             width: 220,
-            align: 'center' as const,
+            onHeaderCell: () => ({ style: { textAlign: 'center' } }),
             render: (title: string) => (
-                <div style={{ fontWeight: 700, color: token.colorText, fontSize: '14px', textAlign: 'center' }}>
+                <div style={{ fontWeight: 700, color: token.colorText, fontSize: '14px', textAlign: 'left' }}>
                     {title}
                 </div>
             ),

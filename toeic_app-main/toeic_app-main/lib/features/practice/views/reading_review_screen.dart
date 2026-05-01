@@ -820,7 +820,7 @@ class _ReadingReviewScreenState extends State<ReadingReviewScreen> {
                     ),
                     const SizedBox(width: 6),
                     Text(
-                      isCorrect ? 'ĐÚNG' : (userAnswer == null || userAnswer.isEmpty ? 'CHƯA TRẢ LỜI' : 'SAI'),
+                      isCorrect ? 'ĐÚNG' : 'SAI',
                       style: GoogleFonts.inter(
                         color: Colors.white,
                         fontWeight: FontWeight.w900,

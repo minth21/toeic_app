@@ -620,10 +620,10 @@ const ClassManagement: React.FC = () => {
                     <Row gutter={16}>
                         <Col span={12}>
                             <Form.Item label="Sĩ số tối đa" name="maxCapacity" rules={[{ required: true, message: 'Vui lòng nhập sĩ số tối đa' }]}>
-                                <InputNumber 
-                                    min={1} 
-                                    max={200} 
-                                    style={{ width: '100%' }} 
+                                <InputNumber
+                                    min={1}
+                                    max={200}
+                                    style={{ width: '100%' }}
                                     placeholder="Vd: 30"
                                 />
                             </Form.Item>
@@ -667,7 +667,7 @@ const ClassManagement: React.FC = () => {
                     style={{ background: '#F8FAFC', borderRadius: 16, marginBottom: 24 }}
                     styles={{ body: { padding: '20px' } }}
                 >
-                    <Title level={5} style={{ marginBottom: 16, fontSize: 14 }}>THÊM HỌC VIÊN</Title>
+                    <Title level={5} style={{ marginBottom: 16, fontSize: 14, fontWeight: 'bold' }}>THÊM HỌC VIÊN</Title>
                     <Space.Compact style={{ width: '100%' }}>
                         <Select
                             showSearch
