@@ -71,7 +71,7 @@ export const generatePart4Explanations = async (req: Request, res: Response) => 
         let { transcript, questions }: { transcript: string; questions: any } = req.body;
 
         if (typeof questions === 'string') questions = JSON.parse(questions);
-        
+
         if (!transcript || !questions || questions.length === 0) {
             return res.status(400).json({
                 success: false,
@@ -193,7 +193,7 @@ export const scanPart7 = async (req: Request, res: Response) => {
 export const enrichPart5Question = async (req: Request, res: Response) => {
     try {
         const { questionText, optionA, optionB, optionC, optionD, correctAnswer } = req.body;
-        
+
         if (!questionText || !optionA || !optionB || !optionC || !optionD || !correctAnswer) {
             return res.status(400).json({ success: false, message: 'Thiếu dữ liệu câu hỏi hoặc đáp án' });
         }
@@ -268,7 +268,7 @@ export const magicScanPart7 = async (req: Request, res: Response) => {
 
         let { imageUrls } = req.body;
         if (typeof imageUrls === 'string') imageUrls = JSON.parse(imageUrls);
-        
+
         const urlImages = [];
         if (imageUrls && Array.isArray(imageUrls)) {
             console.log(`[AI] Downloading ${imageUrls.length} image URLs for Part 7 Magic Scan...`);
@@ -293,7 +293,7 @@ export const magicScanPart7 = async (req: Request, res: Response) => {
         // --- CLOUDINARY UPLOAD: Upload only passage images to get permanent URLs ---
         const { uploadExamImageToCloudinary, saveAssetToDb } = await import('../config/cloudinary.config');
         const passageCloudinaryUrls: string[] = [];
-        
+
         console.log(`[AI] Uploading ${passageFiles.length} passage images to Cloudinary...`);
         for (const file of passageFiles) {
             try {
@@ -446,7 +446,7 @@ export const getAiTimeline = async (req: Request, res: Response, next: NextFunct
         const user = (req as any).user;
         const userRole = user?.role?.toUpperCase();
         const isTeacher = userRole === 'TEACHER';
-        
+
         console.log('=== DEBUG AI TIMELINE ---');
         console.log(`Requester ID: ${user?.id}`);
         console.log(`Requester Role: ${user?.role}`);
@@ -483,7 +483,7 @@ export const getAiTimeline = async (req: Request, res: Response, next: NextFunct
         });
 
         const total = await (prisma as any).aiAssessment.count({ where });
-        
+
         console.log(`[DEBUG] Found ${assessments.length} assessments for user ${userId}`);
         console.log(`[DEBUG] Where clause: ${JSON.stringify(where)}`);
 
@@ -630,12 +630,12 @@ export const submitForApproval = async (req: Request, res: Response) => {
         // Gửi thông báo cho Admin (BroadCast cho TẤT CẢ Admin)
         const { NotificationService } = await import('../services/notification.service');
         const admins = await prisma.user.findMany({ where: { role: 'ADMIN' }, select: { id: true } });
-        
+
         for (const admin of admins) {
             await NotificationService.createNotification({
                 userId: admin.id,
                 title: '🛡️ Yêu cầu duyệt lộ trình mới',
-                content: `Giáo viên ${(req as any).user.name} vừa gửi yêu cầu duyệt lộ trình cho học viên.`,
+                content: `Giảng viên ${(req as any).user.name} vừa gửi yêu cầu duyệt lộ trình cho học viên.`,
                 type: 'ROADMAP_SUBMITTED' as any,
                 relatedId: updated.id
             });
@@ -767,17 +767,17 @@ export const updateRoadmap = async (req: Request, res: Response) => {
 export const exportRoadmapPdf = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
-        
+
         // Gọi service tạo PDF (Trả về một Stream)
         const pdfStream = await exportService.generateSingleRoadmapPdf(id);
-        
+
         // Thiết lập Headers cho trình duyệt nhận diện file PDF
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `attachment; filename=roadmap-${id}.pdf`);
-        
+
         // Pipe stream trực tiếp vào response
         pdfStream.pipe(res);
-        
+
         // CỰC KỲ QUAN TRỌNG: Phải gọi .end() để kết thúc stream, nếu không request sẽ bị treo (hang)
         pdfStream.end();
         return;
@@ -815,8 +815,8 @@ export const getAllRoadmaps = async (req: Request, res: Response, next: NextFunc
             }
         });
 
-        const total = await (prisma as any).aiAssessment.count({ 
-            where: { type: 'ROADMAP' } 
+        const total = await (prisma as any).aiAssessment.count({
+            where: { type: 'ROADMAP' }
         });
 
         return res.json({

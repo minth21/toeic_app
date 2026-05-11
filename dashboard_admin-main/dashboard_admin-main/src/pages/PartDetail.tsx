@@ -96,7 +96,7 @@ interface AIQuestionInfo {
 interface PassageGroup {
     passageTitle?: string;
     passage: string;
-    passageImageUrl?: string; 
+    passageImageUrl?: string;
     audioUrl?: string;
     questions: Question[];
 }
@@ -105,11 +105,11 @@ interface Question {
     id: string;
     questionNumber: number;
     questionText?: string;
-    imageUrl?: string; 
-    audioUrl?: string; 
+    imageUrl?: string;
+    audioUrl?: string;
     passageTitle?: string;
-    passageImageUrl?: string; 
-    questionScanUrl?: string; 
+    passageImageUrl?: string;
+    questionScanUrl?: string;
     optionA?: string;
     optionB?: string;
     optionC?: string;
@@ -124,7 +124,7 @@ interface Question {
     keyVocabulary?: string;
     analysis?: string;
     evidence?: string;
-    transcript?: string; 
+    transcript?: string;
 }
 
 interface Part {
@@ -554,7 +554,14 @@ export default function PartDetail() {
             if (record.keyVocabulary) {
                 try {
                     const vocab = JSON.parse(record.keyVocabulary);
-                    (formValues as any).keyVocabulary = Array.isArray(vocab) ? vocab : [];
+                    const parsedVocab = Array.isArray(vocab) ? vocab.map((v: any) => ({
+                        ...v,
+                        word: v.word || v.text || '',
+                        type: v.type || v.lemma || '',
+                        ipa: v.ipa || v.pronunciation || '',
+                        meaning: v.meaning || ''
+                    })) : [];
+                    (formValues as any).keyVocabulary = parsedVocab;
                 } catch (e) {
                     console.error('Error parsing keyVocabulary', e);
                 }
@@ -790,16 +797,16 @@ export default function PartDetail() {
                                 <div style={{ marginTop: 16 }}>
                                     <p>Part 5 hiện đang có <b>{existingCount}</b> câu hỏi. Bạn muốn xử lý như thế nào?</p>
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 20 }}>
-                                        <Alert 
-                                            type="info" 
-                                            showIcon 
-                                            message="Thêm tiếp (Append)" 
+                                        <Alert
+                                            type="info"
+                                            showIcon
+                                            message="Thêm tiếp (Append)"
                                             description="Giữ nguyên câu hỏi cũ. Chỉ thêm dữ liệu vào các vị trí còn trống."
                                         />
-                                        <Alert 
-                                            type="warning" 
-                                            showIcon 
-                                            message="Ghi đè (Replace)" 
+                                        <Alert
+                                            type="warning"
+                                            showIcon
+                                            message="Ghi đè (Replace)"
                                             description="Xóa sạch câu hỏi cũ trong Part này và thay thế bằng dữ liệu mới."
                                         />
                                     </div>
@@ -808,7 +815,7 @@ export default function PartDetail() {
                             footer: (
                                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 24 }}>
                                     <Button onClick={() => modal.destroy()}>Hủy bỏ</Button>
-                                    <Button 
+                                    <Button
                                         danger
                                         onClick={() => {
                                             setPart5ImportMode('replace');
@@ -820,7 +827,7 @@ export default function PartDetail() {
                                     >
                                         Ghi đè (Replace)
                                     </Button>
-                                    <Button 
+                                    <Button
                                         type="primary"
                                         onClick={() => {
                                             setPart5ImportMode('append');
@@ -928,14 +935,14 @@ export default function PartDetail() {
             else if (a) key = a;
 
             if (!key) return '';
-            
+
             // Clean HTML and whitespace for robust comparison
             return key.replace(/<[^>]*>?/gm, ' ').replace(/\s+/g, ' ').trim();
         };
 
         sortedQuestions.forEach((q) => {
             const passage = q.passage || '';
-            const passageImageUrl = q.passageImageUrl; 
+            const passageImageUrl = q.passageImageUrl;
             const audioUrl = q.audioUrl;
             const transcript = q.transcript || '';
 
@@ -975,7 +982,13 @@ export default function PartDetail() {
                                         qVocab.forEach(v => {
                                             const word = v.word || v.text;
                                             if (word && !vocabMap.has(word.toLowerCase())) {
-                                                vocabMap.set(word.toLowerCase(), v);
+                                                vocabMap.set(word.toLowerCase(), {
+                                                    ...v,
+                                                    word: v.word || v.text || '',
+                                                    type: v.type || v.lemma || '',
+                                                    ipa: v.ipa || v.pronunciation || '',
+                                                    meaning: v.meaning || ''
+                                                });
                                             }
                                         });
                                     }
@@ -988,7 +1001,7 @@ export default function PartDetail() {
                             try {
                                 const raw = typeof firstQ.passageTranslationData === 'string' ? JSON.parse(firstQ.passageTranslationData) : firstQ.passageTranslationData;
                                 const rawTranslations = raw.passages || raw.passageTranslations || raw.passageTranslationData;
-                                
+
                                 if (rawTranslations) {
                                     aiTranslations = Array.isArray(rawTranslations) ? rawTranslations : [rawTranslations];
                                 } else if (Array.isArray(raw) && raw.length > 0) {
@@ -1008,7 +1021,7 @@ export default function PartDetail() {
                                 }
 
                                 const jsonQuestions = raw.questions || raw.enrichedQuestions || [];
-                                
+
                                 // Đảm bảo luôn hiển thị ĐẦY ĐỦ các câu hỏi trong nhóm, kể cả khi AI trả thiếu
                                 aiQuestionsInfo = group.questions.map(q => {
                                     const aiQ = jsonQuestions.find((aj: any) => parseInt(aj.questionNumber) === q.questionNumber);
@@ -1018,8 +1031,8 @@ export default function PartDetail() {
                                         evidence: aiQ?.evidence || q.evidence
                                     };
                                 });
-                            } catch (e: unknown) { 
-                                console.error('Lỗi parse AI translations:', e); 
+                            } catch (e: unknown) {
+                                console.error('Lỗi parse AI translations:', e);
                                 aiQuestionsInfo = group.questions.map(q => ({
                                     questionNumber: q.questionNumber,
                                     analysis: q.analysis || q.explanation || 'Chưa có phân tích cho câu này.',
@@ -1033,7 +1046,7 @@ export default function PartDetail() {
                                 evidence: q.evidence
                             }));
                         }
-                        
+
                         vocabulary = Array.from(vocabMap.values());
                     }
 
@@ -1102,7 +1115,7 @@ export default function PartDetail() {
                                                     if (isPart6) setCreatePart6ModalVisible(true);
                                                     else if (part?.partNumber === 7) setCreatePart7ModalVisible(true);
                                                     else if (part?.partNumber === 3) {
-                                                        setPart3ImportData(group.questions); 
+                                                        setPart3ImportData(group.questions);
                                                         setCreatePart3BulkModalVisible(true);
                                                     } else if (part?.partNumber === 4) {
                                                         setPart4ImportData(group.questions);
@@ -1141,7 +1154,6 @@ export default function PartDetail() {
                                             >
                                                 <div dangerouslySetInnerHTML={{
                                                     __html: (isListeningGroup ? (group.questions[0]?.transcript || group.passage) : (group.passage.replace(/<audio.*<\/audio>/, '').trim() || group.questions[0]?.transcript || (group.passageImageUrl ? '' : '<p><i>(Không có nội dung đoạn văn)</i></p>')))
-                                                        .replace(/<p>|<\/p>|<b>|<\/b>|<strong>|<\/strong>/gi, ' ')
                                                         .replace(/&nbsp;/gi, ' ')
                                                         .replace(/\s+/g, ' ')
                                                         .trim()
@@ -1216,12 +1228,12 @@ export default function PartDetail() {
                                                                 </Divider>
                                                                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
                                                                     {vocabulary.map((v: any, i: number) => (
-                                                                        <Tag 
-                                                                            key={i} 
-                                                                            style={{ 
-                                                                                borderRadius: 20, 
-                                                                                margin: 0, 
-                                                                                padding: '5px 16px', 
+                                                                        <Tag
+                                                                            key={i}
+                                                                            style={{
+                                                                                borderRadius: 20,
+                                                                                margin: 0,
+                                                                                padding: '5px 16px',
                                                                                 fontSize: 14,
                                                                                 background: '#F7FEE7',
                                                                                 border: '1px solid #D9F99D',
@@ -1297,18 +1309,18 @@ export default function PartDetail() {
                                                 borderColor: isDark ? 'rgba(255,255,255,0.1)' : '#E2E8F0',
                                                 transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                                                 cursor: 'pointer'
-                                            }} 
-                                            onMouseEnter={(e) => {
-                                                e.currentTarget.style.transform = 'translateY(-2px)';
-                                                e.currentTarget.style.boxShadow = '0 10px 20px -5px rgba(37, 99, 235, 0.1)';
-                                                e.currentTarget.style.borderColor = '#2563EB';
                                             }}
-                                            onMouseLeave={(e) => {
-                                                e.currentTarget.style.transform = 'translateY(0)';
-                                                e.currentTarget.style.boxShadow = 'none';
-                                                e.currentTarget.style.borderColor = isDark ? 'rgba(255,255,255,0.1)' : '#E2E8F0';
-                                            }}
-                                            className="hover-item-shadow-light">
+                                                onMouseEnter={(e) => {
+                                                    e.currentTarget.style.transform = 'translateY(-2px)';
+                                                    e.currentTarget.style.boxShadow = '0 10px 20px -5px rgba(37, 99, 235, 0.1)';
+                                                    e.currentTarget.style.borderColor = '#2563EB';
+                                                }}
+                                                onMouseLeave={(e) => {
+                                                    e.currentTarget.style.transform = 'translateY(0)';
+                                                    e.currentTarget.style.boxShadow = 'none';
+                                                    e.currentTarget.style.borderColor = isDark ? 'rgba(255,255,255,0.1)' : '#E2E8F0';
+                                                }}
+                                                className="hover-item-shadow-light">
                                                 <div style={{ flex: 1 }}>
                                                     <Space size="middle" align="start">
                                                         <div style={{
@@ -1424,8 +1436,8 @@ export default function PartDetail() {
                 let vocabList: any[] = [];
                 if (record.keyVocabulary) {
                     try {
-                        vocabList = typeof record.keyVocabulary === 'string' 
-                            ? JSON.parse(record.keyVocabulary) 
+                        vocabList = typeof record.keyVocabulary === 'string'
+                            ? JSON.parse(record.keyVocabulary)
                             : record.keyVocabulary;
                     } catch (e) {
                         console.error('Error parsing vocab for row', record.questionNumber, e);
@@ -1440,7 +1452,7 @@ export default function PartDetail() {
                         {vocabList.length > 0 && (
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', justifyContent: 'flex-start' }}>
                                 {vocabList.map((v: any, idx: number) => (
-                                    <Tooltip key={idx} title={`${v.ipa || ''} - ${v.meaning || ''}`}>
+                                    <Tooltip key={idx} title={`${v.ipa || v.pronunciation || ''} - ${v.meaning || ''}`}>
                                         <Tag color="blue" style={{ fontSize: '11px', margin: 0, borderRadius: '4px', cursor: 'help' }}>
                                             {v.word || v.text}
                                         </Tag>
@@ -1462,7 +1474,7 @@ export default function PartDetail() {
                 <div
                     className="explanation-content"
                     style={{ textAlign: 'left', fontSize: '13px', maxHeight: '150px', overflow: 'hidden', color: '#475569' }}
-                    dangerouslySetInnerHTML={{ 
+                    dangerouslySetInnerHTML={{
                         __html: (text || 'Chưa có giải thích')
                             .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
                     }}
@@ -1621,11 +1633,11 @@ export default function PartDetail() {
                                 size="large"
                                 icon={<ArrowLeftOutlined />}
                                 onClick={() => navigate(`/exam-bank/${testId}`)}
-                                style={{ 
-                                    borderRadius: 12, 
-                                    fontWeight: 600, 
-                                    display: 'flex', 
-                                    alignItems: 'center', 
+                                style={{
+                                    borderRadius: 12,
+                                    fontWeight: 600,
+                                    display: 'flex',
+                                    alignItems: 'center',
                                     gap: 8,
                                     border: '1px solid #BFDBFE',
                                     color: '#1E40AF',
@@ -1708,8 +1720,8 @@ export default function PartDetail() {
                                     </div>
                                     {canEditOrCreate && (
                                         <Space size="middle">
-                                            <Button 
-                                                icon={<EditOutlined />} 
+                                            <Button
+                                                icon={<EditOutlined />}
                                                 onClick={() => {
                                                     setTempAudioFiles(null);
                                                     setIsAudioModalVisible(true);
@@ -1719,9 +1731,9 @@ export default function PartDetail() {
                                                 Thay đổi
                                             </Button>
                                             {part?.audioUrl && (
-                                                <Button 
-                                                    danger 
-                                                    icon={<DeleteOutlined />} 
+                                                <Button
+                                                    danger
+                                                    icon={<DeleteOutlined />}
                                                     onClick={handleDeletePartAudio}
                                                     style={{ borderRadius: 8, fontWeight: 600 }}
                                                 >
@@ -1828,9 +1840,9 @@ export default function PartDetail() {
                                                     }
                                                 }}
                                                 size="large"
-                                                style={{ 
-                                                    borderRadius: 12, 
-                                                    fontWeight: 600, 
+                                                style={{
+                                                    borderRadius: 12,
+                                                    fontWeight: 600,
                                                     height: 44,
                                                     border: '1px solid #BFDBFE',
                                                     color: isViewOnlyForSpecialist ? '#94A3B8' : '#1E40AF',
@@ -1847,9 +1859,9 @@ export default function PartDetail() {
                                             <Button
                                                 onClick={handleDownloadTemplate}
                                                 size="large"
-                                                style={{ 
-                                                    borderRadius: 12, 
-                                                    fontWeight: 600, 
+                                                style={{
+                                                    borderRadius: 12,
+                                                    fontWeight: 600,
                                                     height: 44,
                                                     border: '1px solid #BFDBFE',
                                                     color: '#1E40AF',
@@ -2012,7 +2024,7 @@ export default function PartDetail() {
                 cancelButtonProps={{ style: { borderRadius: 8 } }}
             >
                 <div style={{ padding: '10px 0' }}>
-                    <AudioBanner 
+                    <AudioBanner
                         currentAudioUrl={part?.audioUrl}
                         newAudioFile={tempAudioFiles as any}
                         onAudioFileChange={setTempAudioFiles as any}

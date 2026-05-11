@@ -553,25 +553,36 @@ const RoadmapAudit: React.FC = () => {
                     <div style={{ padding: '0 0 40px 0' }}>
                         {/* Scoreboard Section */}
                         <div style={{ background: isDark ? 'rgba(30, 41, 59, 0.5)' : '#fff', padding: '32px 24px', borderBottom: `1px solid ${isDark ? '#334155' : '#F1F5F9'}`, marginBottom: 32 }}>
-                            <Row gutter={32}>
-                                <Col span={12}>
-                                    <Card variant="borderless" style={{ background: isDark ? 'rgba(59, 130, 246, 0.1)' : '#EFF6FF', borderRadius: 24, border: `1px solid ${isDark ? 'rgba(59, 130, 246, 0.2)' : '#DBEAFE'}` }}>
+                            <Row gutter={24}>
+                                <Col span={8}>
+                                    <Card variant="borderless" style={{ background: isDark ? 'rgba(245, 158, 11, 0.1)' : '#FFFBEB', borderRadius: 24, border: `1px solid ${isDark ? 'rgba(245, 158, 11, 0.2)' : '#FEF3C7'}` }}>
                                         <Statistic
-                                            title={<span style={{ color: isDark ? '#93C5FD' : '#1E40AF', fontWeight: 700, fontSize: 13, textTransform: 'uppercase', letterSpacing: '0.8px' }}>Điểm mục tiêu</span>}
-                                            value={selectedRoadmap.content?.targetScore || 0}
-                                            prefix={<TrophyOutlined style={{ color: '#3B82F6', marginRight: 8 }} />}
-                                            suffix={<span style={{ fontSize: 16, marginLeft: 4, fontWeight: 600 }}>pts</span>}
-                                            valueStyle={{ color: isDark ? '#60A5FA' : '#1E3A8A', fontWeight: 900, fontSize: 32 }}
+                                            title={<span style={{ color: isDark ? '#FCD34D' : '#D97706', fontWeight: 700, fontSize: 13, textTransform: 'uppercase', letterSpacing: '0.8px' }}>Năng lực hiện tại</span>}
+                                            value={selectedRoadmap.content?.scoreDetails?.estimatedScore || selectedRoadmap.score || 0}
+                                            prefix={<HistoryOutlined style={{ color: '#F59E0B', marginRight: 8 }} />}
+                                            suffix={<span style={{ fontSize: 14, marginLeft: 4, fontWeight: 600 }}>pts</span>}
+                                            valueStyle={{ color: isDark ? '#FBBF24' : '#B45309', fontWeight: 900, fontSize: 28 }}
                                         />
                                     </Card>
                                 </Col>
-                                <Col span={12}>
+                                <Col span={8}>
+                                    <Card variant="borderless" style={{ background: isDark ? 'rgba(59, 130, 246, 0.1)' : '#EFF6FF', borderRadius: 24, border: `1px solid ${isDark ? 'rgba(59, 130, 246, 0.2)' : '#DBEAFE'}` }}>
+                                        <Statistic
+                                            title={<span style={{ color: isDark ? '#93C5FD' : '#1E40AF', fontWeight: 700, fontSize: 13, textTransform: 'uppercase', letterSpacing: '0.8px' }}>Điểm mục tiêu</span>}
+                                            value={selectedRoadmap.content?.scoreDetails?.targetScore || selectedRoadmap.content?.targetScore || 0}
+                                            prefix={<TrophyOutlined style={{ color: '#3B82F6', marginRight: 8 }} />}
+                                            suffix={<span style={{ fontSize: 14, marginLeft: 4, fontWeight: 600 }}>pts</span>}
+                                            valueStyle={{ color: isDark ? '#60A5FA' : '#1E3A8A', fontWeight: 900, fontSize: 28 }}
+                                        />
+                                    </Card>
+                                </Col>
+                                <Col span={8}>
                                     <Card variant="borderless" style={{ background: isDark ? 'rgba(139, 92, 246, 0.1)' : '#F5F3FF', borderRadius: 24, border: `1px solid ${isDark ? 'rgba(139, 92, 246, 0.2)' : '#EDE9FE'}` }}>
                                         <Statistic
                                             title={<span style={{ color: isDark ? '#C4B5FD' : '#5B21B6', fontWeight: 700, fontSize: 13, textTransform: 'uppercase', letterSpacing: '0.8px' }}>Thời gian dự kiến</span>}
-                                            value={selectedRoadmap.content?.estimatedTimeToTarget || 'Không có'}
+                                            value={selectedRoadmap.content?.estimatedCompletionTime || selectedRoadmap.content?.estimatedTimeToTarget || 'Không có'}
                                             prefix={<ClockCircleOutlined style={{ color: '#8B5CF6', marginRight: 8 }} />}
-                                            valueStyle={{ color: isDark ? '#A78BFA' : '#4C1D95', fontWeight: 900, fontSize: 26 }}
+                                            valueStyle={{ color: isDark ? '#A78BFA' : '#4C1D95', fontWeight: 900, fontSize: 20, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
                                         />
                                     </Card>
                                 </Col>

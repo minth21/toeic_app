@@ -921,3 +921,30 @@ export const generatePersonalizedRoadmapService = async (
 
     return parseAIResponse(result.response.text());
 };
+
+export const generatePart4ExplanationService = async (transcript: string, questions: any[]) => {
+    const prompt = `Nhiệm vụ: Dựa vào đoạn transcript (lời thoại) sau đây, hãy giải thích chi tiết đáp án cho các câu hỏi thuộc Part 4 TOEIC.
+    Transcript: "${transcript}"
+    
+    Câu hỏi: ${JSON.stringify(questions)}
+    
+    Output JSON: [
+        {
+            "questionNumber": 71,
+            "translation": "...",
+            "explanation": "...",
+            "evidence": "..."
+        }
+    ]`;
+
+    const result = await executeAITaskWithRetry({
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig: {
+            temperature: 0.2,
+            maxOutputTokens: 2000,
+            responseMimeType: "application/json",
+        }
+    });
+
+    return parseAIResponse(result.response.text());
+};

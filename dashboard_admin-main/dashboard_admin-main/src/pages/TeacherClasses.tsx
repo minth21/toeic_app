@@ -501,7 +501,7 @@ export default function TeacherClasses() {
             title: 'Loại bài',
             key: 'testType',
             align: 'center' as const,
-            render: (record: any) => record.test?.title || record.part?.partName || 'Luyện tập lẻ'
+            render: (record: any) => record.part?.partName || record.test?.title || 'Luyện tập lẻ'
         },
         {
             title: 'Số câu đúng',
@@ -852,12 +852,16 @@ export default function TeacherClasses() {
 
                                                 // Initialize form with existing data
                                                 const content = latestRoadmap.content;
+                                                const aiPhases = content?.phases || content?.roadmap || [];
                                                 reset({
                                                     summary: latestRoadmap.summary || content?.summary || '',
-                                                    roadmap: (content?.roadmap || []).map((step: any) => ({
-                                                        ...step,
-                                                        // Convert array focus to comma string for easy editing
-                                                        focus: Array.isArray(step.focus) ? step.focus.join(', ') : step.focus
+                                                    roadmap: aiPhases.map((step: any) => ({
+                                                        phase: step.name || step.phase || '',
+                                                        duration: step.duration || '',
+                                                        // Convert array focusTopics to comma string for easy editing
+                                                        focus: Array.isArray(step.focusTopics) ? step.focusTopics.join(', ') 
+                                                               : (Array.isArray(step.focus) ? step.focus.join(', ') : (step.focusTopics || step.focus || '')),
+                                                        expertTips: step.expertTip || step.expertTips || ''
                                                     }))
                                                 });
                                             } else {

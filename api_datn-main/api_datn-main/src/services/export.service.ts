@@ -66,7 +66,7 @@ export class ExportService {
             const row = worksheet.addRow([
                 index + 1,
                 attempt.createdAt.toLocaleDateString('vi-VN'),
-                attempt.test?.title || attempt.part?.partName || 'Luyện tập lẻ',
+                attempt.part?.partName || attempt.test?.title || 'Luyện tập lẻ',
                 `${attempt.correctCount}/${attempt.totalQuestions}`,
                 attempt.totalScore || 0
             ]);
@@ -158,7 +158,7 @@ export class ExportService {
                             ...history.map((a: any, i: number) => [
                                 { text: (i + 1).toString(), alignment: centerAlign, fontSize: 10 },
                                 { text: a.createdAt.toLocaleDateString('vi-VN'), fontSize: 10 },
-                                { text: a.test?.title || a.part?.partName || 'Luyện tập lẻ', fontSize: 10 },
+                                { text: a.part?.partName || a.test?.title || 'Luyện tập lẻ', fontSize: 10 },
                                 { text: `${a.correctCount}/${a.totalQuestions}`, alignment: centerAlign, fontSize: 10 },
                                 { text: (a.totalScore || 0).toString(), alignment: centerAlign, bold: true, color: '#1E3A8A', fontSize: 10 }
                             ])

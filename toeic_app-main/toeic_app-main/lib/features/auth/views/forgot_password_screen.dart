@@ -28,7 +28,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   Future<void> _handleSubmit() async {
     if (_formKey.currentState!.validate()) {
       final authVM = context.read<AuthViewModel>();
-      
+
       final success = await authVM.requestPasswordReset(
         username: _usernameController.text.trim(),
         email: _emailController.text.trim(),
@@ -77,7 +77,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       appBar: AppBar(
         title: Text(
           'Quên mật khẩu',
-          style: GoogleFonts.inter(fontWeight: FontWeight.bold),
+          style: GoogleFonts.inter(
+            fontWeight: FontWeight.bold,
+            color: Colors.black,
+          ),
         ),
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -98,7 +101,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 ),
               ),
               const SizedBox(height: 32),
-              
+
               // Username
               TextFormField(
                 controller: _usernameController,
@@ -120,7 +123,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 },
               ),
               const SizedBox(height: 16),
-              
+
               // Email (Optional)
               TextFormField(
                 controller: _emailController,
@@ -136,7 +139,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-              
+
               // Reason
               TextFormField(
                 controller: _reasonController,
@@ -152,7 +155,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 ),
               ),
               const SizedBox(height: 32),
-              
+
               ElevatedButton(
                 onPressed: authVM.isLoading ? null : _handleSubmit,
                 style: ElevatedButton.styleFrom(

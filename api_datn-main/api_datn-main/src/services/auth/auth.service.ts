@@ -12,8 +12,8 @@ import { logger } from '../../utils/logger';
 import { prisma } from '../../config/prisma';
 import bcrypt from 'bcrypt';
 import { User } from '@prisma/client';
-import { generateToken, verifyToken } from '../../utils/jwt';
-// import { emailService } from '../email/email.service';
+import { verifyToken, generateToken } from '../../utils/jwt';
+import { emailService } from '../email/email.service';
 
 const SALT_ROUNDS = 10;
 
@@ -184,10 +184,17 @@ export class AuthService {
                 },
             });
 
-            // 3. Thông báo cho Admin (Tìm admin đầu tiên hoặc tất cả admin)
+            // 3. Thông báo qua Email cho Học viên
+            const userEmail = email || user?.email;
+            if (userEmail) {
+                // Background task, no need to await strictly for user response
+                emailService.sendPasswordRequestConfirmation(userEmail, username).catch(e => logger.error(e));
+            }
+
+            // 4. Thông báo cho Admin (Notification & Email)
             const admins = await prisma.user.findMany({
                 where: { role: 'ADMIN' },
-                select: { id: true },
+                select: { id: true, email: true },
             });
 
             for (const admin of admins) {
@@ -200,11 +207,15 @@ export class AuthService {
                         relatedId: request.id,
                     },
                 });
+
+                if (admin.email) {
+                    emailService.sendAdminAlert(admin.email, username, reason || 'Không có').catch(e => logger.error(e));
+                }
             }
 
             return {
                 success: true,
-                message: 'Yêu cầu của bạn đã được gửi tới Admin. Vui lòng chờ Admin xử lý và cấp lại mật khẩu mới.',
+                message: 'Yêu cầu của bạn đã được gửi tới Admin. Vui lòng kiểm tra email để xác nhận.',
             };
         } catch (error) {
             logger.error('Request password reset error:', error);

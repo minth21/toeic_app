@@ -244,13 +244,30 @@ export default function CreatePart6Modal({ open, onCancel, onSuccess, partId, mo
             const passageFiles = (passageFileLists[index] || []).map(f => f.originFileObj).filter(Boolean);
             const questionFiles = (questionFileLists[index] || []).map(f => f.originFileObj).filter(Boolean);
 
-            if (passageFiles.length === 0 && questionFiles.length === 0) {
+            // Collect existing Cloudinary URLs (from edit mode - files with url but no originFileObj)
+            const existingPassageUrls = (passageFileLists[index] || [])
+                .filter(f => !f.originFileObj && (f.url || f.response?.data?.url))
+                .map(f => f.url || f.response?.data?.url)
+                .filter(Boolean);
+            const existingQuestionUrls = (questionFileLists[index] || [])
+                .filter(f => !f.originFileObj && (f.url || f.response?.data?.url))
+                .map(f => f.url || f.response?.data?.url)
+                .filter(Boolean);
+
+            const allImageUrls = [...existingPassageUrls, ...existingQuestionUrls];
+
+            if (passageFiles.length === 0 && questionFiles.length === 0 && allImageUrls.length === 0) {
                 if (!isBatch) message.warning('Vui lòng upload ảnh!');
                 return;
             }
 
             passageFiles.forEach(file => formData.append('passageImages', file as any));
             questionFiles.forEach(file => formData.append('questionImages', file as any));
+
+            // Send existing URLs to backend for reprocessing
+            if (allImageUrls.length > 0) {
+                formData.append('imageUrls', JSON.stringify(allImageUrls));
+            }
 
             const response = await api.post('/ai/magic-scan-part6', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' },
@@ -284,7 +301,7 @@ export default function CreatePart6Modal({ open, onCancel, onSuccess, partId, mo
                     keyVocabulary: (aiData.vocabulary || []).map((v: any) => ({
                         word: v.word || v.text || '',
                         type: v.type || v.lemma || '',
-                        pronunciation: v.pronunciation || v.ipa || '',
+                        ipa: v.ipa || v.pronunciation || '',
                         meaning: v.meaning || ''
                     })),
                     questions: aiData.questions.map((q: any, idx: number) => ({
@@ -702,7 +719,7 @@ export default function CreatePart6Modal({ open, onCancel, onSuccess, partId, mo
                                                                                     <Row gutter={8}>
                                                                                         <Col span={8}><Form.Item name={[vf.name, 'word']} noStyle><Input placeholder="Từ vựng" style={{ borderRadius: 6 }} /></Form.Item></Col>
                                                                                         <Col span={6}><Form.Item name={[vf.name, 'type']} noStyle><Input placeholder="Loại" style={{ borderRadius: 6 }} /></Form.Item></Col>
-                                                                                        <Col span={10}><Form.Item name={[vf.name, 'pronunciation']} noStyle><Input placeholder="Phiên âm" style={{ borderRadius: 6 }} /></Form.Item></Col>
+                                                                                        <Col span={10}><Form.Item name={[vf.name, 'ipa']} noStyle><Input placeholder="Phiên âm" style={{ borderRadius: 6 }} /></Form.Item></Col>
                                                                                     </Row>
                                                                                     <Form.Item name={[vf.name, 'meaning']} style={{ marginTop: 8, marginBottom: 0 }}><Input placeholder="Nghĩa của từ" style={{ borderRadius: 6 }} /></Form.Item>
                                                                                 </Card>

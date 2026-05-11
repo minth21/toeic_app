@@ -313,6 +313,17 @@ export default function ExamBank() {
 
     const columns: ColumnsType<Exam> = [
         {
+            title: 'STT',
+            key: 'stt',
+            width: 60,
+            align: 'center' as const,
+            render: (_, __, index) => (
+                <span style={{ fontWeight: 600, color: token.colorTextSecondary }}>
+                    {(page - 1) * pageSize + index + 1}
+                </span>
+            ),
+        },
+        {
             title: 'Tên đề thi',
             dataIndex: 'title',
             key: 'title',

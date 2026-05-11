@@ -946,10 +946,10 @@ class _TestSimulationScreenState extends State<TestSimulationScreen> {
                     _selectedPart?.partNumber == 7;
                 final currentQuestion = questions[_currentIndex];
                 final String? currentPassage = currentQuestion.passage;
+                final bool hasPassageData = (currentPassage != null && currentPassage.isNotEmpty) || 
+                                            currentQuestion.passageTranslations.isNotEmpty;
 
-                if (isReadingPartWithPassage &&
-                    currentPassage != null &&
-                    currentPassage.isNotEmpty) {
+                if (isReadingPartWithPassage && hasPassageData) {
                   return Column(
                     children: [
                       // TOP: Passage (Scrollable + Touchable)
@@ -970,7 +970,7 @@ class _TestSimulationScreenState extends State<TestSimulationScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 const SizedBox(height: 16),
-                                _buildPassageHeader(currentPassage, currentQuestion.passageTranslations, currentQuestion.questionNumber, currentQuestion.passageImageUrls, currentQuestion.passageTitle),
+                                _buildPassageHeader(currentPassage ?? '', currentQuestion.passageTranslations, currentQuestion.questionNumber, currentQuestion.passageImageUrls, currentQuestion.passageTitle),
                                 // Nếu câu hỏi có ảnh (Magic Scan image) — hiển thị tapable
                                 if (currentQuestion.imageUrl != null && currentQuestion.imageUrl!.isNotEmpty) ...[
                                   const SizedBox(height: 16),

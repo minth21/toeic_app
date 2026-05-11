@@ -40,14 +40,12 @@ class ReadingReviewScreen extends StatefulWidget {
     required Map<String, dynamic>? aiData,
     required String? userAnswer,
   }) {
+    final bool hasTouchablePassage = question.passageTranslations.isNotEmpty;
     // Fallback logic for parts 6/7
     final String? displayExplanation = (question.explanation != null && question.explanation!.isNotEmpty)
         ? question.explanation
-        : question.fullPassageTranslation;
+        : (hasTouchablePassage ? null : question.fullPassageTranslation);
     
-    // Determine if we should show the generic explanation block
-    final bool showExplanation = displayExplanation != null && displayExplanation.isNotEmpty;
-
     final String? analysis = (question.analysis != null && question.analysis!.isNotEmpty)
         ? question.analysis
         : (aiData != null ? aiData['analysis'] : null);
@@ -106,8 +104,20 @@ class ReadingReviewScreen extends StatefulWidget {
           const SizedBox(height: 16),
         ],
 
+        // Dịch bài đọc (Touchable Passage)
+        if (hasTouchablePassage) ...[
+          _staticSectionHeader('Dịch bài đọc', Icons.translate, const Color(0xFF64748B)),
+          TouchablePassageWidget(
+            htmlContent: '', 
+            translations: question.passageTranslations,
+            isReviewMode: true,
+            showAllTranslations: true, 
+          ),
+          const SizedBox(height: 16),
+        ],
+
         // Generic Explanation (if other fields are empty or as summary)
-        if (showExplanation && analysis == null) ...[
+        if (displayExplanation != null && analysis == null) ...[
           _staticSectionHeader('Giải thích chi tiết', Icons.info_outline, const Color(0xFF64748B)),
           HtmlWidget(displayExplanation, textStyle: AppTypography.friendly(fontSize: 14, color: AppColors.textPrimary, height: 1.6)),
           const SizedBox(height: 16),
@@ -588,7 +598,9 @@ class _ReadingReviewScreenState extends State<ReadingReviewScreen> {
       );
     }
 
-    final bool hasPassage = _rawPassage.trim().isNotEmpty;
+    final currentQ = questions.isNotEmpty ? questions[_activeIndex] : null;
+    final bool hasPassage = _rawPassage.trim().isNotEmpty || 
+                            (currentQ != null && currentQ.passageTranslations.isNotEmpty);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -1370,6 +1382,47 @@ class _ReadingReviewScreenState extends State<ReadingReviewScreen> {
                     height: 1.6,
                     color: _slateText,
                     fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+        // 3. Generic Explanation (Part 5 & fallback khi không có analysis)
+        if (displayExplanation != null && displayExplanation.isNotEmpty && (analysis == null || analysis.isEmpty))
+          Container(
+            width: double.infinity,
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.info_outline_rounded, color: Color(0xFF64748B), size: 20),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Giải thích chi tiết',
+                      style: GoogleFonts.inter(
+                        fontWeight: FontWeight.bold,
+                        color: const Color(0xFF475569),
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                HtmlWidget(
+                  displayExplanation,
+                  textStyle: AppTypography.friendly(
+                    fontSize: 14,
+                    height: 1.6,
+                    color: _slateText,
                   ),
                 ),
               ],

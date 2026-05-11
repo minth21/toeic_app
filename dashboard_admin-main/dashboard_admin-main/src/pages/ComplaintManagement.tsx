@@ -242,8 +242,8 @@ export default function ComplaintManagement() {
                     onClick={fetchComplaints}
                     loading={loading}
                     size="large"
-                    style={{ 
-                        borderRadius: 10, 
+                    style={{
+                        borderRadius: 10,
                         boxShadow: 'var(--card-shadow)',
                         border: '1px solid var(--border-color)',
                         fontWeight: 600
@@ -286,14 +286,14 @@ export default function ComplaintManagement() {
                         }}>
                             <SendOutlined />
                         </div>
-                        <span style={{ fontSize: 18, fontWeight: 700 }}>Gửi Góp Ý Bài Thi</span>
+                        <span style={{ fontSize: 18, fontWeight: 700 }}>GÓP Ý BÀI THI</span>
                     </Space>
                 }
                 open={createModalVisible}
                 onCancel={() => {
                     setCreateModalVisible(false);
                     form.resetFields();
-                }}
+                }}  
                 onOk={() => form.submit()}
                 confirmLoading={submitting}
                 okText="Gửi góp ý"
@@ -311,14 +311,14 @@ export default function ComplaintManagement() {
             >
                 <div style={{ marginTop: 24 }}>
                     <Form form={form} layout="vertical" onFinish={handleCreateComplaint}>
-                        <Form.Item 
-                            name="testId" 
-                            label={<span style={{ fontWeight: 600 }}>Chọn bài thi cần góp ý</span>} 
+                        <Form.Item
+                            name="testId"
+                            label={<span style={{ fontWeight: 600 }}>Chọn bài thi cần góp ý</span>}
                             rules={[{ required: true, message: 'Vui lòng chọn bài thi!' }]}
                         >
-                            <Select 
-                                size="large" 
-                                showSearch 
+                            <Select
+                                size="large"
+                                showSearch
                                 placeholder="Tìm kiếm bài thi..."
                                 optionFilterProp="children"
                                 filterOption={(input, option: any) =>
@@ -328,14 +328,14 @@ export default function ComplaintManagement() {
                                 style={{ borderRadius: 8 }}
                             />
                         </Form.Item>
-                        <Form.Item 
-                            name="content" 
-                            label={<span style={{ fontWeight: 600 }}>Nội dung góp ý / báo lỗi</span>} 
+                        <Form.Item
+                            name="content"
+                            label={<span style={{ fontWeight: 600 }}>Nội dung góp ý / báo lỗi</span>}
                             rules={[{ required: true, message: 'Vui lòng nhập nội dung!' }]}
                         >
-                            <Input.TextArea 
-                                rows={5} 
-                                placeholder="Mô tả chi tiết lỗi (Ví dụ: Câu 5 Part 2 bị sai đáp án...)" 
+                            <Input.TextArea
+                                rows={5}
+                                placeholder="Mô tả chi tiết lỗi (Ví dụ: Câu 5 Part 2 bị sai đáp án...)"
                                 style={{ borderRadius: 8, padding: '12px' }}
                             />
                         </Form.Item>
